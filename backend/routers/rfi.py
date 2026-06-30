@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from models.schemas import RFIQueryResponse
 
 from database.connection import get_db
 from agents.rfi_knowledge_agent import answer_rfi_query
@@ -29,7 +30,7 @@ class CreateRFIRequest(BaseModel):
     is_resolved: bool = False
 
 
-@router.post("/query")
+@router.post("/query" , response_model=RFIQueryResponse)
 async def query_rfi(request: RFIQueryRequest):
     if not request.query or len(request.query.strip()) < 3:
         raise HTTPException(status_code=400, detail="Query must be at least 3 characters")

@@ -165,3 +165,4 @@ class DashboardSummaryResponse(BaseModel):
     open_rfis: int
     recent_agent_runs: List[Any]
     project_health_score: float
+    purchase_orders: List[Any] = Field(default_factory=list, description="Recent purchase orders")

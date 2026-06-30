@@ -164,6 +164,19 @@ async def get_documents():
     finally:
         db.close()
 
+@router.get("/equipment")
+async def get_equipment_items():
+    db = get_db()
+    try:
+        rows = db.execute(
+            "SELECT id, item_code, description, equipment_class FROM equipment_items ORDER BY item_code"
+        ).fetchall()
+        return {"equipment_items": [dict(r) for r in rows]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
 
 def parse_submittal_attributes(text: str, equipment_class: str) -> dict:
     user_message = f"""Extract technical performance attributes from this vendor submittal document.

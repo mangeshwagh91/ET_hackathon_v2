@@ -39,6 +39,11 @@ const api = {
     return handleResponse(res);
   },
 
+  getEquipmentItems: async () => {
+    const res = await fetch(`${BASE}/upload/equipment`);
+    return handleResponse(res);
+  },
+
   runComplianceCheck: async (poId) => {
     const res = await fetch(`${BASE}/compliance/run/${poId}`, {
       method: "POST",

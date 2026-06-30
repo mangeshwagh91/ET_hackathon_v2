@@ -20,6 +20,16 @@ export default function Compliance() {
   const [error, setError] = useState(null);
   const [selectedNcr, setSelectedNcr] = useState(null);
   const [status, setStatus] = useState("");
+
+  const [equipmentList, setEquipmentList] = useState([]);
+
+  useEffect(() => {
+    api
+      .getEquipmentItems()
+      .then((data) => setEquipmentList(data.equipment_items || []))
+      .catch(() => {});
+  }, []);
+
   const navigate = useNavigate();
 
   async function handleSpecUpload() {
@@ -159,6 +169,23 @@ export default function Compliance() {
               onChange={(e) => setPoNumber(e.target.value)}
               className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
+            <select
+              value={equipmentItemId}
+              onChange={(e) => setEquipmentItemId(e.target.value)}
+              className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+            >
+              {equipmentList.length === 0 ? (
+                <option value="eq-ups-moda-001">
+                  EQ-UPS-MODA-001 (default)
+                </option>
+              ) : (
+                equipmentList.map((eq) => (
+                  <option key={eq.id} value={eq.id}>
+                    {eq.item_code} — {eq.description}
+                  </option>
+                ))
+              )}
+            </select>
             <button
               onClick={handleSubmittalUpload}
               disabled={!submFile || uploadingSubm}

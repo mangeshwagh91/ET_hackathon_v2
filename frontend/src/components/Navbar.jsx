@@ -11,7 +11,7 @@ export default function Navbar() {
   const location = useLocation();
 
   return (
-    <nav className="bg-slate-900 text-white shadow-lg">
+    <nav className="bg-slate-900 text-white shadow-lg no-print">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-8">
         <div className="font-bold text-lg text-teal-400 tracking-wide">
           DCPI
@@ -19,11 +19,13 @@ export default function Navbar() {
             Data Centre Project Intelligence
           </span>
         </div>
+
         <div className="flex gap-1">
           {navLinks.map((link) => {
             const isActive =
               location.pathname === link.to ||
               (link.to !== "/" && location.pathname.startsWith(link.to));
+
             return (
               <Link
                 key={link.to}
@@ -43,3 +45,4 @@ export default function Navbar() {
     </nav>
   );
 }
+

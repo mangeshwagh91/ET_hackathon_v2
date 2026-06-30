@@ -5,6 +5,7 @@ import io
 import logging
 from datetime import datetime
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from models.schemas import ScheduleRiskResponse
 
 from database.connection import get_db
 from agents.schedule_risk_agent import run_schedule_risk_analysis
@@ -75,7 +76,7 @@ async def import_schedule(file: UploadFile = File(...)):
         db.close()
 
 
-@router.post("/analyze")
+@router.post("/analyze" , response_model=ScheduleRiskResponse)
 async def analyze_schedule():
     try:
         result = run_schedule_risk_analysis()

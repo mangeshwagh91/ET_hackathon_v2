@@ -1,12 +1,13 @@
 import logging
 from fastapi import APIRouter, HTTPException
+from models.schemas import DashboardSummaryResponse
 from database.connection import get_db
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/summary")
+@router.get("/summary" , response_model=DashboardSummaryResponse)
 async def get_dashboard_summary():
     db = get_db()
     try:
