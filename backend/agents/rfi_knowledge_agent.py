@@ -1,208 +1,498 @@
+"""
+RFI Knowledge Agent — DCPI.
+RAG-powered agent that answers project RFI queries by searching
+specification clauses and precedent resolved RFIs using ChromaDB.
+Fully synchronous. Uses call_claude only (Groq primary, Ollama fallback).
+"""
+
+import os
 import json
 import uuid
 import logging
 import re
-from datetime import datetime
-from typing import List, Dict
+from datetime import datetime, timezone
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass, field
 
 from database.connection import get_db
-from services.llm_client import call_claude
-from services.vector_store import search_spec_clauses, search_rfis
+from services.llm_client import call_claude, has_available_provider
+from services.vector_store import search_spec_clauses, search_rfis, CHROMADB_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
-RAG_SYSTEM = """You are a senior technical manager on a Tier IV hyperscale data centre EPC project with 15 years of experience in critical infrastructure construction. You answer questions from the project team using ONLY the information provided in the context below.
+# ── Configuration ──────────────────────────────────────────────────────────────
+MAX_SPEC_RESULTS = int(os.getenv("RFI_MAX_SPEC_RESULTS", "5"))
+MAX_RFI_RESULTS = int(os.getenv("RFI_MAX_RFI_RESULTS", "5"))
+PRECEDENT_THRESHOLD = float(os.getenv("RFI_PRECEDENT_THRESHOLD", "0.82"))
+MAX_CONTEXT_CHARS = int(os.getenv("RFI_MAX_CONTEXT_CHARS", "700"))
+MAX_ANSWER_WORDS = int(os.getenv("RFI_MAX_ANSWER_WORDS", "400"))
 
-Rules:
-1. Answer ONLY from the provided context. Do not use general knowledge not present in the context.
-2. Cite every factual claim using the format [doc_id | clause_number | page].
-3. If a precedent RFI resolved a similar issue, lead your answer with it — it is the most valuable piece of information.
-4. If the context does not contain sufficient information to answer, say explicitly: "The project documents do not contain a definitive answer to this query. Based on available context: [what you can infer]."
-5. Be direct and actionable. Engineers need decisions, not open-ended discussions.
-6. Structure your answer clearly: lead with the precedent (if any), then the direct answer, then supporting detail."""
+AGENT_NAME = "rfi_knowledge"
+AGENT_VERSION = "2.0.0"
+
+# ── Data Classes ───────────────────────────────────────────────────────────────
+
+@dataclass
+class RetrievedSource:
+    rank: int
+    doc_id: str
+    doc_type: str
+    text: str
+    score: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def label(self) -> str:
+        if self.doc_type == "spec_clause":
+            clause_num = self.metadata.get("clause_number", "N/A")
+            doc_id = self.metadata.get("document_id", "N/A")
+            return f"SPEC CLAUSE {clause_num} | doc:{doc_id}"
+        else:
+            rfi_code = self.metadata.get("rfi_code", "N/A")
+            return f"RFI {rfi_code}"
 
 
-def answer_rfi_query(query: str) -> Dict:
+# ── System Prompt ──────────────────────────────────────────────────────────────
+
+RAG_SYSTEM = """You are a senior technical manager on a Tier IV hyperscale data centre EPC project with 15+ years of experience.
+
+Answer questions from the project team using ONLY the information provided in the CONTEXT below.
+
+STRICT RULES:
+1. Answer ONLY from the provided context. Do not use general knowledge.
+2. Cite EVERY factual claim using [SOURCE N] where N is the source number from the context.
+3. If a precedent RFI resolved a similar issue, LEAD your answer with it.
+4. If the context does NOT contain sufficient information, explicitly state: "The project documents do not contain a definitive answer. Recommend raising a formal RFI."
+5. Be DIRECT and ACTIONABLE. Engineers need decisions, not discussions.
+6. Keep your answer under {max_words} words.
+7. Structure: (a) Precedent resolution if any, (b) Specification requirements, (c) Recommended action.
+8. End with: [Confidence: HIGH/MEDIUM/LOW]"""
+
+
+# ── Main Entry Point ───────────────────────────────────────────────────────────
+
+def answer_rfi_query(query: str) -> Dict[str, Any]:
+    """
+    Answer an RFI query using RAG over spec clauses and precedent RFIs.
+    Synchronous. Called by POST /api/rfi/query.
+    """
+    if not query or not query.strip():
+        raise ValueError("Query cannot be empty")
+
     agent_run_id = str(uuid.uuid4())
-    started_ts = datetime.utcnow().isoformat()
-    db = get_db()
+    started_ts = datetime.now(timezone.utc).isoformat()
+    start_time = datetime.now()
 
+    logger.info(f"RFI query [{agent_run_id[:8]}]: {query[:100]}")
+
+    db = get_db()
     try:
         # Step 1: Search spec clauses
-        spec_results = search_spec_clauses(query, n_results=5)
+        if not CHROMADB_AVAILABLE:
+            spec_results = _fallback_spec_search(query, db, MAX_SPEC_RESULTS)
+        else:
+            try:
+                spec_results = search_spec_clauses(query, n_results=MAX_SPEC_RESULTS)
+            except Exception as e:
+                logger.warning(f"Vector spec search unavailable, using DB fallback: {e}")
+                spec_results = _fallback_spec_search(query, db, MAX_SPEC_RESULTS)
 
-        # Step 2: Search RFIs
-        rfi_results = search_rfis(query, n_results=3)
+        # Step 2: Search resolved RFIs (only_resolved=True is the default)
+        if not CHROMADB_AVAILABLE:
+            rfi_results = _fallback_rfi_search(query, db, MAX_RFI_RESULTS)
+        else:
+            try:
+                rfi_results = search_rfis(query, n_results=MAX_RFI_RESULTS)
+            except Exception as e:
+                logger.warning(f"Vector RFI search unavailable, using DB fallback: {e}")
+                rfi_results = _fallback_rfi_search(query, db, MAX_RFI_RESULTS)
 
-        # Step 3: Find precedent RFIs (score > 0.82 and resolved)
-        precedent_rfis = find_precedent_rfis(rfi_results, db)
+        logger.info(
+            f"Retrieved {len(spec_results)} spec clauses, {len(rfi_results)} RFIs"
+        )
 
-        # Step 4: Build context string
-        all_chunks = []
-        context_blocks = []
+        # Step 3: Build structured source list
+        all_chunks = _build_source_list(spec_results, rfi_results)
 
-        for i, chunk in enumerate(spec_results):
-            chunk_label = f"[SPEC_CLAUSE | {chunk['metadata'].get('clause_number', 'N/A')} | doc:{chunk['metadata'].get('document_id', 'N/A')}]"
-            context_blocks.append(f"SOURCE {i+1} {chunk_label}\n{chunk['text'][:800]}")
-            all_chunks.append({
-                "rank": i + 1,
-                "id": chunk["id"],
-                "doc_type": "spec_clause",
-                "clause_number": chunk["metadata"].get("clause_number", ""),
-                "document_id": chunk["metadata"].get("document_id", ""),
-                "score": chunk["score"],
-                "text": chunk["text"]
-            })
+        # Step 4: Find precedent RFIs
+        precedent_rfis = _find_precedent_rfis(rfi_results, db)
 
-        offset = len(spec_results)
-        for i, chunk in enumerate(rfi_results):
-            chunk_label = f"[RFI | {chunk['metadata'].get('rfi_code', 'N/A')} | resolved:{chunk['metadata'].get('is_resolved', 'false')}]"
-            context_blocks.append(f"SOURCE {offset+i+1} {chunk_label}\n{chunk['text'][:800]}")
-            all_chunks.append({
-                "rank": offset + i + 1,
-                "id": chunk["id"],
-                "doc_type": "rfi",
-                "rfi_code": chunk["metadata"].get("rfi_code", ""),
-                "score": chunk["score"],
-                "text": chunk["text"]
-            })
-
-        context_text = "\n\n---\n\n".join(context_blocks) if context_blocks else "No relevant documents found in project corpus."
-
-        precedent_section = ""
         if precedent_rfis:
-            lines = ["PRECEDENT RFIs FOUND (similarity > 0.82):"]
-            for p in precedent_rfis:
-                lines.append(f"- {p['rfi_code']}: {p['title']} | Resolution: {p['resolution_summary'][:200]}")
-            precedent_section = "\n".join(lines)
+            logger.info(f"Found {len(precedent_rfis)} precedent RFIs")
 
-        user_message = f"""CONTEXT:
-{context_text}
+        # Step 5: Build context and call LLM
+        if not all_chunks:
+            answer_text = (
+                "The project documents do not contain any relevant information "
+                "to answer this query. Recommend submitting a formal RFI with "
+                "specific technical details referencing applicable standards."
+            )
+            confidence = 0.0
+        else:
+            context_text = _build_context_text(all_chunks)
+            precedent_text = _build_precedent_text(precedent_rfis)
+            user_message = _build_user_message(context_text, precedent_text, query)
 
-{precedent_section}
+            if not has_available_provider():
+                answer_text = _fallback_answer(all_chunks, precedent_rfis)
+            else:
+                try:
+                    answer_text = call_claude(
+                        RAG_SYSTEM.format(max_words=MAX_ANSWER_WORDS),
+                        user_message,
+                        max_tokens=1200
+                    )
+                except Exception as e:
+                    logger.error(f"LLM call failed for RFI query: {e}")
+                    answer_text = _fallback_answer(all_chunks, precedent_rfis)
 
-QUERY FROM PROJECT TEAM:
-{query}
+            confidence = _compute_confidence(all_chunks)
 
-Answer using only the context above. Cite all claims. Lead with any precedent. Be specific and actionable."""
-
-        # Step 5: Call Claude
-        answer_text = call_claude(RAG_SYSTEM, user_message, max_tokens=1500)
-
-        # Step 6: Build citations
-        citations = extract_citations_from_response(answer_text, all_chunks)
-
-        # Step 7: Compute confidence
-        confidence = compute_confidence(spec_results + rfi_results)
-
-        # Step 8: Log agent run
-        db.execute("""
-            INSERT OR REPLACE INTO agent_runs
-            (id, agent_name, trigger_event, input_summary, output_summary,
-             status, started_ts, completed_ts, records_processed, records_created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            agent_run_id, "rfi_knowledge", f"rfi_query",
-            f"Query: {query[:100]}",
-            f"Confidence: {confidence:.2f} | {len(precedent_rfis)} precedents | {len(all_chunks)} sources",
-            "completed", started_ts, datetime.utcnow().isoformat(),
-            len(all_chunks), 0
-        ))
-        db.commit()
-
+        # Step 6: Build response sources list
         sources = []
-        for chunk in all_chunks:
+        for chunk in all_chunks[:10]:
             sources.append({
-                "doc_id": chunk["id"],
-                "clause_number": chunk.get("clause_number") or chunk.get("rfi_code", ""),
-                "page_ref": chunk.get("document_id", ""),
-                "score": chunk["score"],
-                "text_preview": chunk["text"][:120]
+                "doc_id": chunk.doc_id,
+                "doc_type": chunk.doc_type,
+                "clause_number": (
+                    chunk.metadata.get("clause_number", "")
+                    or chunk.metadata.get("rfi_code", "")
+                ),
+                "page_ref": chunk.metadata.get("document_id", ""),
+                "score": chunk.score,
+                "text_preview": chunk.text[:150]
             })
+
+        # Step 7: Log agent run
+        processing_ms = round(
+            (datetime.now() - start_time).total_seconds() * 1000, 1
+        )
+        _log_agent_run(
+            agent_run_id=agent_run_id,
+            started_ts=started_ts,
+            query=query,
+            confidence=confidence,
+            num_precedents=len(precedent_rfis),
+            num_sources=len(all_chunks),
+            processing_ms=processing_ms,
+            status="completed"
+        )
+
+        logger.info(
+            f"RFI query complete [{agent_run_id[:8]}]: "
+            f"confidence={confidence:.2f}, {len(precedent_rfis)} precedents, "
+            f"{processing_ms:.0f}ms"
+        )
 
         return {
             "answer": answer_text,
             "sources": sources,
-            "precedent_rfis": precedent_rfis,
+            "precedent_rfis": [
+                {
+                    "rfi_id": p["rfi_id"],
+                    "rfi_code": p["rfi_code"],
+                    "title": p["title"],
+                    "resolution_summary": p["resolution_summary"],
+                    "similarity_score": p["similarity_score"]
+                }
+                for p in precedent_rfis
+            ],
             "confidence": confidence,
             "agent_run_id": agent_run_id
         }
 
     except Exception as e:
-        logger.error(f"RFI query failed: {str(e)}")
-        try:
-            db.execute("""
-                INSERT OR REPLACE INTO agent_runs
-                (id, agent_name, trigger_event, status, started_ts, completed_ts, error_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                agent_run_id, "rfi_knowledge", "rfi_query",
-                "failed", started_ts, datetime.utcnow().isoformat(), str(e)
-            ))
-            db.commit()
-        except Exception:
-            pass
-        raise
+        logger.error(f"RFI query failed [{agent_run_id[:8]}]: {e}")
+        _log_agent_run(
+            agent_run_id=agent_run_id,
+            started_ts=started_ts,
+            query=query,
+            status="failed",
+            error=str(e)
+        )
+        raise RuntimeError(f"RFI query processing failed: {e}") from e
+
     finally:
         db.close()
 
 
-def find_precedent_rfis(rfi_results: List[Dict], db) -> List[Dict]:
+# ── Source Building ────────────────────────────────────────────────────────────
+
+def _build_source_list(
+    spec_results: List[Dict],
+    rfi_results: List[Dict]
+) -> List[RetrievedSource]:
+    all_chunks = []
+    rank = 0
+    for chunk in spec_results:
+        rank += 1
+        all_chunks.append(RetrievedSource(
+            rank=rank,
+            doc_id=chunk.get("id", ""),
+            doc_type="spec_clause",
+            text=chunk.get("text", ""),
+            score=chunk.get("score", 0.0),
+            metadata=chunk.get("metadata", {})
+        ))
+    for chunk in rfi_results:
+        rank += 1
+        all_chunks.append(RetrievedSource(
+            rank=rank,
+            doc_id=chunk.get("id", ""),
+            doc_type="rfi",
+            text=chunk.get("text", ""),
+            score=chunk.get("score", 0.0),
+            metadata=chunk.get("metadata", {})
+        ))
+    # Re-sort by score, re-rank
+    all_chunks.sort(key=lambda x: x.score, reverse=True)
+    for i, chunk in enumerate(all_chunks):
+        chunk.rank = i + 1
+    return all_chunks
+
+
+def _score_text_match(query: str, text: str) -> float:
+    q_terms = [t for t in re.findall(r"[a-z0-9]+", query.lower()) if len(t) > 2]
+    if not q_terms or not text:
+        return 0.0
+    haystack = text.lower()
+    hits = sum(1 for term in q_terms if term in haystack)
+    return round(hits / len(q_terms), 4)
+
+
+def _fallback_spec_search(query: str, db, limit: int) -> List[Dict[str, Any]]:
+    rows = db.execute(
+        "SELECT id, raw_text, clause_number, clause_title, document_id, requirements_json, page_refs_json, equipment_class, tier FROM spec_clauses"
+    ).fetchall()
+    scored = []
+    for row in rows:
+        item = dict(row)
+        text = " ".join([
+            item.get("clause_number", ""),
+            item.get("clause_title", ""),
+            item.get("raw_text", ""),
+            item.get("requirements_json", "")
+        ])
+        score = _score_text_match(query, text)
+        if score <= 0:
+            continue
+        scored.append({
+            "id": item.get("id", ""),
+            "text": item.get("raw_text", ""),
+            "score": score,
+            "metadata": {
+                "clause_number": item.get("clause_number", ""),
+                "clause_title": item.get("clause_title", ""),
+                "document_id": item.get("document_id", ""),
+                "page_refs_json": item.get("page_refs_json", "[]"),
+            }
+        })
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:limit]
+
+
+def _fallback_rfi_search(query: str, db, limit: int) -> List[Dict[str, Any]]:
+    rows = db.execute(
+        "SELECT id, rfi_code, title, description, resolution_text, status, is_resolved FROM rfis"
+    ).fetchall()
+    scored = []
+    for row in rows:
+        item = dict(row)
+        text = " ".join([
+            item.get("rfi_code", ""),
+            item.get("title", ""),
+            item.get("description", ""),
+            item.get("resolution_text", "")
+        ])
+        score = _score_text_match(query, text)
+        if score <= 0:
+            continue
+        scored.append({
+            "id": item.get("id", ""),
+            "text": item.get("resolution_text", item.get("description", "")),
+            "score": score,
+            "metadata": {
+                "rfi_code": item.get("rfi_code", ""),
+                "title": item.get("title", ""),
+                "is_resolved": str(item.get("is_resolved", "false")),
+            }
+        })
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:limit]
+
+
+def _find_precedent_rfis(
+    rfi_results: List[Dict],
+    db
+) -> List[Dict[str, Any]]:
+    """
+    Find precedent RFIs from search results.
+    A precedent = similarity > PRECEDENT_THRESHOLD AND is_resolved = true.
+    """
     precedents = []
     for chunk in rfi_results:
-        if chunk["score"] > 0.82 and chunk["metadata"].get("is_resolved") == "true":
-            rfi_id = chunk["id"]
-            rfi_row = db.execute(
+        score = chunk.get("score", 0.0)
+        metadata = chunk.get("metadata", {})
+        is_resolved = metadata.get("is_resolved", "false")
+
+        if score < PRECEDENT_THRESHOLD:
+            continue
+        if str(is_resolved).lower() not in {"true", "1", "yes"}:
+            continue
+
+        rfi_id = chunk.get("id", "")
+        if not rfi_id:
+            continue
+
+        try:
+            # Our rfis table has: id, rfi_code, title, resolution_text
+            # No resolution_date or resolved_by in schema
+            row = db.execute(
                 "SELECT id, rfi_code, title, resolution_text FROM rfis WHERE id = ?",
                 (rfi_id,)
             ).fetchone()
-            if rfi_row:
-                rfi_row = dict(rfi_row)
-                resolution_summary = (rfi_row.get("resolution_text") or "")[:300]
+
+            if row:
+                row = dict(row)
                 precedents.append({
-                    "rfi_id": rfi_row["id"],
-                    "rfi_code": rfi_row.get("rfi_code", ""),
-                    "title": rfi_row.get("title", ""),
-                    "resolution_summary": resolution_summary,
-                    "similarity_score": chunk["score"]
+                    "rfi_id": row["id"],
+                    "rfi_code": row.get("rfi_code", "N/A"),
+                    "title": row.get("title", "Untitled RFI"),
+                    "resolution_summary": (row.get("resolution_text") or "")[:300],
+                    "similarity_score": score
                 })
+        except Exception as e:
+            logger.warning(f"Failed to fetch RFI {rfi_id}: {e}")
+
+    precedents.sort(key=lambda x: x["similarity_score"], reverse=True)
     return precedents
 
 
-def extract_citations_from_response(response_text: str, retrieved_chunks: List[Dict]) -> List[Dict]:
-    citation_pattern = re.compile(r'\[([^\]|]+)\|([^\]|]+)\|([^\]]*)\]')
-    found_citations = []
-    for match in citation_pattern.finditer(response_text):
-        doc_id_part = match.group(1).strip()
-        clause_part = match.group(2).strip()
-        page_part = match.group(3).strip()
-        for chunk in retrieved_chunks:
-            clause_num = chunk.get("clause_number", "") or chunk.get("rfi_code", "")
-            if clause_part in str(clause_num) or clause_num in clause_part:
-                found_citations.append({
-                    "doc_id": chunk["id"],
-                    "clause_number": clause_num,
-                    "page_ref": page_part,
-                    "score": chunk["score"],
-                    "text_preview": chunk["text"][:100]
-                })
-                break
-    if not found_citations and retrieved_chunks:
-        top = retrieved_chunks[0]
-        found_citations.append({
-            "doc_id": top["id"],
-            "clause_number": top.get("clause_number", "") or top.get("rfi_code", ""),
-            "page_ref": "",
-            "score": top["score"],
-            "text_preview": top["text"][:100]
-        })
-    return found_citations
+# ── Context Building ───────────────────────────────────────────────────────────
+
+def _build_context_text(chunks: List[RetrievedSource]) -> str:
+    if not chunks:
+        return "No relevant documents found in project corpus."
+    blocks = []
+    for chunk in chunks[:12]:
+        label = f"[SOURCE {chunk.rank} | {chunk.label}]"
+        text = chunk.text[:MAX_CONTEXT_CHARS]
+        blocks.append(f"{label}\n{text}")
+    return "\n\n---\n\n".join(blocks)
 
 
-def compute_confidence(retrieved_chunks: List[Dict]) -> float:
-    if not retrieved_chunks:
+def _build_precedent_text(precedents: List[Dict]) -> str:
+    if not precedents:
+        return ""
+    lines = [f"PRECEDENT RFIs (similarity > {PRECEDENT_THRESHOLD}):"]
+    for i, p in enumerate(precedents[:3], 1):
+        lines.append(
+            f"{i}. {p['rfi_code']}: {p['title']}\n"
+            f"   Resolution: {p['resolution_summary'][:250]}\n"
+            f"   Similarity: {p['similarity_score']:.0%}"
+        )
+    return "\n".join(lines)
+
+
+def _build_user_message(
+    context_text: str,
+    precedent_text: str,
+    query: str
+) -> str:
+    parts = [f"CONTEXT FROM PROJECT DOCUMENTS:\n{context_text}"]
+    if precedent_text:
+        parts.append(precedent_text)
+    parts.append(f"QUERY FROM PROJECT TEAM:\n{query}")
+    parts.append(
+        "Answer using ONLY the context above. "
+        "Cite sources using [SOURCE N]. "
+        "Lead with any precedent RFI if found. "
+        "Be specific and actionable."
+    )
+    return "\n\n".join(parts)
+
+
+def _fallback_answer(
+    chunks: List[RetrievedSource],
+    precedents: List[Dict]
+) -> str:
+    parts = []
+    if precedents:
+        parts.append("Precedent RFIs Found:")
+        for p in precedents[:3]:
+            parts.append(f"- {p['rfi_code']}: {p['resolution_summary'][:200]}")
+    if chunks:
+        top = chunks[0]
+        parts.append(
+            f"\nMost Relevant Specification:\n[{top.label}]\n{top.text[:300]}..."
+        )
+    parts.append(
+        "\n⚠️ Automated fallback response — LLM unavailable. "
+        "Review documents above and consult technical team."
+    )
+    return "\n".join(parts)
+
+
+# ── Confidence Scoring ─────────────────────────────────────────────────────────
+
+def _compute_confidence(chunks: List[RetrievedSource]) -> float:
+    if not chunks:
         return 0.0
-    spec_chunks = [c for c in retrieved_chunks if c.get("doc_type") == "spec_clause" or "clause_number" in c.get("metadata", {})]
-    if spec_chunks:
-        return round(max(c["score"] for c in spec_chunks), 4)
-    return round(max(c["score"] for c in retrieved_chunks), 4)
+    top_score = max(c.score for c in chunks)
+    source_boost = min(0.15, len(chunks) * 0.03)
+    precedent_boost = 0.1 if any(
+        c.doc_type == "rfi" and c.score > PRECEDENT_THRESHOLD
+        for c in chunks
+    ) else 0.0
+    return round(min(1.0, top_score + source_boost + precedent_boost), 4)
+
+
+# ── Agent Run Logging ──────────────────────────────────────────────────────────
+
+def _log_agent_run(
+    agent_run_id: str,
+    started_ts: str,
+    query: str,
+    status: str = "completed",
+    confidence: float = 0.0,
+    num_precedents: int = 0,
+    num_sources: int = 0,
+    processing_ms: float = 0.0,
+    error: str = None
+) -> None:
+    db = get_db()
+    try:
+        input_summary = f"Query: {query[:150]}"
+        if status == "completed":
+            output_summary = (
+                f"Confidence={confidence:.2f} | "
+                f"{num_precedents} precedents | "
+                f"{num_sources} sources | "
+                f"{processing_ms:.0f}ms"
+            )
+        else:
+            output_summary = f"Failed: {(error or 'Unknown error')[:200]}"
+
+        db.execute("""
+            INSERT OR REPLACE INTO agent_runs
+            (id, agent_name, agent_version, trigger_event,
+             input_summary, output_summary, status,
+             started_ts, completed_ts, records_processed,
+             records_created, error_text, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            agent_run_id, AGENT_NAME, AGENT_VERSION, "rfi_query",
+            input_summary, output_summary, status,
+            started_ts, datetime.now(timezone.utc).isoformat(),
+            num_sources, 0, error,
+            json.dumps({
+                "confidence": confidence,
+                "num_precedents": num_precedents,
+                "processing_ms": processing_ms
+            })
+        ))
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to log agent run: {e}")
+    finally:
+        db.close()

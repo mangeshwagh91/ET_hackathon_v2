@@ -60,10 +60,8 @@ const api = {
     const params = new URLSearchParams();
     if (filters.severity) params.set("severity", filters.severity);
     if (filters.status) params.set("status", filters.status);
-    const query = params.toString();
-    const res = await fetch(
-      `${BASE}/compliance/ncrs${query ? "?" + query : ""}`,
-    );
+    const q = params.toString();
+    const res = await fetch(`${BASE}/compliance/ncrs${q ? "?" + q : ""}`);
     return handleResponse(res);
   },
 
@@ -101,7 +99,7 @@ const api = {
     const res = await fetch(`${BASE}/rfi/query`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query: query }),
     });
     return handleResponse(res);
   },
@@ -109,12 +107,6 @@ const api = {
   getRFIs: async () => {
     const res = await fetch(`${BASE}/rfi/rfis`);
     return handleResponse(res);
-  },
-
-  getPurchaseOrders: async () => {
-    const res = await fetch(`${BASE}/dashboard/summary`);
-    const data = await handleResponse(res);
-    return data.purchase_orders || [];
   },
 };
 

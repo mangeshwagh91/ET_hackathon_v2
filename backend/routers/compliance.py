@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
@@ -13,7 +14,7 @@ router = APIRouter()
 @router.post("/run/{po_id}")
 async def trigger_compliance_check(po_id: str):
     try:
-        result = run_compliance_check(po_id)
+        result = await asyncio.to_thread(run_compliance_check, po_id)
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -120,20 +121,21 @@ async def get_ncr_detail(ncr_id: str):
     db = get_db()
     try:
         row = db.execute("""
-            SELECT n.*,
-                   d.attribute_name, d.specified_value, d.submitted_value,
-                   d.deviation_pct, d.w_conform, d.deviation_type,
-                   sc.clause_number, sc.clause_title, sc.raw_text as clause_raw_text,
-                   sc.page_refs_json as clause_pages,
-                   po.vendor_name, po.po_number,
-                   ei.description as equipment_description, ei.equipment_class
-            FROM ncrs n
-            LEFT JOIN deviations d ON n.deviation_id = d.id
-            LEFT JOIN spec_clauses sc ON d.spec_clause_id = sc.id
-            LEFT JOIN purchase_orders po ON n.po_id = po.id
-            LEFT JOIN equipment_items ei ON n.equipment_item_id = ei.id
-            WHERE n.id = ?
-        """, (ncr_id,)).fetchone()
+    SELECT n.*,
+           d.attribute_name, d.specified_value, d.submitted_value,
+           d.deviation_pct, d.w_conform, d.deviation_type,
+           d.justification, d.recommended_action,
+           sc.clause_number, sc.clause_title, sc.raw_text as clause_raw_text,
+           sc.page_refs_json as clause_pages,
+           po.vendor_name, po.po_number,
+           ei.description as equipment_description, ei.equipment_class
+    FROM ncrs n
+    LEFT JOIN deviations d ON n.deviation_id = d.id
+    LEFT JOIN spec_clauses sc ON d.spec_clause_id = sc.id
+    LEFT JOIN purchase_orders po ON n.po_id = po.id
+    LEFT JOIN equipment_items ei ON n.equipment_item_id = ei.id
+    WHERE n.id = ?
+""", (ncr_id,)).fetchone()
 
         if not row:
             raise HTTPException(status_code=404, detail=f"NCR {ncr_id} not found")

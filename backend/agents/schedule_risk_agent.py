@@ -1,169 +1,300 @@
+"""
+Schedule Risk Agent — DCPI.
+Analyzes construction schedule tasks for risk using float, NCR procurement
+impact, predecessor chain, resource, and weather factors.
+Fully synchronous. Uses call_claude only.
+"""
+
+import os
 import json
 import uuid
-import math
 import logging
-from datetime import datetime
-from typing import List, Dict, Optional
+import math
+from datetime import datetime, timezone
+from typing import List, Dict, Optional, Any
+from collections import defaultdict
 
 from database.connection import get_db
-from services.llm_client import call_claude
+from services.llm_client import call_claude, has_available_provider
 
 logger = logging.getLogger(__name__)
 
+# ── Configuration ──────────────────────────────────────────────────────────────
+HIGH_RISK_THRESHOLD = float(os.getenv("SCHEDULE_HIGH_RISK_THRESHOLD", "0.70"))
+MEDIUM_RISK_THRESHOLD = float(os.getenv("SCHEDULE_MEDIUM_RISK_THRESHOLD", "0.50"))
+CRITICAL_NCR_DELAY = float(os.getenv("SCHEDULE_CRITICAL_NCR_DELAY", "14.0"))
+MAJOR_NCR_DELAY = float(os.getenv("SCHEDULE_MAJOR_NCR_DELAY", "7.0"))
+MINOR_NCR_DELAY = float(os.getenv("SCHEDULE_MINOR_NCR_DELAY", "2.0"))
+SIGMOID_K = float(os.getenv("SCHEDULE_SIGMOID_K", "7.0"))
+SIGMOID_THETA = float(os.getenv("SCHEDULE_SIGMOID_THETA", "0.45"))
+
+AGENT_NAME = "schedule_risk"
+AGENT_VERSION = "2.0.0"
+MAX_MITIGATION_OPTIONS = 3
+
 MITIGATION_SYSTEM = """You are a senior project controls specialist on a Tier IV hyperscale data centre EPC project.
-Generate 3 specific, actionable mitigation options for a high-risk schedule task.
-Be concrete: name specific actions, responsible roles, and realistic timelines.
-Reference real data centre construction steps, certifications, and vendor escalation paths."""
+Generate exactly 3 specific, actionable mitigation options for a high-risk schedule task.
+
+Format EXACTLY as:
+
+OPTION 1: [Title]
+Actions:
+- [specific action with timeline]
+- [specific action with timeline]
+- [specific action with timeline]
+Days saved: X-Y days
+Cost impact: Low/Medium/High
+Owner: [responsible role]
+
+OPTION 2: [Title]
+[same format]
+
+OPTION 3: [Title]
+[same format]
+
+Options should be progressively more aggressive:
+Option 1: Conservative, low-cost
+Option 2: Balanced approach
+Option 3: Aggressive, maximum recovery"""
 
 
-def run_schedule_risk_analysis() -> Dict:
+# ── Main Entry Point ───────────────────────────────────────────────────────────
+
+def run_schedule_risk_analysis() -> Dict[str, Any]:
+    """
+    Run comprehensive schedule risk analysis for all tasks.
+    Synchronous. Called by POST /api/schedule/analyze.
+    """
     agent_run_id = str(uuid.uuid4())
-    started_ts = datetime.utcnow().isoformat()
-    db = get_db()
+    started_ts = datetime.now(timezone.utc).isoformat()
+    start_time = datetime.now()
 
+    logger.info(f"Starting schedule risk analysis [{agent_run_id[:8]}]")
+
+    db = get_db()
     try:
-        tasks = db.execute(
+        # Step 1: Load tasks
+        task_rows = db.execute(
             "SELECT * FROM schedule_tasks ORDER BY planned_start ASC"
         ).fetchall()
-        tasks = [dict(t) for t in tasks]
+        tasks = [dict(r) for r in task_rows]
 
-        open_ncrs = db.execute("""
-            SELECT n.equipment_item_id, n.severity, n.id as ncr_id, n.title
+        if not tasks:
+            logger.warning("No schedule tasks found")
+            return {
+                "tasks_analyzed": 0,
+                "high_risk_count": 0,
+                "at_risk_tasks": [],
+                "agent_run_id": agent_run_id,
+                "completed_ts": datetime.now(timezone.utc).isoformat()
+            }
+
+        # Step 2: Load open NCRs grouped by equipment
+        ncr_rows = db.execute("""
+            SELECT n.equipment_item_id, n.severity, n.id as ncr_id, n.title,
+                   d.attribute_name, d.specified_value, d.submitted_value
             FROM ncrs n
-            WHERE n.status = 'open'
+            LEFT JOIN deviations d ON n.deviation_id = d.id
+            WHERE n.status = 'open' AND n.equipment_item_id IS NOT NULL
         """).fetchall()
-        open_ncrs = [dict(n) for n in open_ncrs]
 
-        equipment_ncr_map: Dict[str, List[str]] = {}
-        for ncr in open_ncrs:
-            eq_id = ncr.get("equipment_item_id")
+        equipment_ncr_map: Dict[str, List[Dict]] = defaultdict(list)
+        for row in ncr_rows:
+            row = dict(row)
+            eq_id = row.get("equipment_item_id")
             if eq_id:
-                equipment_ncr_map.setdefault(eq_id, []).append(ncr["severity"])
+                equipment_ncr_map[eq_id].append(row)
 
-        task_scores: Dict[str, float] = {}
+        # Step 3: Build dependency graph
+        dependency_graph = _build_dependency_graph(tasks)
 
+        # Step 4: Identify critical path (tasks with float <= 1)
+        critical_path = {
+            t["id"] for t in tasks
+            if (t.get("total_float_days") or 0) <= 1
+        }
+
+        # Step 5: Process tasks in topological order
+        sorted_tasks = _topological_sort(tasks, dependency_graph)
+        computed_scores: Dict[str, float] = {}
+
+        for task in sorted_tasks:
+            task_id = task["id"]
+            eq_id = task.get("equipment_item_id")
+            ncr_list = equipment_ncr_map.get(eq_id, []) if eq_id else []
+            procurement_delay = _get_procurement_delay(ncr_list)
+
+            pred_ids = _parse_json_list(task.get("predecessor_ids_json"))
+            predecessor_scores = [
+                computed_scores.get(pid, 0.0)
+                for pid in pred_ids
+                if pid in computed_scores
+            ]
+
+            risk_score = compute_task_risk_score(
+                task, procurement_delay, predecessor_scores
+            )
+            computed_scores[task_id] = risk_score
+
+        # Step 6: Generate mitigations for high-risk tasks, update DB
+        at_risk_tasks = []
         for task in tasks:
-            procurement_delay = get_procurement_delay_for_task(task, equipment_ncr_map)
-            pred_ids = json.loads(task.get("predecessor_ids_json", "[]"))
-            predecessor_risks = [task_scores.get(pid, 0.0) for pid in pred_ids if pid in task_scores]
-
-            risk_score = compute_task_risk_score(task, procurement_delay, predecessor_risks)
+            task_id = task["id"]
+            risk_score = computed_scores.get(task_id, 0.0)
             delay_prob = compute_delay_probability(risk_score)
-            task_scores[task["id"]] = risk_score
+            risk_level = _classify_risk_level(risk_score)
+            is_critical = 1 if task_id in critical_path else 0
 
             mitigation_text = None
-            if risk_score > 0.5:
+            if risk_score > MEDIUM_RISK_THRESHOLD:
                 eq_id = task.get("equipment_item_id")
-                severities = equipment_ncr_map.get(eq_id, []) if eq_id else []
-                procurement_context = build_procurement_context(eq_id, severities, procurement_delay, db)
+                ncr_list = equipment_ncr_map.get(eq_id, []) if eq_id else []
+                procurement_delay = _get_procurement_delay(ncr_list)
+                procurement_context = _build_procurement_context(
+                    eq_id, ncr_list, procurement_delay
+                )
                 try:
-                    mitigation_text = generate_mitigation(task, risk_score, delay_prob, procurement_context)
+                    mitigation_text = _generate_mitigation(
+                        task, risk_score, delay_prob, procurement_context,
+                        is_critical=is_critical
+                    )
                 except Exception as e:
-                    logger.error(f"Mitigation generation failed for task {task['id']}: {str(e)}")
-                    mitigation_text = f"Manual review required. Risk score: {risk_score:.0%}. Check equipment procurement status and vendor NCR resolution."
+                    logger.error(f"Mitigation failed for {task_id}: {e}")
+                    mitigation_text = _fallback_mitigation(
+                        task, risk_score, delay_prob, procurement_delay, is_critical
+                    )
 
             db.execute("""
                 UPDATE schedule_tasks
-                SET risk_score = ?, delay_probability = ?, mitigation_text = ?, risk_checked_ts = ?
+                SET risk_score = ?, delay_probability = ?,
+                    risk_level = ?, is_critical_path = ?,
+                    mitigation_text = ?, risk_checked_ts = ?
                 WHERE id = ?
             """, (
                 round(risk_score, 4),
                 round(delay_prob, 4),
+                risk_level,
+                is_critical,
                 mitigation_text,
-                datetime.utcnow().isoformat(),
-                task["id"]
+                datetime.now(timezone.utc).isoformat(),
+                task_id
             ))
 
+            if risk_score > MEDIUM_RISK_THRESHOLD:
+                at_risk_tasks.append({
+                    "id": task_id,
+                    "task_code": task.get("task_code", task_id),
+                    "description": task.get("description", ""),
+                    "risk_score": round(risk_score, 4),
+                    "risk_level": risk_level,
+                    "delay_probability": round(delay_prob, 4),
+                    "total_float_days": task.get("total_float_days", 0),
+                    "is_critical_path": bool(is_critical)
+                })
+
         db.commit()
 
-        at_risk = [t for t in tasks if task_scores.get(t["id"], 0) > 0.5]
-        high_risk = [t for t in tasks if task_scores.get(t["id"], 0) > 0.7]
+        high_risk = [t for t in at_risk_tasks if t["risk_score"] > HIGH_RISK_THRESHOLD]
+        processing_ms = round(
+            (datetime.now() - start_time).total_seconds() * 1000, 1
+        )
 
-        at_risk_full = []
-        for t in at_risk:
-            t_copy = dict(t)
-            t_copy["risk_score"] = round(task_scores.get(t["id"], 0), 4)
-            t_copy["delay_probability"] = round(compute_delay_probability(task_scores.get(t["id"], 0)), 4)
-            at_risk_full.append(t_copy)
+        # Step 7: Log agent run
+        _log_agent_run(
+            agent_run_id=agent_run_id,
+            started_ts=started_ts,
+            num_tasks=len(tasks),
+            num_at_risk=len(at_risk_tasks),
+            num_high_risk=len(high_risk),
+            processing_ms=processing_ms,
+            status="completed"
+        )
 
-        db.execute("""
-            INSERT OR REPLACE INTO agent_runs
-            (id, agent_name, trigger_event, input_summary, output_summary,
-             status, started_ts, completed_ts, records_processed, records_created)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            agent_run_id, "schedule_risk", "schedule_risk_analysis",
-            f"{len(tasks)} tasks analyzed, {len(open_ncrs)} open NCRs",
-            f"{len(at_risk)} at-risk tasks (risk>0.5), {len(high_risk)} high-risk (risk>0.7)",
-            "completed", started_ts, datetime.utcnow().isoformat(),
-            len(tasks), len(at_risk)
-        ))
-        db.commit()
+        logger.info(
+            f"Schedule analysis complete [{agent_run_id[:8]}]: "
+            f"{len(tasks)} tasks, {len(at_risk_tasks)} at-risk, "
+            f"{len(high_risk)} high-risk, {processing_ms:.0f}ms"
+        )
 
         return {
             "tasks_analyzed": len(tasks),
             "high_risk_count": len(high_risk),
-            "at_risk_tasks": at_risk_full,
+            "at_risk_tasks": at_risk_tasks,
             "agent_run_id": agent_run_id,
-            "completed_ts": datetime.utcnow().isoformat()
+            "completed_ts": datetime.now(timezone.utc).isoformat()
         }
 
     except Exception as e:
-        logger.error(f"Schedule risk analysis failed: {str(e)}")
-        try:
-            db.execute("""
-                INSERT OR REPLACE INTO agent_runs
-                (id, agent_name, trigger_event, status, started_ts, completed_ts, error_text)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                agent_run_id, "schedule_risk", "schedule_risk_analysis",
-                "failed", started_ts, datetime.utcnow().isoformat(), str(e)
-            ))
-            db.commit()
-        except Exception:
-            pass
-        raise
+        logger.error(f"Schedule risk analysis failed: {e}")
+        _log_agent_run(
+            agent_run_id=agent_run_id,
+            started_ts=started_ts,
+            status="failed",
+            error=str(e)
+        )
+        raise RuntimeError(f"Schedule risk analysis failed: {e}") from e
+
     finally:
         db.close()
 
 
-def compute_task_risk_score(task: Dict, procurement_delay_days: float, predecessor_risks: List[float]) -> float:
-    float_days = task.get("total_float_days", 0)
-    original_float = task.get("original_float_days", float_days)
+# ── Risk Computation ───────────────────────────────────────────────────────────
 
-    # Float consumption factor [0, 1]
-    if float_days == 0:
+def compute_task_risk_score(
+    task: Dict[str, Any],
+    procurement_delay_days: float,
+    predecessor_risks: List[float]
+) -> float:
+    """
+    Weighted risk score [0, 1].
+    Weights: float 0.30 + procurement 0.35 + predecessor 0.20
+             + resource 0.10 + weather 0.05
+    """
+    float_days = task.get("total_float_days") or 0
+
+    # Float factor
+    if float_days <= 0:
         float_factor = 1.0
     elif float_days == 1:
-        float_factor = 0.70
+        float_factor = 0.85
     elif float_days <= 3:
-        float_factor = 0.45
+        float_factor = 0.60
+    elif float_days <= 5:
+        float_factor = 0.40
     elif float_days <= 7:
         float_factor = 0.25
+    elif float_days <= 14:
+        float_factor = 0.10
     else:
-        float_factor = max(0.0, 1.0 - (float_days / max(original_float, float_days, 1)) * 0.5)
+        float_factor = 0.05
 
-    # Procurement risk factor [0, 1]
-    if procurement_delay_days >= 14:
-        procurement_risk = 0.90
+    # Procurement risk factor
+    if procurement_delay_days >= 21:
+        procurement_risk = 0.95
+    elif procurement_delay_days >= 14:
+        procurement_risk = 0.85
+    elif procurement_delay_days >= 10:
+        procurement_risk = 0.70
     elif procurement_delay_days >= 7:
-        procurement_risk = 0.60
-    elif procurement_delay_days >= 2:
-        procurement_risk = 0.30
+        procurement_risk = 0.55
+    elif procurement_delay_days >= 3:
+        procurement_risk = 0.35
+    elif procurement_delay_days > 0:
+        procurement_risk = 0.15
     else:
         procurement_risk = 0.0
 
-    # Predecessor risk factor [0, 1]
-    if predecessor_risks:
-        predecessor_risk = sum(predecessor_risks) / len(predecessor_risks)
-    else:
-        predecessor_risk = 0.0
+    # Predecessor risk factor
+    predecessor_risk = (
+        sum(predecessor_risks) / len(predecessor_risks)
+        if predecessor_risks else 0.0
+    )
 
-    # Resource risk — fixed default (no live resource data available)
-    resource_risk = 0.30
+    # Resource risk (simplified — based on task type inferred from description)
+    resource_risk = _infer_resource_risk(task.get("description", ""))
 
-    # Weather risk — fixed default (no live weather integration in hackathon)
-    weather_risk = 0.10
+    # Weather risk (simplified — based on planned start month)
+    weather_risk = _infer_weather_risk(task.get("planned_start", ""))
 
     risk_score = (
         0.30 * float_factor
@@ -173,96 +304,281 @@ def compute_task_risk_score(task: Dict, procurement_delay_days: float, predecess
         + 0.05 * weather_risk
     )
 
-    return min(1.0, max(0.0, risk_score))
+    return round(min(1.0, max(0.0, risk_score)), 4)
 
 
 def compute_delay_probability(risk_score: float) -> float:
-    k = 7.0
-    theta = 0.45
-    probability = 1.0 / (1.0 + math.exp(-k * (risk_score - theta)))
-    return round(probability, 4)
+    """Sigmoid: 1 / (1 + e^(-k*(score - theta))). k=7.0, theta=0.45."""
+    return round(
+        1.0 / (1.0 + math.exp(-SIGMOID_K * (risk_score - SIGMOID_THETA))),
+        4
+    )
 
 
-def get_procurement_delay_for_task(task: Dict, equipment_ncr_map: Dict) -> float:
-    eq_id = task.get("equipment_item_id")
-    if not eq_id:
+def _classify_risk_level(risk_score: float) -> str:
+    if risk_score > 0.85:
+        return "critical"
+    if risk_score > HIGH_RISK_THRESHOLD:
+        return "high"
+    if risk_score > MEDIUM_RISK_THRESHOLD:
+        return "medium"
+    if risk_score > 0.30:
+        return "low"
+    return "negligible"
+
+
+def _get_procurement_delay(ncr_list: List[Dict]) -> float:
+    """Return max procurement delay days from list of NCR dicts."""
+    if not ncr_list:
         return 0.0
-    severities = equipment_ncr_map.get(eq_id, [])
-    if not severities:
-        return 0.0
-    delay_days = 0.0
-    for sev in severities:
+    delay = 0.0
+    for ncr in ncr_list:
+        sev = (ncr.get("severity") or "").upper()
         if sev == "CRITICAL":
-            delay_days = max(delay_days, 14.0)
+            delay = max(delay, CRITICAL_NCR_DELAY)
         elif sev == "MAJOR":
-            delay_days = max(delay_days, 7.0)
+            delay = max(delay, MAJOR_NCR_DELAY)
         elif sev == "MINOR":
-            delay_days = max(delay_days, 2.0)
-    return delay_days
+            delay = max(delay, MINOR_NCR_DELAY)
+    # Small additional delay for multiple NCRs
+    if len(ncr_list) > 1:
+        delay += min(3.0, len(ncr_list) * 0.5)
+    return delay
 
 
-def build_procurement_context(equipment_item_id: Optional[str], severities: List[str],
-                               delay_days: float, db) -> str:
+def _infer_resource_risk(description: str) -> float:
+    desc = (description or "").lower()
+    if any(k in desc for k in ["commission", "test", "startup"]):
+        return 0.50
+    if any(k in desc for k in ["electrical", "mep", "cable", "wiring"]):
+        return 0.35
+    if any(k in desc for k in ["mechanical", "cooling", "chiller", "pump"]):
+        return 0.30
+    if any(k in desc for k in ["structural", "concrete", "civil"]):
+        return 0.20
+    return 0.25
+
+
+def _infer_weather_risk(planned_start: str) -> float:
+    try:
+        month = datetime.fromisoformat(planned_start.replace("Z", "+00:00")).month
+        if month in (6, 7, 8, 9):
+            return 0.20
+        if month in (12, 1, 2):
+            return 0.15
+        return 0.10
+    except Exception:
+        return 0.10
+
+
+# ── Dependency Graph ───────────────────────────────────────────────────────────
+
+def _build_dependency_graph(tasks: List[Dict]) -> Dict[str, List[str]]:
+    """Returns {task_id: [successor_task_ids]}."""
+    graph: Dict[str, List[str]] = defaultdict(list)
+    for task in tasks:
+        task_id = task.get("id", "")
+        for pred_id in _parse_json_list(task.get("predecessor_ids_json")):
+            if pred_id:
+                graph[pred_id].append(task_id)
+    return dict(graph)
+
+
+def _topological_sort(
+    tasks: List[Dict],
+    dependency_graph: Dict[str, List[str]]
+) -> List[Dict]:
+    """Kahn's algorithm — returns tasks in dependency order (predecessors first)."""
+    in_degree = {t["id"]: 0 for t in tasks}
+    for pred_id, successors in dependency_graph.items():
+        for succ_id in successors:
+            if succ_id in in_degree:
+                in_degree[succ_id] += 1
+
+    queue = [t for t in tasks if in_degree.get(t["id"], 0) == 0]
+    sorted_tasks = []
+
+    while queue:
+        task = queue.pop(0)
+        sorted_tasks.append(task)
+        for succ_id in dependency_graph.get(task["id"], []):
+            if succ_id in in_degree:
+                in_degree[succ_id] -= 1
+                if in_degree[succ_id] == 0:
+                    succ = next((t for t in tasks if t["id"] == succ_id), None)
+                    if succ:
+                        queue.append(succ)
+
+    # Append any tasks not reached (cycles or disconnected)
+    processed = {t["id"] for t in sorted_tasks}
+    for task in tasks:
+        if task["id"] not in processed:
+            sorted_tasks.append(task)
+
+    return sorted_tasks
+
+
+# ── Mitigation Generation ──────────────────────────────────────────────────────
+
+def _build_procurement_context(
+    equipment_item_id: Optional[str],
+    ncr_list: List[Dict],
+    delay_days: float
+) -> str:
     if not equipment_item_id:
         return "No equipment linked to this task."
+    lines = [
+        f"Equipment: {equipment_item_id}",
+        f"Estimated procurement delay: {delay_days:.0f} days"
+    ]
+    if ncr_list:
+        lines.append(f"Open NCRs ({len(ncr_list)}):")
+        for ncr in ncr_list:
+            lines.append(
+                f"  [{ncr.get('severity','?')}] {ncr.get('title','?')}: "
+                f"{ncr.get('attribute_name','?')} — "
+                f"submitted {ncr.get('submitted_value','?')} "
+                f"vs required {ncr.get('specified_value','?')}"
+            )
+    else:
+        lines.append("No open NCRs on linked equipment.")
+    return "\n".join(lines)
 
-    ncr_rows = db.execute("""
-        SELECT n.title, n.severity, n.status, d.attribute_name,
-               d.specified_value, d.submitted_value
-        FROM ncrs n
-        JOIN deviations d ON n.deviation_id = d.id
-        WHERE n.equipment_item_id = ? AND n.status = 'open'
-    """, (equipment_item_id,)).fetchall()
 
-    if not ncr_rows:
-        return f"Equipment {equipment_item_id}: No open NCRs. Estimated procurement delay: {delay_days:.0f} days."
-
-    context_lines = [f"Equipment: {equipment_item_id}"]
-    context_lines.append(f"Estimated procurement delay: {delay_days:.0f} days")
-    context_lines.append(f"Open NCRs ({len(ncr_rows)}):")
-    for row in ncr_rows:
-        row = dict(row)
-        context_lines.append(
-            f"  - [{row['severity']}] {row['title']}: "
-            f"{row['attribute_name']} submitted {row['submitted_value']} "
-            f"vs required {row['specified_value']}"
+def _generate_mitigation(
+    task: Dict,
+    risk_score: float,
+    delay_prob: float,
+    procurement_context: str,
+    is_critical: int = 0
+) -> str:
+    if not has_available_provider():
+        return _fallback_mitigation(
+            task,
+            risk_score,
+            delay_prob,
+            procurement_delay=0.0,
+            is_critical=is_critical,
         )
-    return "\n".join(context_lines)
 
-
-def generate_mitigation(task: Dict, risk_score: float, delay_prob: float, procurement_context: str) -> str:
-    pred_ids = json.loads(task.get("predecessor_ids_json", "[]"))
+    pred_ids = _parse_json_list(task.get("predecessor_ids_json"))
     pred_str = ", ".join(pred_ids) if pred_ids else "None"
 
-    user_message = f"""Generate 3 specific mitigation options for this at-risk schedule task.
+    user_message = f"""Generate {MAX_MITIGATION_OPTIONS} mitigation options for this at-risk schedule task on a Tier IV data centre project.
 
 TASK DETAILS:
-Task ID: {task['id']}
-Task Code: {task.get('task_code', task['id'])}
-Description: {task['description']}
-Planned dates: {task['planned_start']} to {task['planned_finish']}
-Float remaining: {task['total_float_days']} days
-Risk score: {risk_score:.0%}
-Delay probability: {delay_prob:.0%}
-Predecessor tasks: {pred_str}
+- Task Code: {task.get('task_code', task['id'])}
+- Description: {task.get('description', '')}
+- Planned dates: {task.get('planned_start', '')} → {task.get('planned_finish', '')}
+- Float remaining: {task.get('total_float_days', 0)} days
+- Risk score: {risk_score:.0%}
+- Delay probability: {delay_prob:.0%}
+- On critical path: {'YES ⚠️' if is_critical else 'No'}
+- Predecessor tasks: {pred_str}
 
-PROCUREMENT CONTEXT:
-{procurement_context}
+PROCUREMENT / NCR CONTEXT:
+{procurement_context}"""
 
-Format each option exactly as:
-OPTION 1: [title]
-Actions:
-- [specific action 1]
-- [specific action 2]
-- [specific action 3]
-Days saved: X-Y days
-Cost impact: Low/Medium/High
-Owner: [responsible role]
+    try:
+        return call_claude(MITIGATION_SYSTEM, user_message, max_tokens=1200)
+    except Exception:
+        return _fallback_mitigation(
+            task,
+            risk_score,
+            delay_prob,
+            procurement_delay=0.0,
+            is_critical=is_critical,
+        )
 
-OPTION 2: [title]
-...
 
-OPTION 3: [title]
-..."""
+def _fallback_mitigation(
+    task: Dict,
+    risk_score: float,
+    delay_prob: float,
+    procurement_delay: float,
+    is_critical: int
+) -> str:
+    float_days = task.get("total_float_days", 0)
+    cp_note = "⚠️ CRITICAL PATH TASK — any delay impacts project completion.\n\n" if is_critical else ""
+    return (
+        f"{cp_note}RISK SCORE: {risk_score:.0%} | DELAY PROBABILITY: {delay_prob:.0%}\n"
+        f"Float: {float_days} days | Procurement delay: {procurement_delay:.0f} days\n\n"
+        f"OPTION 1: Schedule Acceleration\n"
+        f"Actions:\n"
+        f"• Increase resource allocation by 25% for this task\n"
+        f"• Authorize overtime for critical path activities\n"
+        f"• Expedite procurement if delivery pending\n"
+        f"Days saved: 3-7 days\nCost impact: Medium\nOwner: Construction Manager\n\n"
+        f"OPTION 2: Parallel Work Streams\n"
+        f"Actions:\n"
+        f"• Split task into parallel work streams where feasible\n"
+        f"• Engage subcontractor for supplementary workforce\n"
+        f"• Pre-stage all materials at work face\n"
+        f"Days saved: 7-14 days\nCost impact: Medium-High\nOwner: Project Manager\n\n"
+        f"OPTION 3: Critical Path Recovery\n"
+        f"Actions:\n"
+        f"• Implement 2-shift working with 24/7 operations\n"
+        f"• Deploy additional supervision and QA/QC resources\n"
+        f"• Issue formal NCR rejection to vendor, source alternatives\n"
+        f"Days saved: 10-21 days\nCost impact: High\nOwner: Project Director"
+    )
 
-    return call_claude(MITIGATION_SYSTEM, user_message, max_tokens=1000)
+
+# ── Utilities ──────────────────────────────────────────────────────────────────
+
+def _parse_json_list(value: Any) -> List[str]:
+    if not value:
+        return []
+    try:
+        result = json.loads(value)
+        return [str(x) for x in result] if isinstance(result, list) else []
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
+def _log_agent_run(
+    agent_run_id: str,
+    started_ts: str,
+    status: str = "completed",
+    num_tasks: int = 0,
+    num_at_risk: int = 0,
+    num_high_risk: int = 0,
+    processing_ms: float = 0.0,
+    error: str = None
+) -> None:
+    db = get_db()
+    try:
+        if status == "completed":
+            input_summary = f"{num_tasks} tasks analyzed"
+            output_summary = (
+                f"{num_at_risk} at-risk (>0.5), "
+                f"{num_high_risk} high-risk (>0.7) | {processing_ms:.0f}ms"
+            )
+        else:
+            input_summary = "Analysis failed"
+            output_summary = f"Error: {(error or '')[:200]}"
+
+        db.execute("""
+            INSERT OR REPLACE INTO agent_runs
+            (id, agent_name, agent_version, trigger_event,
+             input_summary, output_summary, status,
+             started_ts, completed_ts, records_processed,
+             records_created, error_text, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            agent_run_id, AGENT_NAME, AGENT_VERSION,
+            "schedule_risk_analysis",
+            input_summary, output_summary, status,
+            started_ts, datetime.now(timezone.utc).isoformat(),
+            num_tasks, num_at_risk,
+            error,
+            json.dumps({
+                "high_risk_count": num_high_risk,
+                "processing_ms": processing_ms
+            })
+        ))
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to log schedule agent run: {e}")
+    finally:
+        db.close()

@@ -7,6 +7,8 @@ Idempotent: safe to run multiple times.
 import json
 import sys
 import os
+import asyncio
+from datetime import datetime
 
 # Ensure backend root is on path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -16,7 +18,7 @@ load_dotenv()
 
 from database.schema import init_db
 from database.connection import get_db
-from services.vector_store import index_rfi, index_spec_clause, get_or_create_collection
+from services.vector_store import index_rfi, index_spec_clause
 
 print("=" * 60)
 print("DCPI Demo Data Seeder")
@@ -338,8 +340,9 @@ technical_attributes = {
 db.execute("""
     INSERT OR REPLACE INTO purchase_orders
     (id, po_number, vendor_name, vendor_country, document_id, equipment_item_id,
-     po_date, technical_attributes_json, compliance_status, deviation_count)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     po_date, technical_attributes_json, compliance_status, deviation_count,
+     checked_ts)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """, (
     po_id,
     "PO-VERTEX-2025-0047",
@@ -350,7 +353,8 @@ db.execute("""
     "2025-03-28",
     json.dumps(technical_attributes),
     "PENDING",
-    0
+    0,
+    None  # Not checked yet
 ))
 db.commit()
 print(f"      ✓ Submittal document: {sub_doc_id}")
@@ -615,36 +619,42 @@ for rfi_data in rfis:
         f"Question: {rfi_data['description']} "
         f"Resolution: {rfi_data['resolution_text']}"
     )
-    index_rfi(
-        rfi_id=rfi_data["id"],
-        text=index_text,
-        metadata={
-            "rfi_id": rfi_data["id"],
-            "rfi_code": rfi_data["rfi_code"],
-            "title": rfi_data["title"],
-            "is_resolved": "true" if rfi_data["is_resolved"] else "false",
-            "spec_clause_refs": rfi_data.get("spec_clause_refs_json", "[]")
-        }
-    )
-    print(f"        ✓ Indexed {rfi_data['rfi_code']} in ChromaDB")
+    try:
+        index_rfi(
+            rfi_id=rfi_data["id"],
+            text=index_text,
+            metadata={
+                "rfi_id": rfi_data["id"],
+                "rfi_code": rfi_data["rfi_code"],
+                "title": rfi_data["title"],
+                "is_resolved": "true" if rfi_data["is_resolved"] else "false",
+                "spec_clause_refs": rfi_data.get("spec_clause_refs_json", "[]")
+            }
+        )
+        print(f"        ✓ Indexed {rfi_data['rfi_code']} in ChromaDB")
+    except Exception as e:
+        print(f"        ✗ Failed to index {rfi_data['rfi_code']}: {e}")
 
 # ── 8. Index Spec Clauses in ChromaDB ─────────────────────────────────────────
 print("\n[8/8] Indexing spec clauses in ChromaDB...")
 for clause in spec_clauses:
     if clause["raw_text"]:
         index_text = f"Clause {clause['clause_number']} — {clause['clause_title']}: {clause['raw_text']}"
-        index_spec_clause(
-            clause_id=clause["id"],
-            text=index_text,
-            metadata={
-                "clause_number": clause["clause_number"],
-                "clause_title": clause["clause_title"],
-                "document_id": spec_doc_id,
-                "equipment_class": clause["equipment_class"],
-                "tier": clause["tier"]
-            }
-        )
-print(f"      ✓ {len([c for c in spec_clauses if c['raw_text']])} spec clauses indexed in ChromaDB")
+        try:
+            index_spec_clause(
+                clause_id=clause["id"],
+                text=index_text,
+                metadata={
+                    "clause_number": clause["clause_number"],
+                    "clause_title": clause["clause_title"],
+                    "document_id": spec_doc_id,
+                    "equipment_class": clause["equipment_class"],
+                    "tier": clause["tier"]
+                }
+            )
+        except Exception as e:
+            print(f"        ✗ Failed to index clause {clause['clause_number']}: {e}")
+print(f"      ✓ Spec clauses indexed in ChromaDB")
 
 db.close()
 
@@ -659,11 +669,13 @@ print(f"  Purchase order         : {po_id}")
 print(f"    → efficiency_pct     : 95.8% (spec ≥96.5%) — CRITICAL")
 print(f"    → battery_autonomy   : 8 min (spec ≥10 min) — MAJOR")
 print(f"    → ip_rating          : IP20 (spec IP31)      — MINOR")
-print(f"  Schedule tasks         : {len(schedule_tasks)} (zero-float: T-003, T-007, T-012)")
+print(f"  Schedule tasks         : {len(schedule_tasks)} (zero-float: {zero_float})")
 print(f"  RFIs indexed           : {len(rfis)}")
 print("")
 print("  Next steps:")
 print("  1. uvicorn main:app --reload --port 8000")
 print("  2. Open http://localhost:5173 → Compliance → Run Check on po-ps1500-001")
+print("  3. Or run compliance check with:")
+print(f"     from agents.spec_compliance_agent import run_compliance_check")
+print(f"     result = run_compliance_check('{po_id}')")
 print("=" * 60)
-

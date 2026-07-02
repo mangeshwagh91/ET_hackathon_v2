@@ -11,17 +11,20 @@ export default function Compliance() {
   const [vendorName, setVendorName] = useState("");
   const [poNumber, setPoNumber] = useState("");
   const [equipmentItemId, setEquipmentItemId] = useState("eq-ups-moda-001");
+  const [equipmentList, setEquipmentList] = useState([]);
   const [uploadingSpec, setUploadingSpec] = useState(false);
   const [uploadingSubm, setUploadingSubm] = useState(false);
-  const [specDocId, setSpecDocId] = useState(null);
-  const [currentPoId, setCurrentPoId] = useState("po-ps1500-001");
   const [runningCheck, setRunningCheck] = useState(false);
-  const [results, setResults] = useState(null);
+  const [specStatus, setSpecStatus] = useState("");
+  const [submStatus, setSubmStatus] = useState("");
+  const [checkStatus, setCheckStatus] = useState("");
   const [error, setError] = useState(null);
-  const [selectedNcr, setSelectedNcr] = useState(null);
-  const [status, setStatus] = useState("");
-
-  const [equipmentList, setEquipmentList] = useState([]);
+  const [results, setResults] = useState(null);
+  const [selectedDev, setSelectedDev] = useState(null);
+  const [currentPoId, setCurrentPoId] = useState("po-ps1500-001");
+  const navigate = useNavigate();
+  const specInputRef = useRef();
+  const submInputRef = useRef();
 
   useEffect(() => {
     api
@@ -30,8 +33,6 @@ export default function Compliance() {
       .catch(() => {});
   }, []);
 
-  const navigate = useNavigate();
-
   async function handleSpecUpload() {
     if (!specFile) return;
     const formData = new FormData();
@@ -39,80 +40,86 @@ export default function Compliance() {
     try {
       setUploadingSpec(true);
       setError(null);
-      setStatus("Extracting and parsing specification...");
+      setSpecStatus("Extracting text and parsing clauses via LLM...");
       const data = await api.uploadSpecification(formData);
-      setSpecDocId(data.document_id);
-      setStatus(
+      setSpecStatus(
         `✓ Specification ready — ${data.clauses_extracted} clauses extracted`,
       );
     } catch (err) {
-      setError(err.message);
-      setStatus("");
+      setError(`Spec upload failed: ${err.message}`);
+      setSpecStatus("");
     } finally {
       setUploadingSpec(false);
     }
   }
 
   async function handleSubmittalUpload() {
-    if (!submFile || !vendorName || !poNumber) {
-      setError("Please provide submittal file, vendor name, and PO number");
+    if (!submFile) {
+      setError("Select a submittal PDF first");
+      return;
+    }
+    if (!vendorName.trim()) {
+      setError("Enter vendor name");
+      return;
+    }
+    if (!poNumber.trim()) {
+      setError("Enter PO number");
       return;
     }
     const formData = new FormData();
     formData.append("file", submFile);
-    formData.append("vendor_name", vendorName);
-    formData.append("po_number", poNumber);
+    formData.append("vendor_name", vendorName.trim());
+    formData.append("po_number", poNumber.trim());
     formData.append("equipment_item_id", equipmentItemId);
     try {
       setUploadingSubm(true);
       setError(null);
-      setStatus("Parsing vendor submittal attributes...");
+      setSubmStatus("Extracting submittal attributes via LLM...");
       const data = await api.uploadSubmittal(formData);
       setCurrentPoId(data.po_id);
-      setStatus(
-        `✓ Submittal ready — ${data.attributes_extracted} attributes extracted`,
+      setSubmStatus(
+        `✓ Submittal ready — ${data.attributes_extracted} attributes extracted | PO: ${data.po_id.slice(0, 8)}...`,
       );
     } catch (err) {
-      setError(err.message);
-      setStatus("");
+      setError(`Submittal upload failed: ${err.message}`);
+      setSubmStatus("");
     } finally {
       setUploadingSubm(false);
     }
   }
 
   async function handleRunCheck() {
-    if (!currentPoId) {
-      setError(
-        "No purchase order to check. Upload a submittal first or use seeded PO.",
-      );
-      return;
-    }
     try {
       setRunningCheck(true);
       setError(null);
-      setSelectedNcr(null);
-      setStatus("Running Spec Compliance Agent...");
+      setSelectedDev(null);
+      setCheckStatus(
+        "Spec Compliance Agent running — calling LLM for severity classification...",
+      );
       const data = await api.runComplianceCheck(currentPoId);
       setResults(data);
-      setStatus(
-        `✓ Check complete — ${data.summary?.total || 0} deviations found`,
-      );
+      setCheckStatus(`✓ Done — ${data.summary?.total || 0} deviations found`);
     } catch (err) {
-      setError(err.message);
-      setStatus("");
+      setError(`Compliance check failed: ${err.message}`);
+      setCheckStatus("");
     } finally {
       setRunningCheck(false);
     }
   }
+
+  const sevColor = {
+    CRITICAL: "bg-red-50 hover:bg-red-100 border-l-4 border-red-500",
+    MAJOR: "bg-orange-50 hover:bg-orange-100 border-l-4 border-orange-400",
+    MINOR: "bg-amber-50 hover:bg-amber-100 border-l-4 border-amber-400",
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
       <h1 className="text-2xl font-bold text-slate-800 mb-6">
         Specification Compliance
       </h1>
-
       <div className="flex gap-6">
-        {/* Left panel — Upload */}
+        {/* ── Left panel ── */}
         <div className="w-80 flex-shrink-0 space-y-4">
           {/* Spec upload */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
@@ -120,10 +127,14 @@ export default function Compliance() {
               1. Specification PDF
             </h2>
             <input
+              ref={specInputRef}
               type="file"
               accept=".pdf"
               onChange={(e) => setSpecFile(e.target.files[0])}
-              className="block w-full text-sm text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+              className="block w-full text-sm text-slate-500
+                file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0
+                file:text-sm file:bg-slate-100 file:text-slate-700
+                hover:file:bg-slate-200 cursor-pointer"
             />
             {specFile && (
               <p className="text-xs text-slate-500 mt-1 truncate">
@@ -133,10 +144,21 @@ export default function Compliance() {
             <button
               onClick={handleSpecUpload}
               disabled={!specFile || uploadingSpec}
-              className="mt-3 w-full bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              className="mt-3 w-full bg-slate-700 hover:bg-slate-800
+                disabled:bg-slate-300 disabled:cursor-not-allowed
+                text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
             >
-              {uploadingSpec ? "Uploading..." : "Upload Specification"}
+              {uploadingSpec
+                ? "Uploading & Parsing..."
+                : "Upload Specification"}
             </button>
+            {specStatus && (
+              <p
+                className={`mt-2 text-xs ${specStatus.startsWith("✓") ? "text-green-700" : "text-blue-700"}`}
+              >
+                {specStatus}
+              </p>
+            )}
           </div>
 
           {/* Submittal upload */}
@@ -145,10 +167,14 @@ export default function Compliance() {
               2. Vendor Submittal PDF
             </h2>
             <input
+              ref={submInputRef}
               type="file"
               accept=".pdf"
               onChange={(e) => setSubmFile(e.target.files[0])}
-              className="block w-full text-sm text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-sm file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
+              className="block w-full text-sm text-slate-500
+                file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0
+                file:text-sm file:bg-slate-100 file:text-slate-700
+                hover:file:bg-slate-200 cursor-pointer"
             />
             {submFile && (
               <p className="text-xs text-slate-500 mt-1 truncate">
@@ -157,22 +183,25 @@ export default function Compliance() {
             )}
             <input
               type="text"
-              placeholder="Vendor name"
+              placeholder="Vendor name *"
               value={vendorName}
               onChange={(e) => setVendorName(e.target.value)}
-              className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5
+                text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
             <input
               type="text"
-              placeholder="PO number"
+              placeholder="PO number *"
               value={poNumber}
               onChange={(e) => setPoNumber(e.target.value)}
-              className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5
+                text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
             <select
               value={equipmentItemId}
               onChange={(e) => setEquipmentItemId(e.target.value)}
-              className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
+              className="mt-2 w-full border border-slate-200 rounded-lg px-3 py-1.5
+                text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400"
             >
               {equipmentList.length === 0 ? (
                 <option value="eq-ups-moda-001">
@@ -181,7 +210,7 @@ export default function Compliance() {
               ) : (
                 equipmentList.map((eq) => (
                   <option key={eq.id} value={eq.id}>
-                    {eq.item_code} — {eq.description}
+                    {eq.item_code} — {eq.description?.slice(0, 35)}
                   </option>
                 ))
               )}
@@ -189,10 +218,19 @@ export default function Compliance() {
             <button
               onClick={handleSubmittalUpload}
               disabled={!submFile || uploadingSubm}
-              className="mt-3 w-full bg-slate-700 hover:bg-slate-800 disabled:bg-slate-300 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              className="mt-3 w-full bg-slate-700 hover:bg-slate-800
+                disabled:bg-slate-300 disabled:cursor-not-allowed
+                text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
             >
-              {uploadingSubm ? "Uploading..." : "Upload Submittal"}
+              {uploadingSubm ? "Uploading & Extracting..." : "Upload Submittal"}
             </button>
+            {submStatus && (
+              <p
+                className={`mt-2 text-xs ${submStatus.startsWith("✓") ? "text-green-700" : "text-blue-700"}`}
+              >
+                {submStatus}
+              </p>
+            )}
           </div>
 
           {/* Run check */}
@@ -200,39 +238,52 @@ export default function Compliance() {
             <h2 className="font-semibold text-slate-700 mb-2">
               3. Run Compliance Check
             </h2>
-            <p className="text-xs text-slate-400 mb-3">
-              Using PO:{" "}
-              <code className="bg-slate-100 px-1 rounded">{currentPoId}</code>
-            </p>
+            <p className="text-xs text-slate-400 mb-1">Purchase Order:</p>
+            <code className="text-xs bg-slate-100 px-2 py-1 rounded block truncate mb-3">
+              {currentPoId}
+            </code>
             <button
               onClick={handleRunCheck}
               disabled={runningCheck}
-              className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors"
+              className="w-full bg-teal-600 hover:bg-teal-700
+                disabled:bg-teal-300 disabled:cursor-not-allowed
+                text-white font-semibold py-2.5 px-4 rounded-lg transition-colors"
             >
-              {runningCheck ? "Running Agent..." : "Run Compliance Check"}
+              {runningCheck ? "Agent Running..." : "⚡ Run Compliance Check"}
             </button>
+            {checkStatus && (
+              <p
+                className={`mt-2 text-xs ${checkStatus.startsWith("✓") ? "text-green-700" : "text-blue-700"}`}
+              >
+                {checkStatus}
+              </p>
+            )}
           </div>
 
-          {/* Status */}
-          {(status || error) && (
-            <div
-              className={`rounded-lg px-4 py-3 text-sm ${error ? "bg-red-50 text-red-700 border border-red-200" : "bg-teal-50 text-teal-700 border border-teal-200"}`}
-            >
-              {error || status}
+          {/* Error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+              {error}
+              <button
+                onClick={() => setError(null)}
+                className="ml-2 text-red-400 hover:text-red-600"
+              >
+                ✕
+              </button>
             </div>
           )}
         </div>
 
-        {/* Right panel — Results */}
-        <div className="flex-1 min-w-0">
+        {/* ── Right panel ── */}
+        <div className="flex-1 min-w-0 space-y-4">
           {runningCheck ? (
-            <LoadingSpinner message="Spec Compliance Agent running — comparing requirements..." />
+            <LoadingSpinner message="Spec Compliance Agent running — LLM classifying deviations..." />
           ) : results ? (
-            <div className="space-y-4">
-              {/* Summary bar */}
+            <>
+              {/* Summary */}
               <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <SeverityBadge
                       severity={
                         results.compliance_status === "COMPLIANT"
@@ -241,21 +292,18 @@ export default function Compliance() {
                       }
                     />
                     <span className="font-semibold text-slate-700">
-                      {results.vendor_name || "Vendor"}
-                    </span>
-                    <span className="text-slate-400 text-sm">·</span>
-                    <span className="text-slate-500 text-sm">
-                      {results.po_number}
+                      {results.vendor_name || "Vendor"} ·{" "}
+                      {results.po_number || currentPoId.slice(0, 8)}
                     </span>
                   </div>
                   <div className="flex gap-3 text-sm">
-                    <span className="text-red-600 font-semibold">
+                    <span className="text-red-600 font-bold">
                       {results.summary?.critical || 0} CRITICAL
                     </span>
-                    <span className="text-orange-500 font-semibold">
+                    <span className="text-orange-500 font-bold">
                       {results.summary?.major || 0} MAJOR
                     </span>
-                    <span className="text-amber-600 font-semibold">
+                    <span className="text-amber-600 font-bold">
                       {results.summary?.minor || 0} MINOR
                     </span>
                   </div>
@@ -278,7 +326,7 @@ export default function Compliance() {
                           Submitted
                         </th>
                         <th className="text-left px-4 py-3 font-semibold text-slate-600">
-                          Deviation
+                          Delta
                         </th>
                         <th className="text-left px-4 py-3 font-semibold text-slate-600">
                           Severity
@@ -293,23 +341,21 @@ export default function Compliance() {
                         <tr
                           key={dev.id}
                           onClick={() =>
-                            setSelectedNcr(dev.ncr_id ? { ...dev } : null)
+                            setSelectedDev(
+                              selectedDev?.id === dev.id ? null : dev,
+                            )
                           }
                           className={`cursor-pointer transition-colors ${
-                            dev.severity === "CRITICAL"
-                              ? "bg-red-50 hover:bg-red-100"
-                              : dev.severity === "MAJOR"
-                                ? "bg-orange-50 hover:bg-orange-100"
-                                : "hover:bg-slate-50"
+                            sevColor[dev.severity] || "hover:bg-slate-50"
                           }`}
                         >
                           <td className="px-4 py-3 font-mono text-xs text-slate-700">
-                            {dev.attribute_name?.replace(/_/g, " ")}
+                            {(dev.attribute_name || "").replace(/_/g, " ")}
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-green-700 font-medium">
                             {dev.specified_value}
                           </td>
-                          <td className="px-4 py-3 text-slate-600">
+                          <td className="px-4 py-3 text-red-700 font-medium">
                             {dev.submitted_value}
                           </td>
                           <td className="px-4 py-3 text-slate-600">
@@ -327,9 +373,9 @@ export default function Compliance() {
                                   e.stopPropagation();
                                   navigate(`/ncr/${dev.ncr_id}`);
                                 }}
-                                className="text-teal-600 hover:text-teal-800 text-xs underline"
+                                className="text-teal-600 hover:text-teal-800 text-xs underline font-medium"
                               >
-                                View NCR
+                                View NCR →
                               </button>
                             )}
                           </td>
@@ -339,83 +385,102 @@ export default function Compliance() {
                   </table>
                 </div>
               ) : (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
-                  <p className="text-green-700 font-semibold">
+                <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center">
+                  <p className="text-green-700 font-semibold text-lg">
                     ✓ All requirements compliant
                   </p>
                   <p className="text-green-600 text-sm mt-1">
-                    No deviations detected
+                    No deviations detected in this submittal
                   </p>
                 </div>
               )}
 
-              {/* NCR inline panel */}
-              {selectedNcr && selectedNcr.ncr_id && (
+              {/* Deviation detail slide-in */}
+              {selectedDev && (
                 <div className="bg-slate-800 text-white rounded-xl shadow-lg p-5">
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-4">
                     <div>
-                      <SeverityBadge severity={selectedNcr.severity} />
-                      <h3 className="font-semibold mt-2 text-lg">
-                        {selectedNcr.attribute_name
-                          ?.replace(/_/g, " ")
-                          .toUpperCase()}{" "}
-                        — Non-Conformance
+                      <SeverityBadge severity={selectedDev.severity} />
+                      <h3 className="font-semibold text-lg mt-2">
+                        {(selectedDev.attribute_name || "")
+                          .replace(/_/g, " ")
+                          .toUpperCase()}
                       </h3>
                     </div>
                     <button
-                      onClick={() => setSelectedNcr(null)}
-                      className="text-slate-400 hover:text-white text-xl"
+                      onClick={() => setSelectedDev(null)}
+                      className="text-slate-400 hover:text-white text-2xl leading-none"
                     >
                       ×
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div>
-                      <span className="text-slate-400">Specified:</span>
-                      <span className="ml-2 font-semibold text-green-400">
-                        {selectedNcr.specified_value}
-                      </span>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                    <div className="bg-slate-700 rounded p-3">
+                      <div className="text-slate-400 text-xs mb-1">
+                        Specified
+                      </div>
+                      <div className="font-bold text-green-400">
+                        {selectedDev.specified_value}
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-400">Submitted:</span>
-                      <span className="ml-2 font-semibold text-red-400">
-                        {selectedNcr.submitted_value}
-                      </span>
+                    <div className="bg-slate-700 rounded p-3">
+                      <div className="text-slate-400 text-xs mb-1">
+                        Submitted
+                      </div>
+                      <div className="font-bold text-red-400">
+                        {selectedDev.submitted_value}
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-400">Clause:</span>
-                      <span className="ml-2">{selectedNcr.clause_number}</span>
+                    <div className="bg-slate-700 rounded p-3">
+                      <div className="text-slate-400 text-xs mb-1">Clause</div>
+                      <div className="text-slate-200 text-xs">
+                        {selectedDev.clause_number || "N/A"}
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-400">W_conform:</span>
-                      <span className="ml-2">
-                        {(selectedNcr.w_conform * 100).toFixed(0)}%
-                      </span>
+                    <div className="bg-slate-700 rounded p-3">
+                      <div className="text-slate-400 text-xs mb-1">
+                        w_conform
+                      </div>
+                      <div className="text-slate-200">
+                        {((selectedDev.w_conform || 0) * 100).toFixed(0)}%
+                      </div>
                     </div>
                   </div>
-                  <div className="text-sm text-slate-300 mb-3">
-                    {selectedNcr.justification}
-                  </div>
-                  <div className="bg-slate-700 rounded p-3 text-sm">
-                    <span className="text-slate-400 font-semibold">
-                      Recommended Action:{" "}
-                    </span>
-                    {selectedNcr.recommended_action}
-                  </div>
-                  <button
-                    onClick={() => navigate(`/ncr/${selectedNcr.ncr_id}`)}
-                    className="mt-3 text-teal-400 hover:text-teal-200 text-sm underline"
-                  >
-                    View Full NCR →
-                  </button>
+
+                  {selectedDev.justification && (
+                    <div className="text-slate-300 text-sm mb-3 leading-relaxed">
+                      {selectedDev.justification}
+                    </div>
+                  )}
+
+                  {selectedDev.recommended_action && (
+                    <div className="bg-slate-700 rounded p-3 text-sm mb-3">
+                      <span className="text-slate-400 font-semibold">
+                        Recommended Action:{" "}
+                      </span>
+                      <span className="text-slate-200">
+                        {selectedDev.recommended_action}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedDev.ncr_id && (
+                    <button
+                      onClick={() => navigate(`/ncr/${selectedDev.ncr_id}`)}
+                      className="text-teal-400 hover:text-teal-200 text-sm underline font-medium"
+                    >
+                      View Full NCR Detail →
+                    </button>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 h-64">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-100 min-h-64">
               <EmptyState
                 title="No compliance results yet"
-                description="Upload a specification and vendor submittal, then click Run Compliance Check"
+                description="Upload a specification PDF and vendor submittal PDF, then click Run Compliance Check"
               />
             </div>
           )}

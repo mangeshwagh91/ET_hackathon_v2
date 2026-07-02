@@ -32,3 +32,8 @@ DCPI is an AI-powered EPC (Engineering, Procurement, and Construction) project i
 2. Install dependencies: `npm install`
 3. Start the Vite dev server: `npm run dev`
 4. The web application will be available at `http://localhost:5173`.
+
+
+
+
+

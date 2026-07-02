@@ -31,7 +31,8 @@ def init_db():
                 requirements_json TEXT NOT NULL DEFAULT '[]',
                 tier TEXT DEFAULT 'TIER_IV',
                 page_refs_json TEXT DEFAULT '[]',
-                extracted_ts TEXT
+                extracted_ts TEXT,
+                confidence_score REAL DEFAULT 0.5
             )
         """)
 
@@ -63,6 +64,7 @@ def init_db():
                 technical_attributes_json TEXT DEFAULT '{}',
                 compliance_status TEXT DEFAULT 'PENDING',
                 deviation_count INTEGER DEFAULT 0,
+                conformance_score REAL DEFAULT 1.0,
                 checked_ts TEXT
             )
         """)
@@ -79,6 +81,8 @@ def init_db():
                 severity TEXT NOT NULL,
                 deviation_type TEXT DEFAULT 'VALUE',
                 w_conform REAL DEFAULT 0.5,
+                justification TEXT,
+                recommended_action TEXT,
                 detected_ts TEXT NOT NULL
             )
         """)
@@ -118,6 +122,8 @@ def init_db():
                 percent_complete REAL DEFAULT 0.0,
                 risk_score REAL DEFAULT 0.0,
                 delay_probability REAL DEFAULT 0.0,
+                risk_level TEXT DEFAULT 'negligible',
+                is_critical_path INTEGER DEFAULT 0,
                 mitigation_text TEXT,
                 risk_checked_ts TEXT
             )
@@ -146,6 +152,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS agent_runs (
                 id TEXT PRIMARY KEY,
                 agent_name TEXT NOT NULL,
+                agent_version TEXT DEFAULT '1.0.0',
                 trigger_event TEXT,
                 input_summary TEXT,
                 output_summary TEXT,
@@ -154,7 +161,8 @@ def init_db():
                 completed_ts TEXT,
                 error_text TEXT,
                 records_processed INTEGER DEFAULT 0,
-                records_created INTEGER DEFAULT 0
+                records_created INTEGER DEFAULT 0,
+                metadata_json TEXT
             )
         """)
 
@@ -170,6 +178,7 @@ def init_db():
         db.execute("CREATE INDEX IF NOT EXISTS idx_ncrs_equipment ON ncrs(equipment_item_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_schedule_risk ON schedule_tasks(risk_score)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_schedule_equipment ON schedule_tasks(equipment_item_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_schedule_critical ON schedule_tasks(is_critical_path)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_rfis_resolved ON rfis(is_resolved)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_po_equipment ON purchase_orders(equipment_item_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_agent_runs_name ON agent_runs(agent_name)")
