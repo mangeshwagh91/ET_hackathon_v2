@@ -1,4 +1,6 @@
-const BASE = "/api";
+// Allow overriding the API base during development via Vite env var VITE_API_BASE
+// Example: VITE_API_BASE=http://localhost:8000/api
+const BASE = import.meta.env.VITE_API_BASE || "/api";
 
 async function handleResponse(response) {
   if (!response.ok) {
