@@ -196,6 +196,7 @@ async def _call_groq_async(
 ) -> str:
     import aiohttp
 
+
     if not GROQ_API_KEYS:
         raise RuntimeError("No Groq API keys configured")
 
@@ -570,3 +571,5 @@ def has_available_provider() -> bool:
         return _cached_ollama_health()
     except Exception:
         return False
+    
+
