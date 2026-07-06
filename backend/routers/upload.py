@@ -198,6 +198,12 @@ async def upload_submittal(
                     (equipment_item_id,)
                 ).fetchone()
                 equipment_class = dict(equipment)["equipment_class"] if equipment else "UPS"
+                # Ensure the equipment_item_id exists to avoid foreign key constraint
+                if not equipment:
+                    logger.warning(f"Equipment item {equipment_item_id} not found; purchase order will use NULL for equipment_item_id to avoid FK error")
+                    equipment_item_id_to_use = None
+                else:
+                    equipment_item_id_to_use = equipment_item_id
 
                 try:
                     tech_attrs = await asyncio.to_thread(
@@ -213,7 +219,7 @@ async def upload_submittal(
             logger.error(f"Text extraction failed: {str(e)}")
             tech_attrs = {}
 
-        db.execute("""
+            db.execute("""
             INSERT OR REPLACE INTO purchase_orders
             (id, po_number, vendor_name, document_id, equipment_item_id, po_date,
              technical_attributes_json, compliance_status, deviation_count, checked_ts)
@@ -223,7 +229,7 @@ async def upload_submittal(
             po_number,
             vendor_name,
             doc_id,
-            equipment_item_id,
+            equipment_item_id_to_use,
             datetime.utcnow().strftime("%Y-%m-%d"),
             json.dumps(tech_attrs),
             "PENDING",
