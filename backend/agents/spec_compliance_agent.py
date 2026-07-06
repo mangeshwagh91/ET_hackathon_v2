@@ -1,7 +1,8 @@
 """
 Spec Compliance Agent — DCPI.
 Compares vendor submittal attributes against specification requirements,
-classifies deviations, and generates NCR records.
+classifies deviations, and generates NCR records. Severity scoring and NCR
+generation each run as one concurrent batch call instead of sequential loops.
 """
 
 import os
@@ -10,15 +11,15 @@ import uuid
 import logging
 import re
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 
 from database.connection import get_db
-from services.llm_client import call_claude, call_claude_json, has_available_provider
+from services.llm_client import call_claude_batch, call_claude_json_batch, has_available_provider
 
 logger = logging.getLogger(__name__)
 
 AGENT_NAME = "spec_compliance"
-AGENT_VERSION = "2.0.0"
+AGENT_VERSION = "2.1.0"
 
 CRITICAL_DEVIATION_PCT = float(os.getenv("COMPLIANCE_CRITICAL_DEVIATION_PCT", "15.0"))
 MAJOR_DEVIATION_PCT = float(os.getenv("COMPLIANCE_MAJOR_DEVIATION_PCT", "10.0"))
@@ -165,7 +166,8 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
         raw_deviations = compare_attributes(po_attrs, all_requirements, equipment_class)
         logger.info(f"Found {len(raw_deviations)} deviations")
 
-        scored_deviations = [_score_deviation(dev, equipment_class) for dev in raw_deviations]
+        # Batch-score all deviations concurrently instead of sequentially.
+        scored_deviations = _score_deviations_batch(raw_deviations, equipment_class)
 
         now_ts = datetime.now(timezone.utc).isoformat()
         for dev in scored_deviations:
@@ -198,16 +200,12 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
             )
         db.commit()
 
-        ncr_ids = []
-        for dev in scored_deviations:
-            if dev.get("severity") in ("CRITICAL", "MAJOR", "MINOR"):
-                matching_clause = next(
-                    (c for c in clauses if c["id"] == dev.get("spec_clause_id")),
-                    clauses[0] if clauses else {},
-                )
-                ncr_id = _generate_ncr(dev, po_id, equipment.get("id", ""), matching_clause)
-                ncr_ids.append(ncr_id)
-                dev["ncr_id"] = ncr_id
+        # Batch-generate NCRs for all qualifying deviations concurrently.
+        ncr_targets = [
+            dev for dev in scored_deviations
+            if dev.get("severity") in ("CRITICAL", "MAJOR", "MINOR")
+        ]
+        ncr_ids = _generate_ncrs_batch(ncr_targets, po_id, equipment.get("id", ""), clauses)
 
         compliance_status = _determine_compliance_status(scored_deviations)
         conformance_score = _calculate_conformance_score(scored_deviations)
@@ -438,11 +436,10 @@ def _compare_single(spec_attr: str, required_val: Any, submitted_val: Any, toler
     return None
 
 
-def _score_deviation(dev: Dict[str, Any], equipment_class: str) -> Dict[str, Any]:
+def _build_severity_user_message(dev: Dict[str, Any], equipment_class: str) -> str:
     attr_display = dev["attribute_name"].replace("_", " ").title()
     dev_pct = dev.get("deviation_pct")
-
-    user_message = f"""DEVIATION TO CLASSIFY:
+    return f"""DEVIATION TO CLASSIFY:
 
 Attribute: {dev['attribute_name']} ({attr_display})
 Specification requires: {dev['specified_value']} {dev.get('unit', '')}
@@ -456,20 +453,50 @@ Mandatory: {'Yes' if dev.get('mandatory') else 'No'}
 
 Classify this deviation and provide the w_conform score."""
 
+
+def _score_deviations_batch(
+    deviations: List[Dict[str, Any]],
+    equipment_class: str
+) -> List[Dict[str, Any]]:
+    """
+    Score all deviations concurrently via one batch call instead of a
+    sequential per-deviation loop. Falls back to heuristic scoring per
+    item on failure or when no LLM provider is available.
+    """
+    if not deviations:
+        return []
+
     if not has_available_provider():
-        _apply_heuristic_scoring(dev)
-        return dev
+        for dev in deviations:
+            _apply_heuristic_scoring(dev)
+        return deviations
+
+    batch_items: List[Tuple[str, str]] = [
+        (SEVERITY_SYSTEM, _build_severity_user_message(dev, equipment_class))
+        for dev in deviations
+    ]
 
     try:
-        result = call_claude_json(SEVERITY_SYSTEM, user_message, max_tokens=500)
-        dev["severity"] = result.get("severity", "MINOR")
-        dev["justification"] = result.get("justification", "")
-        dev["recommended_action"] = result.get("recommended_action", "Review and resolve with vendor")
-        dev["w_conform"] = float(result.get("w_conform", 0.5))
+        results = call_claude_json_batch(batch_items, max_tokens=500)
     except Exception as e:
-        logger.error(f"LLM severity scoring failed for {dev['attribute_name']}: {e}")
-        _apply_heuristic_scoring(dev)
-    return dev
+        logger.error(f"Severity scoring batch call failed entirely: {e}", exc_info=True)
+        results = [None] * len(deviations)
+
+    for dev, result in zip(deviations, results):
+        if isinstance(result, dict):
+            try:
+                dev["severity"] = result.get("severity", "MINOR")
+                dev["justification"] = result.get("justification", "")
+                dev["recommended_action"] = result.get("recommended_action", "Review and resolve with vendor")
+                dev["w_conform"] = float(result.get("w_conform", 0.5))
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Malformed severity result for {dev['attribute_name']}: {e}")
+                _apply_heuristic_scoring(dev)
+        else:
+            logger.warning(f"No severity result for {dev['attribute_name']}; using heuristic")
+            _apply_heuristic_scoring(dev)
+
+    return deviations
 
 
 def _apply_heuristic_scoring(dev: Dict[str, Any]) -> None:
@@ -510,13 +537,11 @@ def _apply_heuristic_scoring(dev: Dict[str, Any]) -> None:
     )
 
 
-def _generate_ncr(dev: Dict[str, Any], po_id: str, equipment_item_id: str, spec_clause: Dict) -> str:
-    ncr_id = str(uuid.uuid4())
+def _build_ncr_user_message(dev: Dict[str, Any], spec_clause: Dict) -> str:
     attr_display = dev["attribute_name"].replace("_", " ").title()
     unit = dev.get("unit", "")
     dev_pct = dev.get("deviation_pct")
-
-    user_message = f"""Generate a formal NCR for this specification deviation:
+    return f"""Generate a formal NCR for this specification deviation:
 
 ATTRIBUTE: {dev['attribute_name']} ({attr_display})
 SPECIFICATION REQUIRES: {dev['specified_value']} {unit}
@@ -530,30 +555,75 @@ JUSTIFICATION: {dev.get('justification', '')}
 
 Write the NCR using the TITLE/DESCRIPTION/IMPACT/ACTIONS format."""
 
+
+def _default_ncr_text(dev: Dict[str, Any]) -> str:
+    attr_display = dev["attribute_name"].replace("_", " ").title()
+    unit = dev.get("unit", "")
+    return (
+        f"TITLE: {attr_display} Non-Conformance — {dev.get('severity','MINOR')}\n"
+        f"DESCRIPTION: Vendor submitted {dev['submitted_value']} {unit} for {dev['attribute_name']} against specified requirement of {dev['specified_value']} {unit}.\n"
+        f"IMPACT: Requires resolution before equipment acceptance at site.\n"
+        f"ACTIONS:\n"
+        f"1. Issue formal NCR to vendor within 24 hours (Quality Manager)\n"
+        f"2. Request revised submittal within 5 business days (Vendor Technical Director)\n"
+        f"3. Notify Project Manager of potential schedule impact (NCR Coordinator)"
+    )
+
+
+def _generate_ncrs_batch(
+    deviations: List[Dict[str, Any]],
+    po_id: str,
+    equipment_item_id: str,
+    clauses: List[Dict]
+) -> List[str]:
+    """
+    Generate NCR text for all qualifying deviations concurrently, then
+    write each NCR record to the DB. Returns the list of created NCR ids.
+    """
+    if not deviations:
+        return []
+
+    matching_clauses = [
+        next((c for c in clauses if c["id"] == dev.get("spec_clause_id")), clauses[0] if clauses else {})
+        for dev in deviations
+    ]
+
     if not has_available_provider():
-        response_text = (
-            f"TITLE: {attr_display} Non-Conformance — {dev.get('severity','MINOR')}\n"
-            f"DESCRIPTION: Vendor submitted {dev['submitted_value']} {unit} for {dev['attribute_name']} against specified requirement of {dev['specified_value']} {unit}.\n"
-            f"IMPACT: Requires resolution before equipment acceptance at site.\n"
-            f"ACTIONS:\n"
-            f"1. Issue formal NCR to vendor within 24 hours (Quality Manager)\n"
-            f"2. Request revised submittal within 5 business days (Vendor Technical Director)\n"
-            f"3. Notify Project Manager of potential schedule impact (NCR Coordinator)"
-        )
+        response_texts = [_default_ncr_text(dev) for dev in deviations]
     else:
+        batch_items: List[Tuple[str, str]] = [
+            (NCR_SYSTEM, _build_ncr_user_message(dev, clause))
+            for dev, clause in zip(deviations, matching_clauses)
+        ]
         try:
-            response_text = call_claude(NCR_SYSTEM, user_message, max_tokens=800)
+            raw_results = call_claude_batch(batch_items, max_tokens=800)
         except Exception as e:
-            logger.error(f"NCR generation LLM call failed: {e}")
-            response_text = (
-                f"TITLE: {attr_display} Non-Conformance — {dev.get('severity','MINOR')}\n"
-                f"DESCRIPTION: Vendor submitted {dev['submitted_value']} {unit} for {dev['attribute_name']} against specified requirement of {dev['specified_value']} {unit}.\n"
-                f"IMPACT: Requires resolution before equipment acceptance at site.\n"
-                f"ACTIONS:\n"
-                f"1. Issue formal NCR to vendor within 24 hours (Quality Manager)\n"
-                f"2. Request revised submittal within 5 business days (Vendor Technical Director)\n"
-                f"3. Notify Project Manager of potential schedule impact (NCR Coordinator)"
-            )
+            logger.error(f"NCR generation batch call failed entirely: {e}", exc_info=True)
+            raw_results = [None] * len(deviations)
+
+        response_texts = [
+            text if text else _default_ncr_text(dev)
+            for text, dev in zip(raw_results, deviations)
+        ]
+
+    ncr_ids = []
+    for dev, clause, response_text in zip(deviations, matching_clauses, response_texts):
+        ncr_id = _save_ncr(dev, po_id, equipment_item_id, clause, response_text)
+        dev["ncr_id"] = ncr_id
+        ncr_ids.append(ncr_id)
+
+    return ncr_ids
+
+
+def _save_ncr(
+    dev: Dict[str, Any],
+    po_id: str,
+    equipment_item_id: str,
+    spec_clause: Dict,
+    response_text: str
+) -> str:
+    ncr_id = str(uuid.uuid4())
+    attr_display = dev["attribute_name"].replace("_", " ").title()
 
     lines = response_text.strip().split("\n")
     title = f"{attr_display} Non-Conformance — {dev.get('severity','MINOR')}"

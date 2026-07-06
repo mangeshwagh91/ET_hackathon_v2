@@ -87,7 +87,6 @@ def answer_rfi_query(query: str) -> Dict[str, Any]:
 
     db = get_db()
     try:
-        # Step 1: Search spec clauses
         if not CHROMADB_AVAILABLE:
             spec_results = _fallback_spec_search(query, db, MAX_SPEC_RESULTS)
         else:
@@ -97,7 +96,6 @@ def answer_rfi_query(query: str) -> Dict[str, Any]:
                 logger.warning(f"Vector spec search unavailable, using DB fallback: {e}")
                 spec_results = _fallback_spec_search(query, db, MAX_SPEC_RESULTS)
 
-        # Step 2: Search resolved RFIs (only_resolved=True is the default)
         if not CHROMADB_AVAILABLE:
             rfi_results = _fallback_rfi_search(query, db, MAX_RFI_RESULTS)
         else:
@@ -111,16 +109,12 @@ def answer_rfi_query(query: str) -> Dict[str, Any]:
             f"Retrieved {len(spec_results)} spec clauses, {len(rfi_results)} RFIs"
         )
 
-        # Step 3: Build structured source list
         all_chunks = _build_source_list(spec_results, rfi_results)
-
-        # Step 4: Find precedent RFIs
         precedent_rfis = _find_precedent_rfis(rfi_results, db)
 
         if precedent_rfis:
             logger.info(f"Found {len(precedent_rfis)} precedent RFIs")
 
-        # Step 5: Build context and call LLM
         if not all_chunks:
             answer_text = (
                 "The project documents do not contain any relevant information "
@@ -148,7 +142,6 @@ def answer_rfi_query(query: str) -> Dict[str, Any]:
 
             confidence = _compute_confidence(all_chunks)
 
-        # Step 6: Build response sources list
         sources = []
         for chunk in all_chunks[:10]:
             sources.append({
@@ -163,7 +156,6 @@ def answer_rfi_query(query: str) -> Dict[str, Any]:
                 "text_preview": chunk.text[:150]
             })
 
-        # Step 7: Log agent run
         processing_ms = round(
             (datetime.now() - start_time).total_seconds() * 1000, 1
         )
@@ -244,7 +236,6 @@ def _build_source_list(
             score=chunk.get("score", 0.0),
             metadata=chunk.get("metadata", {})
         ))
-    # Re-sort by score, re-rank
     all_chunks.sort(key=lambda x: x.score, reverse=True)
     for i, chunk in enumerate(all_chunks):
         chunk.rank = i + 1
@@ -325,10 +316,6 @@ def _find_precedent_rfis(
     rfi_results: List[Dict],
     db
 ) -> List[Dict[str, Any]]:
-    """
-    Find precedent RFIs from search results.
-    A precedent = similarity > PRECEDENT_THRESHOLD AND is_resolved = true.
-    """
     precedents = []
     for chunk in rfi_results:
         score = chunk.get("score", 0.0)
@@ -345,8 +332,6 @@ def _find_precedent_rfis(
             continue
 
         try:
-            # Our rfis table has: id, rfi_code, title, resolution_text
-            # No resolution_date or resolved_by in schema
             row = db.execute(
                 "SELECT id, rfi_code, title, resolution_text FROM rfis WHERE id = ?",
                 (rfi_id,)

@@ -7,13 +7,9 @@ Fallback: OCR via pytesseract + pdf2image (only if both are installed).
 import logging
 import importlib
 import os
-import io
-import tempfile
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +19,7 @@ OCR_LANGUAGES = os.getenv("PDF_OCR_LANGUAGES", "eng")
 OCR_CONFIG = os.getenv("PDF_OCR_CONFIG", "--oem 3 --psm 6")
 MAX_OCR_PAGES = int(os.getenv("PDF_MAX_OCR_PAGES", "100"))
 PARALLEL_PAGE_THRESHOLD = int(os.getenv("PDF_PARALLEL_THRESHOLD", "20"))
+OCR_MAX_WORKERS = int(os.getenv("PDF_OCR_MAX_WORKERS", "4"))
 
 
 # ── Custom Exceptions ──────────────────────────────────────────────────────────
@@ -107,6 +104,7 @@ def extract_text_from_pdf(
                 if ocr_pages:
                     return ocr_pages
                 logger.warning("OCR fallback returned no pages; using native text extraction result")
+                doc = _open_pdf_document(fitz, file_path)
             else:
                 logger.warning(f"PDF appears scanned but OCR is disabled")
 
@@ -130,6 +128,7 @@ def extract_text_from_pdf(
             if ocr_pages:
                 return ocr_pages
             logger.warning("OCR fallback returned no pages; keeping native text extraction result")
+            return pages
 
         logger.info(
             f"Extracted {len(pages)} pages, {total_words} words "
@@ -258,7 +257,7 @@ def _extract_pages_parallel(
                 "word_count": word_count,
                 "char_count": len(text) if text else 0
             }
-        except Exception as e:
+        except Exception:
             return {"page_num": page_num + 1, "text": "", "word_count": 0, "char_count": 0}
         finally:
             if thread_doc:
@@ -317,27 +316,38 @@ def _extract_with_ocr(
         if not images:
             return []
 
-        pages = []
-        for i, image in enumerate(images):
+        def _ocr_single(index_and_image):
+            i, image = index_and_image
             try:
                 text = pytesseract.image_to_string(
                     image, lang=OCR_LANGUAGES, config=OCR_CONFIG
                 )
                 word_count = len(text.split()) if text else 0
-                pages.append({
+                return {
                     "page_num": i + 1,
                     "text": text.strip() if text else "",
                     "word_count": word_count,
                     "char_count": len(text) if text else 0,
                     "extraction_method": "ocr"
-                })
+                }
             except Exception as e:
                 logger.error(f"OCR failed page {i + 1}: {e}")
-                pages.append({
+                return {
                     "page_num": i + 1, "text": "", "word_count": 0,
                     "char_count": 0, "extraction_method": "ocr"
-                })
+                }
 
+        pages_dict: Dict[int, Dict[str, Any]] = {}
+        with ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS) as executor:
+            futures = {
+                executor.submit(_ocr_single, (i, image)): i
+                for i, image in enumerate(images)
+            }
+            for future in as_completed(futures):
+                result = future.result()
+                pages_dict[result["page_num"]] = result
+
+        pages = [pages_dict[i] for i in sorted(pages_dict.keys())]
         total_words = sum(p["word_count"] for p in pages)
         logger.info(f"OCR complete: {len(pages)} pages, {total_words} words")
         return pages

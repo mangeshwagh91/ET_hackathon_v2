@@ -9,12 +9,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
+
 
 from database.schema import init_db
+from dotenv import load_dotenv
+from pathlib import Path
 
-# Load environment variables before anything else
-load_dotenv()
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH, override=True)
+
+print("Loaded .env from:", ENV_PATH)
+print("Exists:", ENV_PATH.exists())
 
 # Configure logging
 logging.basicConfig(

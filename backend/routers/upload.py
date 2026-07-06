@@ -2,7 +2,6 @@ import os
 import uuid
 import logging
 import json
-import sys
 import asyncio
 import re
 from datetime import datetime
@@ -46,24 +45,33 @@ Common attributes to extract:
 Return ONLY valid JSON with extracted values. No preamble. No markdown."""
 
 
-def save_upload(file: UploadFile) -> str:
-    """Save uploaded file and return the file path."""
+def _save_upload_sync(content: bytes, file_path: str) -> None:
+    """Blocking write, meant to be run via asyncio.to_thread."""
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+
+async def save_upload_async(file: UploadFile) -> str:
+    """
+    Save uploaded file and return the file path.
+    Read + write are offloaded to a worker thread so they don't block the
+    event loop for other concurrent requests on the same process.
+    """
     os.makedirs(UPLOADS_PATH, exist_ok=True)
     ext = os.path.splitext(file.filename)[1] if file.filename else ".pdf"
     unique_filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(UPLOADS_PATH, unique_filename)
-    
+
     try:
-        content = file.file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
+        content = await asyncio.to_thread(file.file.read)
+        await asyncio.to_thread(_save_upload_sync, content, file_path)
         logger.info(f"File saved: {file_path}")
         return file_path
     except Exception as e:
         logger.error(f"Failed to save file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     finally:
-        file.file.close()
+        await asyncio.to_thread(file.file.close)
 
 
 @router.post("/specification")
@@ -80,42 +88,38 @@ async def upload_specification(
 
     doc_id = str(uuid.uuid4())
     db = get_db()
-    
+
     try:
-        # Save the file
-        file_path = save_upload(file)
-        
-        # Insert document record
+        file_path = await save_upload_async(file)
+
         db.execute("""
             INSERT OR REPLACE INTO documents 
             (id, filename, doc_type, upload_ts, file_path, status, page_count)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
-            doc_id, 
-            file.filename, 
-            "specification", 
-            datetime.utcnow().isoformat(), 
-            file_path, 
-            "processing", 
+            doc_id,
+            file.filename,
+            "specification",
+            datetime.utcnow().isoformat(),
+            file_path,
+            "processing",
             0
         ))
         db.commit()
         logger.info(f"Document record created: {doc_id}")
 
-        # Parse the document
         try:
             from services.spec_parser import parse_spec_document_async
             extracted_clauses = await parse_spec_document_async(doc_id, file_path)
-            
-            # Update document status
+
             db.execute(
                 "UPDATE documents SET status = ?, page_count = ? WHERE id = ?",
                 ("ready", len(extracted_clauses), doc_id)
             )
             db.commit()
-            
+
             logger.info(f"Spec document {doc_id} parsed: {len(extracted_clauses)} clauses")
-            
+
             return {
                 "success": True,
                 "document_id": doc_id,
@@ -124,19 +128,19 @@ async def upload_specification(
                 "clauses_extracted": len(extracted_clauses),
                 "clauses_preview": extracted_clauses[:3] if extracted_clauses else []
             }
-            
+
         except ImportError as e:
             logger.error(f"Failed to import spec_parser: {e}")
             db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
             db.commit()
             raise HTTPException(status_code=500, detail=f"Specification parser not available: {str(e)}")
-            
+
         except Exception as e:
             logger.error(f"Spec parsing failed for doc {doc_id}: {str(e)}")
             db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
             db.commit()
             raise HTTPException(status_code=500, detail=f"Specification parsing failed: {str(e)}")
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -163,43 +167,38 @@ async def upload_submittal(
     doc_id = str(uuid.uuid4())
     po_id = str(uuid.uuid4())
     db = get_db()
-    
+
     try:
-        # Save the file
-        file_path = save_upload(file)
-        
-        # Insert document record
+        file_path = await save_upload_async(file)
+
         db.execute("""
             INSERT OR REPLACE INTO documents 
             (id, filename, doc_type, upload_ts, file_path, status, page_count)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
-            doc_id, 
-            file.filename, 
-            "submittal", 
-            datetime.utcnow().isoformat(), 
-            file_path, 
-            "processing", 
+            doc_id,
+            file.filename,
+            "submittal",
+            datetime.utcnow().isoformat(),
+            file_path,
+            "processing",
             0
         ))
         db.commit()
         logger.info(f"Document record created: {doc_id}")
 
-        # Extract text from PDF
         try:
             raw_text = await asyncio.to_thread(extract_full_text, file_path)
             if not raw_text:
                 logger.warning(f"No text extracted from submittal {doc_id}")
                 tech_attrs = {}
             else:
-                # Get equipment class
                 equipment = db.execute(
-                    "SELECT equipment_class FROM equipment_items WHERE id = ?", 
+                    "SELECT equipment_class FROM equipment_items WHERE id = ?",
                     (equipment_item_id,)
                 ).fetchone()
                 equipment_class = dict(equipment)["equipment_class"] if equipment else "UPS"
-                
-                # Parse attributes
+
                 try:
                     tech_attrs = await asyncio.to_thread(
                         parse_submittal_attributes,
@@ -214,27 +213,25 @@ async def upload_submittal(
             logger.error(f"Text extraction failed: {str(e)}")
             tech_attrs = {}
 
-        # Create purchase order
         db.execute("""
             INSERT OR REPLACE INTO purchase_orders
             (id, po_number, vendor_name, document_id, equipment_item_id, po_date,
              technical_attributes_json, compliance_status, deviation_count, checked_ts)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            po_id, 
-            po_number, 
-            vendor_name, 
-            doc_id, 
+            po_id,
+            po_number,
+            vendor_name,
+            doc_id,
             equipment_item_id,
-            datetime.utcnow().strftime("%Y-%m-%d"), 
-            json.dumps(tech_attrs), 
+            datetime.utcnow().strftime("%Y-%m-%d"),
+            json.dumps(tech_attrs),
             "PENDING",
             0,
             None
         ))
         db.commit()
 
-        # Update document status
         db.execute("UPDATE documents SET status = 'ready' WHERE id = ?", (doc_id,))
         db.commit()
 
@@ -251,7 +248,7 @@ async def upload_submittal(
             "technical_attributes": tech_attrs,
             "status": "ready"
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -303,13 +300,13 @@ async def get_purchase_order(po_id: str):
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Purchase order not found")
-        
+
         po = dict(row)
         try:
             po["technical_attributes"] = json.loads(po.get("technical_attributes_json", "{}"))
-        except:
+        except Exception:
             po["technical_attributes"] = {}
-        
+
         return {"success": True, "purchase_order": po}
     except HTTPException:
         raise
@@ -328,24 +325,24 @@ async def delete_document(doc_id: str):
         doc = db.execute(
             "SELECT file_path, doc_type FROM documents WHERE id = ?", (doc_id,)
         ).fetchone()
-        
+
         if not doc:
             raise HTTPException(status_code=404, detail="Document not found")
-        
+
         doc_dict = dict(doc)
-        
+
         if doc_dict.get("file_path") and os.path.exists(doc_dict["file_path"]):
             try:
                 os.remove(doc_dict["file_path"])
                 logger.info(f"Deleted file: {doc_dict['file_path']}")
             except Exception as e:
                 logger.warning(f"Failed to delete file: {e}")
-        
+
         db.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
         db.commit()
-        
+
         return {"success": True, "message": f"Document {doc_id} deleted"}
-        
+
     except HTTPException:
         raise
     except Exception as e:

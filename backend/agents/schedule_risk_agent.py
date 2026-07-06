@@ -2,7 +2,8 @@
 Schedule Risk Agent — DCPI.
 Analyzes construction schedule tasks for risk using float, NCR procurement
 impact, predecessor chain, resource, and weather factors.
-Fully synchronous. Uses call_claude only.
+Mitigation generation for at-risk tasks runs as one concurrent batch call
+instead of a sequential per-task loop.
 """
 
 import os
@@ -11,11 +12,11 @@ import uuid
 import logging
 import math
 from datetime import datetime, timezone
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from collections import defaultdict
 
 from database.connection import get_db
-from services.llm_client import call_claude, has_available_provider
+from services.llm_client import call_claude_batch, has_available_provider
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ SIGMOID_K = float(os.getenv("SCHEDULE_SIGMOID_K", "7.0"))
 SIGMOID_THETA = float(os.getenv("SCHEDULE_SIGMOID_THETA", "0.45"))
 
 AGENT_NAME = "schedule_risk"
-AGENT_VERSION = "2.0.0"
+AGENT_VERSION = "2.1.0"
 MAX_MITIGATION_OPTIONS = 3
 
 MITIGATION_SYSTEM = """You are a senior project controls specialist on a Tier IV hyperscale data centre EPC project.
@@ -114,7 +115,7 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
             if (t.get("total_float_days") or 0) <= 1
         }
 
-        # Step 5: Process tasks in topological order
+        # Step 5: Process tasks in topological order (pure math, fast)
         sorted_tasks = _topological_sort(tasks, dependency_graph)
         computed_scores: Dict[str, float] = {}
 
@@ -136,33 +137,46 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
             )
             computed_scores[task_id] = risk_score
 
-        # Step 6: Generate mitigations for high-risk tasks, update DB
-        at_risk_tasks = []
+        # Step 6: Identify tasks needing mitigation, build prompts once
+        mitigation_targets: List[Dict[str, Any]] = []
         for task in tasks:
             task_id = task["id"]
             risk_score = computed_scores.get(task_id, 0.0)
-            delay_prob = compute_delay_probability(risk_score)
-            risk_level = _classify_risk_level(risk_score)
-            is_critical = 1 if task_id in critical_path else 0
-
-            mitigation_text = None
             if risk_score > MEDIUM_RISK_THRESHOLD:
+                is_critical = 1 if task_id in critical_path else 0
+                delay_prob = compute_delay_probability(risk_score)
                 eq_id = task.get("equipment_item_id")
                 ncr_list = equipment_ncr_map.get(eq_id, []) if eq_id else []
                 procurement_delay = _get_procurement_delay(ncr_list)
                 procurement_context = _build_procurement_context(
                     eq_id, ncr_list, procurement_delay
                 )
-                try:
-                    mitigation_text = _generate_mitigation(
-                        task, risk_score, delay_prob, procurement_context,
-                        is_critical=is_critical
-                    )
-                except Exception as e:
-                    logger.error(f"Mitigation failed for {task_id}: {e}")
-                    mitigation_text = _fallback_mitigation(
-                        task, risk_score, delay_prob, procurement_delay, is_critical
-                    )
+                mitigation_targets.append({
+                    "task": task,
+                    "risk_score": risk_score,
+                    "delay_prob": delay_prob,
+                    "is_critical": is_critical,
+                    "procurement_delay": procurement_delay,
+                    "procurement_context": procurement_context,
+                })
+
+        # Step 7: Fire ALL mitigation prompts as one concurrent batch
+        mitigation_texts = _generate_mitigations_batch(mitigation_targets)
+
+        # Step 8: Assemble results and update DB
+        at_risk_tasks = []
+        mitigation_by_task_id: Dict[str, str] = {
+            target["task"]["id"]: text
+            for target, text in zip(mitigation_targets, mitigation_texts)
+        }
+
+        for task in tasks:
+            task_id = task["id"]
+            risk_score = computed_scores.get(task_id, 0.0)
+            delay_prob = compute_delay_probability(risk_score)
+            risk_level = _classify_risk_level(risk_score)
+            is_critical = 1 if task_id in critical_path else 0
+            mitigation_text = mitigation_by_task_id.get(task_id)
 
             db.execute("""
                 UPDATE schedule_tasks
@@ -199,7 +213,6 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
             (datetime.now() - start_time).total_seconds() * 1000, 1
         )
 
-        # Step 7: Log agent run
         _log_agent_run(
             agent_run_id=agent_run_id,
             started_ts=started_ts,
@@ -252,7 +265,6 @@ def compute_task_risk_score(
     """
     float_days = task.get("total_float_days") or 0
 
-    # Float factor
     if float_days <= 0:
         float_factor = 1.0
     elif float_days == 1:
@@ -268,7 +280,6 @@ def compute_task_risk_score(
     else:
         float_factor = 0.05
 
-    # Procurement risk factor
     if procurement_delay_days >= 21:
         procurement_risk = 0.95
     elif procurement_delay_days >= 14:
@@ -284,16 +295,12 @@ def compute_task_risk_score(
     else:
         procurement_risk = 0.0
 
-    # Predecessor risk factor
     predecessor_risk = (
         sum(predecessor_risks) / len(predecessor_risks)
         if predecessor_risks else 0.0
     )
 
-    # Resource risk (simplified — based on task type inferred from description)
     resource_risk = _infer_resource_risk(task.get("description", ""))
-
-    # Weather risk (simplified — based on planned start month)
     weather_risk = _infer_weather_risk(task.get("planned_start", ""))
 
     risk_score = (
@@ -328,7 +335,6 @@ def _classify_risk_level(risk_score: float) -> str:
 
 
 def _get_procurement_delay(ncr_list: List[Dict]) -> float:
-    """Return max procurement delay days from list of NCR dicts."""
     if not ncr_list:
         return 0.0
     delay = 0.0
@@ -340,7 +346,6 @@ def _get_procurement_delay(ncr_list: List[Dict]) -> float:
             delay = max(delay, MAJOR_NCR_DELAY)
         elif sev == "MINOR":
             delay = max(delay, MINOR_NCR_DELAY)
-    # Small additional delay for multiple NCRs
     if len(ncr_list) > 1:
         delay += min(3.0, len(ncr_list) * 0.5)
     return delay
@@ -374,7 +379,6 @@ def _infer_weather_risk(planned_start: str) -> float:
 # ── Dependency Graph ───────────────────────────────────────────────────────────
 
 def _build_dependency_graph(tasks: List[Dict]) -> Dict[str, List[str]]:
-    """Returns {task_id: [successor_task_ids]}."""
     graph: Dict[str, List[str]] = defaultdict(list)
     for task in tasks:
         task_id = task.get("id", "")
@@ -388,7 +392,6 @@ def _topological_sort(
     tasks: List[Dict],
     dependency_graph: Dict[str, List[str]]
 ) -> List[Dict]:
-    """Kahn's algorithm — returns tasks in dependency order (predecessors first)."""
     in_degree = {t["id"]: 0 for t in tasks}
     for pred_id, successors in dependency_graph.items():
         for succ_id in successors:
@@ -409,7 +412,6 @@ def _topological_sort(
                     if succ:
                         queue.append(succ)
 
-    # Append any tasks not reached (cycles or disconnected)
     processed = {t["id"] for t in sorted_tasks}
     for task in tasks:
         if task["id"] not in processed:
@@ -445,50 +447,70 @@ def _build_procurement_context(
     return "\n".join(lines)
 
 
-def _generate_mitigation(
-    task: Dict,
-    risk_score: float,
-    delay_prob: float,
-    procurement_context: str,
-    is_critical: int = 0
-) -> str:
-    if not has_available_provider():
-        return _fallback_mitigation(
-            task,
-            risk_score,
-            delay_prob,
-            procurement_delay=0.0,
-            is_critical=is_critical,
-        )
-
+def _build_mitigation_user_message(target: Dict[str, Any]) -> str:
+    task = target["task"]
     pred_ids = _parse_json_list(task.get("predecessor_ids_json"))
     pred_str = ", ".join(pred_ids) if pred_ids else "None"
 
-    user_message = f"""Generate {MAX_MITIGATION_OPTIONS} mitigation options for this at-risk schedule task on a Tier IV data centre project.
+    return f"""Generate {MAX_MITIGATION_OPTIONS} mitigation options for this at-risk schedule task on a Tier IV data centre project.
 
 TASK DETAILS:
 - Task Code: {task.get('task_code', task['id'])}
 - Description: {task.get('description', '')}
 - Planned dates: {task.get('planned_start', '')} → {task.get('planned_finish', '')}
 - Float remaining: {task.get('total_float_days', 0)} days
-- Risk score: {risk_score:.0%}
-- Delay probability: {delay_prob:.0%}
-- On critical path: {'YES ⚠️' if is_critical else 'No'}
+- Risk score: {target['risk_score']:.0%}
+- Delay probability: {target['delay_prob']:.0%}
+- On critical path: {'YES ⚠️' if target['is_critical'] else 'No'}
 - Predecessor tasks: {pred_str}
 
 PROCUREMENT / NCR CONTEXT:
-{procurement_context}"""
+{target['procurement_context']}"""
+
+
+def _generate_mitigations_batch(targets: List[Dict[str, Any]]) -> List[str]:
+    """
+    Generate mitigation text for every at-risk task in one concurrent batch
+    call instead of a sequential per-task loop. Falls back to deterministic
+    text per-item if the LLM call for that item fails or no provider is
+    available at all.
+    """
+    if not targets:
+        return []
+
+    if not has_available_provider():
+        return [
+            _fallback_mitigation(
+                t["task"], t["risk_score"], t["delay_prob"],
+                t["procurement_delay"], t["is_critical"]
+            )
+            for t in targets
+        ]
+
+    batch_items: List[Tuple[str, str]] = [
+        (MITIGATION_SYSTEM, _build_mitigation_user_message(t)) for t in targets
+    ]
 
     try:
-        return call_claude(MITIGATION_SYSTEM, user_message, max_tokens=1200)
-    except Exception:
-        return _fallback_mitigation(
-            task,
-            risk_score,
-            delay_prob,
-            procurement_delay=0.0,
-            is_critical=is_critical,
-        )
+        raw_results = call_claude_batch(batch_items, max_tokens=1200)
+    except Exception as e:
+        logger.error(f"Mitigation batch call failed entirely: {e}", exc_info=True)
+        raw_results = [None] * len(targets)
+
+    results = []
+    for target, text in zip(targets, raw_results):
+        if text:
+            results.append(text)
+        else:
+            logger.warning(
+                f"Mitigation generation failed for task "
+                f"{target['task'].get('task_code', target['task']['id'])}; using fallback"
+            )
+            results.append(_fallback_mitigation(
+                target["task"], target["risk_score"], target["delay_prob"],
+                target["procurement_delay"], target["is_critical"]
+            ))
+    return results
 
 
 def _fallback_mitigation(

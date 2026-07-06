@@ -1,22 +1,37 @@
 """
 LLM Client Service — DCPI.
-Primary: Groq API (fast cloud inference).
+Primary: Groq API (fast cloud inference, concurrent multi-key).
 Fallback: Ollama (local model).
 All agents call call_claude() / call_claude_json() — provider is transparent.
+Batch variants call_claude_batch() / call_claude_json_batch() run multiple
+prompts concurrently against Groq for latency-sensitive multi-item workloads
+(clause extraction, deviation scoring, mitigation generation).
 """
+from pathlib import Path
 
+print(Path(".env").resolve())
+print(Path(".env").exists())
+import asyncio
 import concurrent.futures
 import json
 import logging
+import math
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+from dotenv import load_dotenv
+from pathlib import Path
+
+ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=ENV_PATH, override=True)
+
+print("Loaded .env from:", ENV_PATH)
+print("Exists:", ENV_PATH.exists())
 
 logger = logging.getLogger(__name__)
 
@@ -27,20 +42,29 @@ _ollama_health_cache: Dict[str, Any] = {"checked_at": 0.0, "available": None}
 # ── Configuration ──────────────────────────────────────────────────────────────
 
 GROQ_API_KEY_RAW = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_API_KEYS_RAW = os.getenv("GROQ_API_KEYS", "").strip()
+
+_combined_raw = GROQ_API_KEYS_RAW or GROQ_API_KEY_RAW
 GROQ_API_KEYS: List[str] = []
-if GROQ_API_KEY_RAW:
-    candidates = GROQ_API_KEY_RAW.split(",")
+if _combined_raw:
+    candidates = _combined_raw.split(",")
     GROQ_API_KEYS = [k.strip() for k in candidates if k.strip().startswith("gsk_")]
-    if not GROQ_API_KEYS and GROQ_API_KEY_RAW:
-        GROQ_API_KEYS = [GROQ_API_KEY_RAW]
+    if not GROQ_API_KEYS and _combined_raw:
+        GROQ_API_KEYS = [_combined_raw]
 
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 GROQ_TIMEOUT = int(os.getenv("GROQ_TIMEOUT_SECONDS", "45"))
 MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "2"))
+GROQ_MAX_CONCURRENT = max(1, int(os.getenv("GROQ_MAX_CONCURRENT", "3")))
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b-instruct")
-OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "120"))
+# Accept either env var name — .env uses OLLAMA_TIMEOUT, some deployments use
+# OLLAMA_TIMEOUT_SECONDS. Previously only the _SECONDS variant was read, so the
+# .env value was silently ignored and the 120s code default always applied.
+OLLAMA_TIMEOUT = int(
+    os.getenv("OLLAMA_TIMEOUT_SECONDS", os.getenv("OLLAMA_TIMEOUT", "60"))
+)
 
 FALLBACK_GROQ_MODELS = [
     "llama-3.1-8b-instant",
@@ -50,7 +74,10 @@ FALLBACK_GROQ_MODELS = [
 
 USE_GROQ = bool(GROQ_API_KEYS)
 if USE_GROQ:
-    logger.info(f"LLM client: Groq primary ({GROQ_MODEL}), Ollama fallback ({OLLAMA_MODEL})")
+    logger.info(
+        f"LLM client: Groq primary ({GROQ_MODEL}, {len(GROQ_API_KEYS)} keys, "
+        f"max_concurrent={GROQ_MAX_CONCURRENT}), Ollama fallback ({OLLAMA_MODEL})"
+    )
 else:
     logger.info(f"LLM client: Ollama only ({OLLAMA_MODEL}) — no Groq API key configured")
 
@@ -108,22 +135,31 @@ def _parse_json_robust(text: str) -> dict:
 
 # ── Async runner (works inside and outside FastAPI event loop) ─────────────────
 
-def _run_async(coro):
+def _run_async(coro, timeout: Optional[float] = None):
     """
     Run a coroutine from sync context regardless of whether an event loop
     is already running (FastAPI runs sync handlers in a thread pool thread
     with no event loop, so asyncio.run() works directly there).
     """
+    effective_timeout = timeout if timeout is not None else (GROQ_TIMEOUT + 10)
     try:
-        loop = asyncio.get_running_loop()
+        asyncio.get_running_loop()
         # An event loop IS running (we're in an async context).
         # Submit to a thread to get a fresh loop.
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(asyncio.run, coro)
-            return future.result(timeout=GROQ_TIMEOUT + 10)
+            return future.result(timeout=effective_timeout)
     except RuntimeError:
         # No running loop — safe to call asyncio.run directly.
         return asyncio.run(coro)
+
+
+def _estimate_batch_timeout(n_items: int) -> float:
+    """Rough ceiling for a concurrent batch: waves of GROQ_MAX_CONCURRENT items."""
+    if n_items <= 0:
+        return GROQ_TIMEOUT + 10
+    waves = math.ceil(n_items / GROQ_MAX_CONCURRENT)
+    return (waves * GROQ_TIMEOUT) + 15
 
 
 # ── Key rotation ───────────────────────────────────────────────────────────────
@@ -275,7 +311,7 @@ def _call_ollama(
         raise RuntimeError(f"Ollama failed: {e}") from e
 
 
-# ── Public synchronous API (what all agents import) ────────────────────────────
+# ── Public synchronous single-call API ──────────────────────────────────────────
 
 def call_claude(
     system_prompt: str,
@@ -326,12 +362,133 @@ def call_claude_json(
         raise RuntimeError(f"All LLM providers failed for JSON call: {e}") from e
 
 
+# ── Public concurrent batch API ─────────────────────────────────────────────────
+
+async def _call_groq_text_batch_async(
+    items: List[Tuple[str, str]],
+    max_tokens: int
+) -> List[Optional[str]]:
+    semaphore = asyncio.Semaphore(GROQ_MAX_CONCURRENT)
+
+    async def _one(system_prompt: str, user_message: str) -> Optional[str]:
+        async with semaphore:
+            try:
+                return await _call_groq_async(
+                    system_prompt, user_message, max_tokens, json_mode=False
+                )
+            except Exception as e:
+                logger.warning(f"Groq batch item failed, trying Ollama: {e}")
+                try:
+                    return await asyncio.to_thread(
+                        _call_ollama, system_prompt, user_message, max_tokens, False
+                    )
+                except Exception as e2:
+                    logger.error(f"Ollama fallback for batch item failed: {e2}")
+                    return None
+
+    tasks = [_one(sp, um) for sp, um in items]
+    return await asyncio.gather(*tasks)
+
+
+async def _call_groq_json_batch_async(
+    items: List[Tuple[str, str]],
+    max_tokens: int
+) -> List[Optional[dict]]:
+    semaphore = asyncio.Semaphore(GROQ_MAX_CONCURRENT)
+
+    async def _one(system_prompt: str, user_message: str) -> Optional[dict]:
+        async with semaphore:
+            try:
+                text = await _call_groq_async(
+                    system_prompt, user_message, max_tokens, json_mode=True
+                )
+                return _parse_json_robust(text)
+            except Exception as e:
+                logger.warning(f"Groq JSON batch item failed, trying Ollama: {e}")
+                try:
+                    text = await asyncio.to_thread(
+                        _call_ollama, system_prompt, user_message, max_tokens, True
+                    )
+                    return _parse_json_robust(text)
+                except Exception as e2:
+                    logger.error(f"Ollama fallback for batch item failed: {e2}")
+                    return None
+
+    tasks = [_one(sp, um) for sp, um in items]
+    return await asyncio.gather(*tasks)
+
+
+def call_claude_batch(
+    items: List[Tuple[str, str]],
+    max_tokens: int = 1200
+) -> List[Optional[str]]:
+    """
+    Run multiple (system_prompt, user_message) calls concurrently.
+    Returns text responses in the same order as `items`; a failed item is None.
+
+    When Groq is configured, calls run concurrently bounded by
+    GROQ_MAX_CONCURRENT, each with its own per-item Ollama fallback.
+    When Groq is not configured, falls back to sequential Ollama calls.
+    """
+    if not items:
+        return []
+
+    if USE_GROQ:
+        try:
+            return _run_async(
+                _call_groq_text_batch_async(items, max_tokens),
+                timeout=_estimate_batch_timeout(len(items))
+            )
+        except Exception as e:
+            logger.warning(f"Groq batch entirely failed, falling back to sequential Ollama: {e}")
+
+    results: List[Optional[str]] = []
+    for system_prompt, user_message in items:
+        try:
+            results.append(_call_ollama(system_prompt, user_message, max_tokens, json_mode=False))
+        except Exception as e:
+            logger.error(f"Sequential Ollama batch item failed: {e}")
+            results.append(None)
+    return results
+
+
+def call_claude_json_batch(
+    items: List[Tuple[str, str]],
+    max_tokens: int = 1500
+) -> List[Optional[dict]]:
+    """
+    Run multiple (system_prompt, user_message) JSON calls concurrently.
+    Returns parsed dicts in the same order as `items`; a failed/unparseable
+    item is None so callers can apply their own per-item fallback.
+    """
+    if not items:
+        return []
+
+    if USE_GROQ:
+        try:
+            return _run_async(
+                _call_groq_json_batch_async(items, max_tokens),
+                timeout=_estimate_batch_timeout(len(items))
+            )
+        except Exception as e:
+            logger.warning(f"Groq JSON batch entirely failed, falling back to sequential Ollama: {e}")
+
+    results: List[Optional[dict]] = []
+    for system_prompt, user_message in items:
+        try:
+            text = _call_ollama(system_prompt, user_message, max_tokens, json_mode=True)
+            results.append(_parse_json_robust(text))
+        except Exception as e:
+            logger.error(f"Sequential Ollama JSON batch item failed: {e}")
+            results.append(None)
+    return results
+
+
 # ── Health checks ──────────────────────────────────────────────────────────────
 
 def check_ollama_health() -> dict:
     """
     Check if Ollama is running and the configured model is available.
-    Called by test scripts: python -c "from services.llm_client import check_ollama_health; ..."
     """
     try:
         response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
@@ -375,14 +532,13 @@ def check_health() -> dict:
         "available": USE_GROQ,
         "key_count": len(GROQ_API_KEYS),
         "model": GROQ_MODEL,
+        "max_concurrent": GROQ_MAX_CONCURRENT,
         "fallback_models": FALLBACK_GROQ_MODELS
     }
     if USE_GROQ:
         try:
-            # Quick connectivity test using a minimal request
-            import aiohttp
-
             async def _ping():
+                import aiohttp
                 async with aiohttp.ClientSession() as s:
                     async with s.get(
                         "https://api.groq.com/openai/v1/models",
@@ -391,7 +547,7 @@ def check_health() -> dict:
                     ) as r:
                         return r.status == 200
 
-            groq_status["reachable"] = _run_async(_ping())
+            groq_status["reachable"] = _run_async(_ping(), timeout=10)
         except Exception:
             groq_status["reachable"] = False
     return {
