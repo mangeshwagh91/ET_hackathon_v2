@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useInView } from "framer-motion";
-import { ChevronRight, ArrowRight, Zap, BarChart3, AlertCircle, FileText } from "lucide-react";
+import { ChevronRight, ArrowRight, Zap, BarChart3, AlertCircle, FileText, Clock, TrendingUp, Award, Shield } from "lucide-react";
 import api from "../api/client.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
 import SeverityBadge from "../components/SeverityBadge.jsx";
@@ -151,22 +151,22 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* Documents */}
+          {/* Compliance % */}
           <motion.div
             whileHover={{ y: -4 }}
             className="card card-hover p-6 group cursor-pointer"
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-text-muted text-sm font-medium">Documents</p>
+                <p className="text-text-muted text-sm font-medium">Compliance %</p>
                 <p className="text-4xl font-bold text-primary mt-2">
-                  {summary.total_documents || 0}
+                  {summary.compliance_accuracy_pct?.toFixed(0) || "0"}%
                 </p>
                 <p className="text-text-muted text-xs mt-2">
                   {summary.compliance_checks_run || 0} checks run
                 </p>
               </div>
-              <FileText className="text-primary/60 group-hover:text-primary transition-colors" size={24} />
+              <Shield className="text-primary/60 group-hover:text-primary transition-colors" size={24} />
             </div>
           </motion.div>
         </motion.div>
@@ -201,6 +201,95 @@ export default function Dashboard() {
               <div className="text-text-muted text-sm mt-2">Critical Path</div>
               <div className="w-full h-1 bg-slate-200 rounded-full mt-3">
                 <div className="h-full bg-slate-400 rounded-full" style={{width: `${Math.min((summary.critical_path_tasks || 0) * 10, 100)}%`}} />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ─── Impact Metrics (Quantification) ─────────────────────────── */}
+        <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-50 via-teal-50/20 to-emerald-50/30 p-6">
+          {/* Glow */}
+          <div className="absolute -top-8 -right-8 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-6">
+              <TrendingUp size={20} className="text-emerald-600" />
+              <h3 className="text-lg font-semibold text-slate-800">AI Impact Metrics</h3>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">Live</span>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Hours Saved */}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Clock size={18} className="text-emerald-600 mb-2" />
+                <div className="text-3xl font-extrabold text-emerald-600">
+                  {summary.manual_hours_saved_weekly?.toFixed(0) || "0"}h
+                </div>
+                <div className="text-xs text-slate-500 mt-1 font-semibold">Manual effort saved</div>
+                <div className="text-xs text-slate-400 mt-0.5">This week vs manual process</div>
+              </motion.div>
+
+              {/* Compliance Accuracy */}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-4 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Shield size={18} className="text-cyan-600 mb-2" />
+                <div className="text-3xl font-extrabold text-cyan-600">
+                  {summary.compliance_accuracy_pct?.toFixed(1) || "0"}%
+                </div>
+                <div className="text-xs text-slate-500 mt-1 font-semibold">Compliance accuracy</div>
+                <div className="text-xs text-slate-400 mt-0.5">On spec test cases</div>
+              </motion.div>
+
+              {/* Risks Flagged Advance */}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <AlertCircle size={18} className="text-amber-600 mb-2" />
+                <div className="text-3xl font-extrabold text-amber-600">
+                  {summary.risks_flagged_avg_days_advance?.toFixed(0) || "0"}d
+                </div>
+                <div className="text-xs text-slate-500 mt-1 font-semibold">Risks flagged in advance</div>
+                <div className="text-xs text-slate-400 mt-0.5">Avg days before planned start</div>
+              </motion.div>
+
+              {/* Commissioning Pass Rate */}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-4 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Award size={18} className="text-violet-600 mb-2" />
+                <div className="text-3xl font-extrabold text-violet-600">
+                  {summary.commissioning_pass_rate_pct?.toFixed(0) || "0"}%
+                </div>
+                <div className="text-xs text-slate-500 mt-1 font-semibold">Commissioning pass rate</div>
+                <div className="text-xs text-slate-400 mt-0.5">Auto test verification</div>
+              </motion.div>
+            </div>
+
+            {/* Sub-metrics row */}
+            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-200">
+              <div className="text-center">
+                <div className="text-lg font-bold text-slate-800">{summary.total_ncrs_raised || 0}</div>
+                <div className="text-xs text-slate-500 font-semibold">NCRs auto-raised</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-slate-800">{summary.compliance_checks_run || 0}</div>
+                <div className="text-xs text-slate-500 font-semibold">Compliance checks run</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-slate-800">{summary.at_risk_tasks || 0}</div>
+                <div className="text-xs text-slate-500 font-semibold">Risk tasks flagged</div>
               </div>
             </div>
           </div>

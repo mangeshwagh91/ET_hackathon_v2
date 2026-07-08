@@ -207,7 +207,7 @@ export default function RFIChat() {
               messages.map((msg, i) => (
                 <div key={i} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'user' ? (
-                    <div className="bg-slate-900 text-white rounded-2xl rounded-tr-sm px-5 py-3.5 max-w-2xl text-[15px] shadow-sm font-medium">
+                    <div className="bg-indigo-600 text-white rounded-2xl rounded-tr-sm px-5 py-3.5 max-w-2xl text-[15px] shadow-sm font-medium">
                       {msg.content}
                     </div>
                   ) : (

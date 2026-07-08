@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from models.schemas import RFIQueryResponse
 
 from database.connection import get_db
-from agents.rfi_knowledge_agent import answer_rfi_query
+from agents.orchestrator_agent import process_request
 from services.vector_store import index_rfi
 
 logger = logging.getLogger(__name__)
@@ -16,6 +16,7 @@ router = APIRouter()
 
 class RFIQueryRequest(BaseModel):
     query: str
+    context: dict = {}
 
 
 class CreateRFIRequest(BaseModel):
@@ -30,12 +31,15 @@ class CreateRFIRequest(BaseModel):
     is_resolved: bool = False
 
 
-@router.post("/query" , response_model=RFIQueryResponse)
+# Note: response_model is omitted because OrchestratorResponse is different from RFIQueryResponse.
+# We'll return the dict directly or use a matching schema.
+@router.post("/query")
 async def query_rfi(request: RFIQueryRequest):
     if not request.query or len(request.query.strip()) < 3:
         raise HTTPException(status_code=400, detail="Query must be at least 3 characters")
     try:
-        result = answer_rfi_query(request.query.strip())
+        # Use Orchestrator Agent for all queries
+        result = process_request(request.query.strip(), context=request.context)
         return result
     except Exception as e:
         logger.error(f"RFI query endpoint error: {str(e)}")

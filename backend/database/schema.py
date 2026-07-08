@@ -125,7 +125,30 @@ def init_db():
                 risk_level TEXT DEFAULT 'negligible',
                 is_critical_path INTEGER DEFAULT 0,
                 mitigation_text TEXT,
-                risk_checked_ts TEXT
+                risk_checked_ts TEXT,
+                actual_start TEXT,
+                actual_finish TEXT,
+                actual_delay_days INTEGER DEFAULT 0,
+                predicted_delay_days INTEGER DEFAULT 0,
+                historical_avg_delay REAL DEFAULT 0.0
+            )
+        """)
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS commissioning_records (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL REFERENCES schedule_tasks(id),
+                step_number INTEGER NOT NULL,
+                step_name TEXT NOT NULL,
+                step_type TEXT DEFAULT 'CHECK',
+                acceptance_criteria TEXT,
+                actual_value TEXT,
+                status TEXT DEFAULT 'pending',
+                pass_fail TEXT DEFAULT 'pending',
+                flagged_ncr_id TEXT REFERENCES ncrs(id),
+                checked_by TEXT DEFAULT 'System',
+                checked_ts TEXT,
+                notes TEXT
             )
         """)
 
@@ -166,6 +189,41 @@ def init_db():
             )
         """)
 
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                size_mw REAL,
+                deadline TEXT,
+                budget REAL,
+                status TEXT DEFAULT 'active',
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS vendors (
+                id TEXT PRIMARY KEY,
+                company_name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                registered_at TEXT NOT NULL
+            )
+        """)
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS bids (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL REFERENCES projects(id),
+                vendor_id TEXT NOT NULL REFERENCES vendors(id),
+                price REAL NOT NULL,
+                lead_time_days INTEGER NOT NULL,
+                equipment_catalog_json TEXT DEFAULT '{}',
+                status TEXT DEFAULT 'submitted',
+                created_at TEXT NOT NULL
+            )
+        """)
+
         # Indexes
         db.execute("CREATE INDEX IF NOT EXISTS idx_spec_clauses_doc ON spec_clauses(document_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_spec_clauses_class ON spec_clauses(equipment_class)")
@@ -182,8 +240,35 @@ def init_db():
         db.execute("CREATE INDEX IF NOT EXISTS idx_rfis_resolved ON rfis(is_resolved)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_po_equipment ON purchase_orders(equipment_item_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_agent_runs_name ON agent_runs(agent_name)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_bids_project ON bids(project_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_bids_vendor ON bids(vendor_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_commissioning_task ON commissioning_records(task_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_commissioning_status ON commissioning_records(status)")
 
         db.commit()
         logger.info("Database initialized successfully")
+
+        # Migrate existing schedule_tasks table to add new columns if missing
+        _migrate_schedule_tasks(db)
     finally:
         db.close()
+
+
+def _migrate_schedule_tasks(db) -> None:
+    """Add new columns to schedule_tasks if they don't exist (migration-safe)."""
+    new_cols = [
+        ("actual_start", "TEXT"),
+        ("actual_finish", "TEXT"),
+        ("actual_delay_days", "INTEGER DEFAULT 0"),
+        ("predicted_delay_days", "INTEGER DEFAULT 0"),
+        ("historical_avg_delay", "REAL DEFAULT 0.0"),
+    ]
+    existing = {row[1] for row in db.execute("PRAGMA table_info(schedule_tasks)").fetchall()}
+    for col_name, col_type in new_cols:
+        if col_name not in existing:
+            try:
+                db.execute(f"ALTER TABLE schedule_tasks ADD COLUMN {col_name} {col_type}")
+                logger.info(f"Migrated schedule_tasks: added column {col_name}")
+            except Exception as e:
+                logger.warning(f"Could not add column {col_name}: {e}")
+    db.commit()

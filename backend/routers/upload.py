@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from database.connection import get_db
 from services.pdf_extractor import extract_full_text
 from services.llm_client import call_claude_json, has_available_provider
+from services.ingestion_queue import ingestion_queue
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -74,14 +75,33 @@ async def save_upload_async(file: UploadFile) -> str:
         await asyncio.to_thread(file.file.close)
 
 
-@router.post("/specification")
+async def _parse_spec_bg(doc_id: str, file_path: str):
+    db = get_db()
+    try:
+        from services.spec_parser import parse_spec_document_async
+        extracted_clauses = await parse_spec_document_async(doc_id, file_path)
+        db.execute(
+            "UPDATE documents SET status = ?, page_count = ? WHERE id = ?",
+            ("ready", len(extracted_clauses), doc_id)
+        )
+        db.commit()
+        logger.info(f"Spec document {doc_id} parsed: {len(extracted_clauses)} clauses")
+        return {"clauses_extracted": len(extracted_clauses)}
+    except Exception as e:
+        logger.error(f"Spec parsing failed for doc {doc_id}: {str(e)}")
+        db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
+        db.commit()
+        raise e
+    finally:
+        db.close()
+
+@router.post("/specification", status_code=202)
 async def upload_specification(
-    file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = None
+    file: UploadFile = File(...)
 ):
     """
     Upload a specification document.
-    The document will be parsed and stored in the database.
+    The document will be queued for async parsing in the background.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files accepted for specification upload")
@@ -108,38 +128,20 @@ async def upload_specification(
         db.commit()
         logger.info(f"Document record created: {doc_id}")
 
-        try:
-            from services.spec_parser import parse_spec_document_async
-            extracted_clauses = await parse_spec_document_async(doc_id, file_path)
+        # Queue the job
+        ingestion_queue.submit(
+            doc_id=doc_id,
+            doc_type="specification",
+            filename=file.filename,
+            coro_factory=lambda: _parse_spec_bg(doc_id, file_path)
+        )
 
-            db.execute(
-                "UPDATE documents SET status = ?, page_count = ? WHERE id = ?",
-                ("ready", len(extracted_clauses), doc_id)
-            )
-            db.commit()
-
-            logger.info(f"Spec document {doc_id} parsed: {len(extracted_clauses)} clauses")
-
-            return {
-                "success": True,
-                "document_id": doc_id,
-                "filename": file.filename,
-                "status": "ready",
-                "clauses_extracted": len(extracted_clauses),
-                "clauses_preview": extracted_clauses[:3] if extracted_clauses else []
-            }
-
-        except ImportError as e:
-            logger.error(f"Failed to import spec_parser: {e}")
-            db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
-            db.commit()
-            raise HTTPException(status_code=500, detail=f"Specification parser not available: {str(e)}")
-
-        except Exception as e:
-            logger.error(f"Spec parsing failed for doc {doc_id}: {str(e)}")
-            db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
-            db.commit()
-            raise HTTPException(status_code=500, detail=f"Specification parsing failed: {str(e)}")
+        return {
+            "success": True,
+            "document_id": doc_id,
+            "filename": file.filename,
+            "status": "processing"
+        }
 
     except HTTPException:
         raise
@@ -150,7 +152,39 @@ async def upload_specification(
         db.close()
 
 
-@router.post("/submittal")
+async def _parse_submittal_bg(doc_id: str, po_id: str, file_path: str, equipment_class: str):
+    db = get_db()
+    try:
+        raw_text = await asyncio.to_thread(extract_full_text, file_path)
+        if not raw_text:
+            tech_attrs = {}
+        else:
+            try:
+                tech_attrs = await asyncio.to_thread(
+                    parse_submittal_attributes,
+                    raw_text[:5000],
+                    equipment_class
+                )
+            except Exception as e:
+                logger.warning(f"Attribute extraction failed: {str(e)}")
+                tech_attrs = _extract_submittal_attributes_heuristic(raw_text[:5000])
+        
+        db.execute(
+            "UPDATE purchase_orders SET technical_attributes_json = ? WHERE id = ?",
+            (json.dumps(tech_attrs), po_id)
+        )
+        db.execute("UPDATE documents SET status = 'ready' WHERE id = ?", (doc_id,))
+        db.commit()
+        return {"attributes_extracted": len(tech_attrs)}
+    except Exception as e:
+        logger.error(f"Submittal parsing failed: {str(e)}")
+        db.execute("UPDATE documents SET status = 'failed' WHERE id = ?", (doc_id,))
+        db.commit()
+        raise e
+    finally:
+        db.close()
+
+@router.post("/submittal", status_code=202)
 async def upload_submittal(
     file: UploadFile = File(...),
     vendor_name: str = Form(...),
@@ -159,7 +193,7 @@ async def upload_submittal(
 ):
     """
     Upload a vendor submittal document.
-    Extracts technical attributes and creates a purchase order.
+    Creates a PO immediately and queues LLM attribute extraction.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files accepted for submittal upload")
@@ -185,63 +219,32 @@ async def upload_submittal(
             0
         ))
         db.commit()
-        logger.info(f"Document record created: {doc_id}")
+        
+        equipment = db.execute(
+            "SELECT equipment_class FROM equipment_items WHERE id = ?",
+            (equipment_item_id,)
+        ).fetchone()
+        equipment_class = dict(equipment)["equipment_class"] if equipment else "UPS"
+        equipment_item_id_to_use = equipment_item_id if equipment else None
 
-        try:
-            raw_text = await asyncio.to_thread(extract_full_text, file_path)
-            if not raw_text:
-                logger.warning(f"No text extracted from submittal {doc_id}")
-                tech_attrs = {}
-            else:
-                equipment = db.execute(
-                    "SELECT equipment_class FROM equipment_items WHERE id = ?",
-                    (equipment_item_id,)
-                ).fetchone()
-                equipment_class = dict(equipment)["equipment_class"] if equipment else "UPS"
-                # Ensure the equipment_item_id exists to avoid foreign key constraint
-                if not equipment:
-                    logger.warning(f"Equipment item {equipment_item_id} not found; purchase order will use NULL for equipment_item_id to avoid FK error")
-                    equipment_item_id_to_use = None
-                else:
-                    equipment_item_id_to_use = equipment_item_id
-
-                try:
-                    tech_attrs = await asyncio.to_thread(
-                        parse_submittal_attributes,
-                        raw_text[:5000],
-                        equipment_class
-                    )
-                    logger.info(f"Extracted {len(tech_attrs)} attributes from submittal")
-                except Exception as e:
-                    logger.warning(f"Attribute extraction failed, using empty dict: {str(e)}")
-                    tech_attrs = {}
-        except Exception as e:
-            logger.error(f"Text extraction failed: {str(e)}")
-            tech_attrs = {}
-
-            db.execute("""
+        # Create PO with empty attributes for now
+        db.execute("""
             INSERT OR REPLACE INTO purchase_orders
             (id, po_number, vendor_name, document_id, equipment_item_id, po_date,
              technical_attributes_json, compliance_status, deviation_count, checked_ts)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            po_id,
-            po_number,
-            vendor_name,
-            doc_id,
-            equipment_item_id_to_use,
-            datetime.utcnow().strftime("%Y-%m-%d"),
-            json.dumps(tech_attrs),
-            "PENDING",
-            0,
-            None
+            po_id, po_number, vendor_name, doc_id, equipment_item_id_to_use,
+            datetime.utcnow().strftime("%Y-%m-%d"), "{}", "PENDING", 0, None
         ))
         db.commit()
-
-        db.execute("UPDATE documents SET status = 'ready' WHERE id = ?", (doc_id,))
-        db.commit()
-
-        logger.info(f"Submittal {doc_id} processed, PO {po_id} created")
+        
+        ingestion_queue.submit(
+            doc_id=doc_id,
+            doc_type="submittal",
+            filename=file.filename,
+            coro_factory=lambda: _parse_submittal_bg(doc_id, po_id, file_path, equipment_class)
+        )
 
         return {
             "success": True,
@@ -250,9 +253,7 @@ async def upload_submittal(
             "vendor_name": vendor_name,
             "po_number": po_number,
             "equipment_item_id": equipment_item_id,
-            "attributes_extracted": len(tech_attrs),
-            "technical_attributes": tech_attrs,
-            "status": "ready"
+            "status": "processing"
         }
 
     except HTTPException:
@@ -260,6 +261,32 @@ async def upload_submittal(
     except Exception as e:
         logger.error(f"Submittal upload failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Submittal upload failed: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.get("/status/{doc_id}")
+async def get_upload_status(doc_id: str):
+    """Poll for the background processing status of a document."""
+    db = get_db()
+    try:
+        doc = db.execute("SELECT status, doc_type FROM documents WHERE id = ?", (doc_id,)).fetchone()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Document not found")
+        
+        job = ingestion_queue.status(doc_id)
+        if job:
+            return {
+                "success": True, 
+                "document_id": doc_id, 
+                "status": "ready" if job.status.value == "done" else "failed" if job.status.value == "failed" else "processing",
+                "queue_status": job.status.value,
+                "elapsed_ms": job.elapsed_ms,
+                "error": job.error
+            }
+        
+        # Fallback to DB status if job not in queue memory
+        return {"success": True, "document_id": doc_id, "status": doc["status"]}
     finally:
         db.close()
 
@@ -423,3 +450,88 @@ def _extract_submittal_attributes_heuristic(text: str) -> dict:
         attributes[key] = float(frequency_match.group(2))
 
     return attributes
+
+
+async def _process_general_upload_background(doc_id: str, file_path: str, doc_type: str, metadata: dict):
+    """Background task to extract text and ingest into knowledge agent memory."""
+    db = get_db()
+    try:
+        raw_text = await asyncio.to_thread(extract_full_text, file_path)
+        if raw_text:
+            from agents.knowledge_agent import ingest_document_memory
+            success = await asyncio.to_thread(
+                ingest_document_memory,
+                doc_id,
+                raw_text,
+                doc_type,
+                metadata
+            )
+            status = "ready" if success else "failed_ingestion"
+        else:
+            status = "failed_extraction"
+            
+        db.execute("UPDATE documents SET status = ? WHERE id = ?", (status, doc_id))
+        db.commit()
+        logger.info(f"General upload {doc_id} processed with status: {status}")
+    except Exception as e:
+        logger.error(f"Background processing failed for general upload {doc_id}: {e}")
+        db.execute("UPDATE documents SET status = ? WHERE id = ?", ("failed", doc_id))
+        db.commit()
+    finally:
+        db.close()
+
+
+@router.post("/general")
+async def upload_general(
+    file: UploadFile = File(...),
+    doc_type: str = Form(default="general"),
+    background_tasks: BackgroundTasks = None
+):
+    """
+    Upload a general document (RFI, Delay Notice, Drawing, etc.).
+    Triggers Knowledge & Document Intelligence Agent for parsing and indexing.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files accepted for general upload")
+
+    doc_id = str(uuid.uuid4())
+    db = get_db()
+
+    try:
+        file_path = await save_upload_async(file)
+
+        db.execute("""
+            INSERT OR REPLACE INTO documents 
+            (id, filename, doc_type, upload_ts, file_path, status, page_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            doc_id,
+            file.filename,
+            doc_type,
+            datetime.utcnow().isoformat(),
+            file_path,
+            "processing",
+            0
+        ))
+        db.commit()
+        logger.info(f"Document record created: {doc_id}")
+
+        if background_tasks:
+            metadata = {"filename": file.filename, "upload_ts": datetime.utcnow().isoformat()}
+            background_tasks.add_task(_process_general_upload_background, doc_id, file_path, doc_type, metadata)
+            
+        return {
+            "success": True,
+            "document_id": doc_id,
+            "filename": file.filename,
+            "doc_type": doc_type,
+            "status": "processing"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"General upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"General upload failed: {str(e)}")
+    finally:
+        db.close()

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
 from database.connection import get_db
-from agents.spec_compliance_agent import run_compliance_check
+from agents.compliance_agent import run_compliance_check
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

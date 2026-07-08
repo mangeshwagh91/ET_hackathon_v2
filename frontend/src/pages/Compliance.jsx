@@ -51,10 +51,18 @@ export default function Compliance() {
     try {
       setUploadingSpec(true);
       setError(null);
-      setStatus("Extracting and parsing specification...");
-      const data = await api.uploadSpecification(formData);
+      setStatus("Uploading specification...");
+      let data = await api.uploadSpecification(formData);
+      
+      if (data.status === "processing") {
+        setStatus("File uploaded. Background AI parsing in progress...");
+        data = await api.pollUntilReady(data.document_id, (statusInfo) => {
+          setStatus(`Processing: ${statusInfo.queue_status || statusInfo.status}...`);
+        });
+      }
+      
       setSpecDocId(data.document_id);
-      setStatus(`✓ Specification ready — ${data.clauses_extracted} clauses extracted`);
+      setStatus(`✓ Specification ready`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -76,10 +84,18 @@ export default function Compliance() {
     try {
       setUploadingSubm(true);
       setError(null);
-      setStatus("Parsing vendor submittal attributes...");
-      const data = await api.uploadSubmittal(formData);
+      setStatus("Uploading submittal...");
+      let data = await api.uploadSubmittal(formData);
+      
+      if (data.status === "processing") {
+        setStatus("File uploaded. Background AI extraction in progress...");
+        data = await api.pollUntilReady(data.document_id, (statusInfo) => {
+          setStatus(`Processing: ${statusInfo.queue_status || statusInfo.status}...`);
+        });
+      }
+      
       setCurrentPoId(data.po_id);
-      setStatus(`✓ Submittal ready — ${data.attributes_extracted} attributes extracted`);
+      setStatus(`✓ Submittal ready`);
     } catch (err) {
       setError(err.message);
       setStatus("");
@@ -238,22 +254,22 @@ export default function Compliance() {
             <motion.div 
               className={`relative z-10 transition-all duration-300 ${!step3Active ? "opacity-40 pointer-events-none" : ""}`}
             >
-              <button
-                onClick={handleRunCheck}
-                disabled={runningCheck || !step3Active}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-teal-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
-                  <Play fill="currentColor" size={20} />
-                </div>
-                <div className="text-center">
-                  <h3 className="font-bold text-lg">Run AI Compliance</h3>
-                  <p className="text-slate-400 text-xs font-medium">Extract, compare, and analyze</p>
-                </div>
-              </button>
-            </motion.div>
-          </div>
+            <button
+              onClick={handleRunCheck}
+              disabled={runningCheck || !step3Active}
+              className="w-full bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+                <Play fill="currentColor" size={20} />
+              </div>
+              <div className="text-center">
+                <h3 className="font-bold text-lg">Run AI Compliance</h3>
+                <p className="text-indigo-200 text-xs font-medium">Extract, compare, and analyze</p>
+              </div>
+            </button>
+          </motion.div>
+        </div>
 
           {/* ─── Center Panel: Results Dashboard ───────────────────────── */}
           <div className="lg:col-span-5 relative">
@@ -354,19 +370,19 @@ export default function Compliance() {
 
           {/* ─── Right Panel: Intelligence Viewer ──────────────────────── */}
           <div className="lg:col-span-3">
-            <div className="sticky top-24 bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700 flex flex-col h-[700px]">
+            <div className="sticky top-24 bg-white rounded-3xl overflow-hidden shadow-md border border-slate-200 flex flex-col h-[700px]">
               {/* Fake PDF Toolbar */}
-              <div className="bg-slate-800 px-4 py-3 flex items-center justify-between border-b border-slate-700">
+              <div className="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
                 <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <div className="w-3 h-3 rounded-full bg-red-400" />
+                  <div className="w-3 h-3 rounded-full bg-amber-400" />
+                  <div className="w-3 h-3 rounded-full bg-green-400" />
                 </div>
-                <span className="text-xs font-mono text-slate-400">AI Document Viewer</span>
+                <span className="text-xs font-mono text-slate-500">AI Document Viewer</span>
               </div>
               
               {/* Document Content */}
-              <div className="flex-1 p-6 relative overflow-hidden bg-slate-100">
+              <div className="flex-1 p-6 relative overflow-hidden bg-slate-100/60">
                 {!selectedNcr ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center px-4">
                     <FileText size={40} className="mb-4 opacity-50" />
@@ -375,44 +391,44 @@ export default function Compliance() {
                 ) : (
                   <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col">
                     {/* Mocked PDF text showing highlight */}
-                    <div className="bg-white rounded shadow-sm p-4 text-[10px] leading-relaxed text-slate-300 font-serif relative overflow-hidden h-48 mb-4 border border-slate-200">
+                    <div className="bg-white rounded shadow-sm p-4 text-[10px] leading-relaxed text-slate-400 font-serif relative overflow-hidden h-48 mb-4 border border-slate-200">
                       Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
                       <br/><br/>
-                      <span className="bg-yellow-200/50 text-slate-800 font-bold px-1 rounded relative inline-block">
+                      <span className="bg-yellow-100 text-slate-800 font-bold px-1 rounded relative inline-block">
                         {selectedNcr.clause_number}: {selectedNcr.specified_value}
-                        <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -left-1 -right-1 -top-1 -bottom-1 border border-yellow-400 rounded pointer-events-none" />
+                        <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -left-1 -right-1 -top-1 -bottom-1 border border-yellow-350 rounded pointer-events-none" />
                       </span>
                       <br/><br/>
                       Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
                     </div>
 
                     {/* AI Insights Panel */}
-                    <div className="flex-1 bg-slate-800 rounded-2xl p-5 text-white shadow-inner flex flex-col">
+                    <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl p-5 text-slate-800 flex flex-col">
                       <div className="flex items-center gap-2 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                        <h4 className="font-bold text-sm">AI Insights</h4>
+                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                        <h4 className="font-bold text-sm text-slate-800">AI Insights</h4>
                       </div>
                       
                       <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar text-sm">
                         <div>
                           <span className="text-slate-400 text-xs block mb-1">Deviation Rationale</span>
-                          <p className="text-slate-200">{selectedNcr.justification}</p>
+                          <p className="text-slate-700 font-medium leading-relaxed">{selectedNcr.justification}</p>
                         </div>
                         
-                        <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-xl">
-                          <span className="text-blue-300 text-xs font-bold uppercase tracking-wider block mb-1">Recommendation</span>
-                          <p className="text-blue-100">{selectedNcr.recommended_action}</p>
+                        <div className="bg-blue-50 border border-blue-150 p-3 rounded-xl">
+                          <span className="text-blue-600 text-xs font-bold uppercase tracking-wider block mb-1">Recommendation</span>
+                          <p className="text-blue-900 leading-relaxed">{selectedNcr.recommended_action}</p>
                         </div>
 
-                        <div className="flex items-center justify-between bg-slate-900/50 p-3 rounded-xl">
-                          <span className="text-slate-400 text-xs">AI Confidence</span>
-                          <span className="font-bold text-green-400">{(selectedNcr.w_conform * 100).toFixed(1)}%</span>
+                        <div className="flex items-center justify-between bg-slate-100/50 p-3 rounded-xl border border-slate-200/40">
+                          <span className="text-slate-500 text-xs">AI Confidence</span>
+                          <span className="font-bold text-green-600">{(selectedNcr.w_conform * 100).toFixed(1)}%</span>
                         </div>
                       </div>
                       
                       <button
                         onClick={() => navigate(`/ncr/${selectedNcr.ncr_id}`)}
-                        className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-3 rounded-xl transition-colors"
+                        className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-3 rounded-xl transition-colors shadow-sm"
                       >
                         Open Full NCR
                       </button>

@@ -439,6 +439,16 @@ export default function DashboardHero({ summary, healthScore }) {
             </motion.button>
 
             <motion.button
+              onClick={() => navigate("/projects/new")}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700"
+              style={{ boxShadow: "0 4px 15px rgba(79,70,229,0.35)" }}
+            >
+              <span>+ Create Project</span>
+            </motion.button>
+
+            <motion.button
               onClick={() => navigate("/rfi")}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}

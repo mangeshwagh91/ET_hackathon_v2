@@ -36,6 +36,36 @@ const api = {
     return handleResponse(res);
   },
 
+  getDocumentStatus: async (docId) => {
+    const res = await fetch(`${BASE}/upload/status/${docId}`);
+    return handleResponse(res);
+  },
+
+  pollUntilReady: async (docId, onProgress, maxAttempts = 30) => {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const poll = async () => {
+        try {
+          const res = await api.getDocumentStatus(docId);
+          if (onProgress) onProgress(res);
+          if (res.status === "ready") {
+            resolve(res);
+          } else if (res.status === "failed") {
+            reject(new Error(res.error || "Processing failed"));
+          } else if (attempts >= maxAttempts) {
+            reject(new Error("Processing timeout"));
+          } else {
+            attempts++;
+            setTimeout(poll, 2000); // 2 second interval
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+      poll();
+    });
+  },
+
   getDocuments: async () => {
     const res = await fetch(`${BASE}/upload/documents`);
     return handleResponse(res);
@@ -117,6 +147,124 @@ const api = {
     const res = await fetch(`${BASE}/dashboard/summary`);
     const data = await handleResponse(res);
     return data.purchase_orders || [];
+  },
+
+  // Projects Endpoints
+  getProjects: async () => {
+    const res = await fetch(`${BASE}/projects/`);
+    return handleResponse(res);
+  },
+
+  createProject: async (projectData) => {
+    const res = await fetch(`${BASE}/projects/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(projectData),
+    });
+    return handleResponse(res);
+  },
+
+  getOpenProjects: async () => {
+    const res = await fetch(`${BASE}/projects/open`);
+    return handleResponse(res);
+  },
+
+  // Auth & Vendor Registration Endpoints
+  registerVendor: async (vendorData) => {
+    const res = await fetch(`${BASE}/auth/register/vendor`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(vendorData),
+    });
+    return handleResponse(res);
+  },
+
+  loginVendor: async (email, password) => {
+    const res = await fetch(`${BASE}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    return handleResponse(res);
+  },
+
+  // Bids Endpoints
+  createBid: async (bidData) => {
+    const res = await fetch(`${BASE}/bids/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bidData),
+    });
+    return handleResponse(res);
+  },
+
+  getBids: async (projectId) => {
+    const res = await fetch(`${BASE}/bids/${projectId}`);
+    return handleResponse(res);
+  },
+
+  getBidRecommendations: async (projectId) => {
+    const res = await fetch(`${BASE}/bids/recommend?project_id=${projectId}`, {
+      method: "POST",
+    });
+    return handleResponse(res);
+  },
+
+  uploadGeneral: async (formData) => {
+    const res = await fetch(`${BASE}/upload/general`, {
+      method: "POST",
+      body: formData,
+    });
+    return handleResponse(res);
+  },
+
+  // Commissioning Copilot
+  getCommissioningTasks: async () => {
+    const res = await fetch(`${BASE}/commissioning/tasks`);
+    return handleResponse(res);
+  },
+
+  generateCommissioningChecklist: async (taskId) => {
+    const res = await fetch(`${BASE}/commissioning/checklist/generate/${taskId}`, {
+      method: "POST",
+    });
+    return handleResponse(res);
+  },
+
+  runCommissioningStep: async (taskId, stepNumber, actualValue, checkedBy = "QA Engineer") => {
+    const res = await fetch(`${BASE}/commissioning/run/${taskId}/step/${stepNumber}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actual_value: actualValue, checked_by: checkedBy }),
+    });
+    return handleResponse(res);
+  },
+
+  getCommissioningRecords: async () => {
+    const res = await fetch(`${BASE}/commissioning/records`);
+    return handleResponse(res);
+  },
+
+  // Supply Chain Visibility
+  getSupplyChainShipments: async () => {
+    const res = await fetch(`${BASE}/supply-chain/shipments`);
+    return handleResponse(res);
+  },
+
+  getSupplyChainAlerts: async () => {
+    const res = await fetch(`${BASE}/supply-chain/alerts`);
+    return handleResponse(res);
+  },
+
+  getSupplyChainMap: async () => {
+    const res = await fetch(`${BASE}/supply-chain/map`);
+    return handleResponse(res);
+  },
+
+  // Schedule Delay Comparison
+  getDelayComparison: async () => {
+    const res = await fetch(`${BASE}/schedule/delay-comparison`);
+    return handleResponse(res);
   },
 };
 

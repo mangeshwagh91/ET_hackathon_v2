@@ -50,31 +50,36 @@ except ImportError as e:
 
 
 # ── Prompt ─────────────────────────────────────────────────────────────────────
-CLAUSE_EXTRACTION_SYSTEM = """You are a technical specification analyst for data centre EPC projects.
-Extract structured requirements from the following specification clause text.
+CLAUSE_BATCH_EXTRACTION_SYSTEM = """You are a technical specification analyst for data centre EPC projects.
+Extract structured requirements from the following specification clauses.
 
-Return a JSON object with EXACTLY these fields and no others:
+Return a JSON object with EXACTLY this structure and no others:
 {
-  "equipment_class": "UPS",
-  "clause_type": "TECHNICAL",
-  "applicable_tier": "TIER_IV",
-  "requirements": [
+  "extracted_clauses": [
     {
-      "attribute": "efficiency_pct",
-      "required_value": 96.5,
-      "tolerance_type": "MIN",
-      "tolerance_pct": null,
-      "unit": "%",
-      "mandatory": true,
-      "description": "Minimum efficiency at full load in VFI mode"
+      "clause_number": "4.1",
+      "equipment_class": "UPS",
+      "clause_type": "TECHNICAL",
+      "applicable_tier": "TIER_IV",
+      "requirements": [
+        {
+          "attribute": "efficiency_pct",
+          "required_value": 96.5,
+          "tolerance_type": "MIN",
+          "tolerance_pct": null,
+          "unit": "%",
+          "mandatory": true,
+          "description": "Minimum efficiency at full load in VFI mode"
+        }
+      ],
+      "ambiguity_flags": [],
+      "standards_referenced": ["IEC 62040-3"],
+      "confidence_score": 0.9
     }
-  ],
-  "ambiguity_flags": [],
-  "standards_referenced": ["IEC 62040-3"],
-  "confidence_score": 0.9
+  ]
 }
 
-Rules:
+Rules for EACH clause:
 - equipment_class: UPS | CRAC | GENERATOR | SWITCHGEAR | TRANSFORMER | PDU | COOLING | OTHER
 - clause_type: TECHNICAL | QUALITY | SAFETY | ENVIRONMENTAL | INSTALLATION | MAINTENANCE | COMPLIANCE | GENERAL
 - applicable_tier: TIER_I | TIER_II | TIER_III | TIER_IV | BOTH | N/A
@@ -384,7 +389,7 @@ def extract_clause_requirements(
     user_message = _build_extraction_user_message(clause)
 
     try:
-        result = call_claude_json(CLAUSE_EXTRACTION_SYSTEM, user_message, max_tokens=1500)
+        result = call_claude_json(CLAUSE_BATCH_EXTRACTION_SYSTEM, user_message, max_tokens=1500)
         return _postprocess_extraction(result, clause, document_id)
     except Exception as e:
         logger.error(
@@ -413,21 +418,41 @@ def _extract_clauses_concurrent(
         logger.warning("No LLM provider available — returning stubs for all clauses")
         return [_llm_unavailable_stub(c, document_id) for c in clauses]
 
-    batch_items: List[Tuple[str, str]] = [
-        (CLAUSE_EXTRACTION_SYSTEM, _build_extraction_user_message(c)) for c in clauses
-    ]
-
-    try:
-        raw_results = call_claude_json_batch(batch_items, max_tokens=1500)
-    except Exception as e:
-        logger.error(f"Batch extraction call failed entirely: {e}", exc_info=True)
-        raw_results = [None] * len(clauses)
-
     extracted = []
-    for clause, raw_result in zip(clauses, raw_results):
-        processed = _postprocess_extraction(raw_result, clause, document_id)
-        if processed:
-            extracted.append(processed)
+    batch_size = 3
+    
+    from services.llm_client import _call_ollama
+    
+    for i in range(0, len(clauses), batch_size):
+        batch = clauses[i:i + batch_size]
+        
+        user_message = "Extract requirements for the following clauses:\n\n"
+        for c in batch:
+            user_message += f"--- CLAUSE {c.get('clause_number', '?')} ---\n{c.get('text', '')[:3000]}\n\n"
+            
+        try:
+            logger.info(f"Local-first extraction: Trying Ollama for batch of {len(batch)} clauses...")
+            raw_text = _call_ollama(CLAUSE_BATCH_EXTRACTION_SYSTEM, user_message, max_tokens=3000, json_mode=True)
+            import json
+            result = json.loads(raw_text)
+            parsed_clauses = result.get("extracted_clauses", [])
+            
+            if len(parsed_clauses) < len(batch):
+                raise ValueError("Ollama returned fewer clauses than expected.")
+                
+            for c_in, c_out in zip(batch, parsed_clauses):
+                if c_out.get("confidence_score", 0.0) >= 0.6:
+                    processed = _postprocess_extraction(c_out, c_in, document_id)
+                    if processed: extracted.append(processed)
+                else:
+                    raise ValueError(f"Low confidence ({c_out.get('confidence_score')}) from Ollama")
+                    
+        except Exception as e:
+            logger.warning(f"Ollama batch failed or low confidence, falling back to Groq: {e}")
+            for c in batch:
+                processed = extract_clause_requirements(c, document_id)
+                if processed:
+                    extracted.append(processed)
 
     def _parse_num(s: str) -> tuple:
         try:

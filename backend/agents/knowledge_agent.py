@@ -1,0 +1,292 @@
+"""
+Knowledge & Document Intelligence Agent — DCPI.
+RAG-powered agent that answers project RFI queries, searches specifications,
+and remembers project-specific details (maps, designs, delays) by ingesting PDFs.
+"""
+
+import os
+import json
+import uuid
+import logging
+import re
+from datetime import datetime, timezone
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass, field
+
+from database.connection import get_db
+from services.llm_client import call_claude, has_available_provider
+from services.vector_store import search_spec_clauses, search_rfis, get_or_create_collection, embed_text, _serialize_metadata, CHROMADB_AVAILABLE
+
+logger = logging.getLogger(__name__)
+
+# ── Configuration ──────────────────────────────────────────────────────────────
+MAX_SPEC_RESULTS = int(os.getenv("RFI_MAX_SPEC_RESULTS", "5"))
+MAX_RFI_RESULTS = int(os.getenv("RFI_MAX_RFI_RESULTS", "5"))
+PRECEDENT_THRESHOLD = float(os.getenv("RFI_PRECEDENT_THRESHOLD", "0.82"))
+MAX_CONTEXT_CHARS = int(os.getenv("RFI_MAX_CONTEXT_CHARS", "700"))
+MAX_ANSWER_WORDS = int(os.getenv("RFI_MAX_ANSWER_WORDS", "400"))
+
+AGENT_NAME = "knowledge_intelligence"
+AGENT_VERSION = "2.0.0"
+
+@dataclass
+class RetrievedSource:
+    rank: int
+    doc_id: str
+    doc_type: str
+    text: str
+    score: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def label(self) -> str:
+        if self.doc_type == "spec_clause":
+            clause_num = self.metadata.get("clause_number", "N/A")
+            return f"SPEC CLAUSE {clause_num}"
+        elif self.doc_type == "rfi":
+            rfi_code = self.metadata.get("rfi_code", "N/A")
+            return f"RFI {rfi_code}"
+        elif self.doc_type == "document_memory":
+            doc_type = self.metadata.get("document_type", "Document")
+            return f"MEMORY: {doc_type}"
+        return "UNKNOWN SOURCE"
+
+
+RAG_SYSTEM = """You are a senior technical manager on a Tier IV hyperscale data centre EPC project.
+
+Answer questions from the project team using ONLY the information provided in the CONTEXT below.
+
+STRICT RULES:
+1. Answer ONLY from the provided context. Do not use general knowledge.
+2. Cite EVERY factual claim using [SOURCE N].
+3. If a precedent RFI resolved a similar issue, LEAD your answer with it.
+4. If the context does NOT contain sufficient information, explicitly state: "The project documents do not contain a definitive answer. Recommend raising a formal RFI."
+5. Be DIRECT and ACTIONABLE.
+6. Keep your answer under {max_words} words.
+7. Structure: (a) Precedent resolution if any, (b) Specification/Memory requirements, (c) Recommended action.
+8. End with: [Confidence: HIGH/MEDIUM/LOW]"""
+
+
+def ingest_document_memory(document_id: str, text: str, document_type: str, metadata: Dict[str, Any]) -> bool:
+    """Ingest a document chunk into the 'document_memory' collection for delay memory/design updates."""
+    if not text or not text.strip() or not CHROMADB_AVAILABLE:
+        return False
+    try:
+        collection = get_or_create_collection("document_memory")
+        chunk_id = f"{document_id}_{uuid.uuid4().hex[:8]}"
+        embedding = embed_text(text)
+        meta = metadata.copy()
+        meta["document_type"] = document_type
+        meta["ingested_at"] = datetime.now(timezone.utc).isoformat()
+        collection.upsert(
+            ids=[chunk_id],
+            documents=[text],
+            embeddings=[embedding],
+            metadatas=[_serialize_metadata(meta)]
+        )
+        logger.info(f"Ingested document memory chunk for {document_id} ({document_type})")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to ingest document memory: {e}")
+        return False
+
+
+def _search_document_memory(query: str, n_results: int = 3) -> List[RetrievedSource]:
+    """Search ingested document memory."""
+    if not CHROMADB_AVAILABLE or not query.strip():
+        return []
+    try:
+        collection = get_or_create_collection("document_memory")
+        if collection.count() == 0:
+            return []
+        embedding = embed_text(query)
+        results = collection.query(query_embeddings=[embedding], n_results=n_results)
+        chunks = []
+        if results and results.get("ids") and results["ids"][0]:
+            ids = results["ids"][0]
+            docs = results["documents"][0]
+            metas = results["metadatas"][0]
+            dists = results["distances"][0]
+            for i in range(len(ids)):
+                chunks.append(RetrievedSource(
+                    rank=0, doc_id=ids[i], doc_type="document_memory",
+                    text=docs[i], score=max(0.0, 1.0 - dists[i]), metadata=metas[i]
+                ))
+        return chunks
+    except Exception as e:
+        logger.error(f"Failed to search document memory: {e}")
+        return []
+
+
+def answer_query(query: str) -> Dict[str, Any]:
+    """Answer an RFI query using RAG over spec clauses, precedent RFIs, and document memory."""
+    agent_run_id = str(uuid.uuid4())
+    started_ts = datetime.now(timezone.utc).isoformat()
+    start_time = datetime.now()
+
+    logger.info(f"Knowledge query [{agent_run_id[:8]}]: {query[:100]}")
+
+    try:
+        spec_results = []
+        rfi_results = []
+        if CHROMADB_AVAILABLE:
+            try:
+                spec_results = search_spec_clauses(query, n_results=MAX_SPEC_RESULTS)
+                rfi_results = search_rfis(query, n_results=MAX_RFI_RESULTS)
+            except Exception as e:
+                logger.warning(f"Vector search failed: {e}")
+        
+        memory_chunks = _search_document_memory(query)
+        
+        all_chunks = _build_source_list(spec_results, rfi_results, memory_chunks)
+        precedent_rfis = _find_precedent_rfis(rfi_results)
+
+        if not all_chunks:
+            answer_text = "The project documents do not contain any relevant information to answer this query."
+            confidence = 0.0
+        else:
+            context_text = _build_context_text(all_chunks)
+            precedent_text = _build_precedent_text(precedent_rfis)
+            user_message = _build_user_message(context_text, precedent_text, query)
+
+            if not has_available_provider():
+                answer_text = _fallback_answer(all_chunks, precedent_rfis)
+            else:
+                try:
+                    answer_text = call_claude(
+                        RAG_SYSTEM.format(max_words=MAX_ANSWER_WORDS),
+                        user_message,
+                        max_tokens=1200
+                    )
+                except Exception as e:
+                    logger.error(f"LLM call failed for knowledge query: {e}")
+                    answer_text = _fallback_answer(all_chunks, precedent_rfis)
+
+            confidence = _compute_confidence(all_chunks)
+
+        sources = [
+            {
+                "doc_id": c.doc_id,
+                "doc_type": c.doc_type,
+                "clause_number": c.metadata.get("clause_number", "") or c.metadata.get("rfi_code", ""),
+                "page_ref": c.metadata.get("document_id", ""),
+                "score": c.score,
+                "text_preview": c.text[:150]
+            } for c in all_chunks[:10]
+        ]
+
+        processing_ms = round((datetime.now() - start_time).total_seconds() * 1000, 1)
+        _log_agent_run(agent_run_id, started_ts, query, status="completed", confidence=confidence, num_sources=len(all_chunks))
+        
+        return {
+            "answer": answer_text,
+            "sources": sources,
+            "precedent_rfis": [
+                {
+                    "rfi_id": p["rfi_id"], "rfi_code": p["rfi_code"], "title": p["title"],
+                    "resolution_summary": p["resolution_summary"], "similarity_score": p["similarity_score"]
+                } for p in precedent_rfis
+            ],
+            "confidence": confidence,
+            "agent_run_id": agent_run_id
+        }
+
+    except Exception as e:
+        logger.error(f"Knowledge query failed [{agent_run_id[:8]}]: {e}")
+        _log_agent_run(agent_run_id, started_ts, query, status="failed", error=str(e))
+        raise RuntimeError(f"Knowledge query processing failed: {e}") from e
+
+
+def _build_source_list(spec_results: List[Dict], rfi_results: List[Dict], memory_chunks: List[RetrievedSource]) -> List[RetrievedSource]:
+    all_chunks = memory_chunks.copy()
+    for chunk in spec_results:
+        all_chunks.append(RetrievedSource(0, chunk.get("id", ""), "spec_clause", chunk.get("text", ""), chunk.get("score", 0.0), chunk.get("metadata", {})))
+    for chunk in rfi_results:
+        all_chunks.append(RetrievedSource(0, chunk.get("id", ""), "rfi", chunk.get("text", ""), chunk.get("score", 0.0), chunk.get("metadata", {})))
+    
+    all_chunks.sort(key=lambda x: x.score, reverse=True)
+    for i, chunk in enumerate(all_chunks):
+        chunk.rank = i + 1
+    return all_chunks
+
+
+def _find_precedent_rfis(rfi_results: List[Dict]) -> List[Dict[str, Any]]:
+    precedents = []
+    db = get_db()
+    try:
+        for chunk in rfi_results:
+            score = chunk.get("score", 0.0)
+            if score < PRECEDENT_THRESHOLD: continue
+            if str(chunk.get("metadata", {}).get("is_resolved", "false")).lower() not in {"true", "1", "yes"}: continue
+            
+            rfi_id = chunk.get("id", "")
+            row = db.execute("SELECT id, rfi_code, title, resolution_text FROM rfis WHERE id = ?", (rfi_id,)).fetchone()
+            if row:
+                row = dict(row)
+                precedents.append({
+                    "rfi_id": row["id"], "rfi_code": row.get("rfi_code", "N/A"),
+                    "title": row.get("title", "Untitled RFI"),
+                    "resolution_summary": (row.get("resolution_text") or "")[:300],
+                    "similarity_score": score
+                })
+        precedents.sort(key=lambda x: x["similarity_score"], reverse=True)
+    finally:
+        db.close()
+    return precedents
+
+
+def _build_context_text(chunks: List[RetrievedSource]) -> str:
+    return "\n\n---\n\n".join([f"[SOURCE {c.rank} | {c.label}]\n{c.text[:MAX_CONTEXT_CHARS]}" for c in chunks[:12]])
+
+
+def _build_precedent_text(precedents: List[Dict]) -> str:
+    if not precedents: return ""
+    lines = [f"PRECEDENT RFIs (similarity > {PRECEDENT_THRESHOLD}):"]
+    for i, p in enumerate(precedents[:3], 1):
+        lines.append(f"{i}. {p['rfi_code']}: {p['title']}\n   Resolution: {p['resolution_summary'][:250]}\n   Similarity: {p['similarity_score']:.0%}")
+    return "\n".join(lines)
+
+
+def _build_user_message(context_text: str, precedent_text: str, query: str) -> str:
+    parts = [f"CONTEXT FROM PROJECT DOCUMENTS:\n{context_text}"]
+    if precedent_text: parts.append(precedent_text)
+    parts.append(f"QUERY FROM PROJECT TEAM:\n{query}")
+    parts.append("Answer using ONLY the context above. Cite sources using [SOURCE N]. Lead with any precedent RFI if found. Be specific and actionable.")
+    return "\n\n".join(parts)
+
+
+def _fallback_answer(chunks: List[RetrievedSource], precedents: List[Dict]) -> str:
+    parts = []
+    if precedents:
+        parts.append("Precedent RFIs Found:")
+        for p in precedents[:3]:
+            parts.append(f"- {p['rfi_code']}: {p['resolution_summary'][:200]}")
+    if chunks:
+        top = chunks[0]
+        parts.append(f"\nMost Relevant Document:\n[{top.label}]\n{top.text[:300]}...")
+    parts.append("\n⚠️ Automated fallback response — LLM unavailable. Review documents above and consult technical team.")
+    return "\n".join(parts)
+
+
+def _compute_confidence(chunks: List[RetrievedSource]) -> float:
+    if not chunks: return 0.0
+    return round(min(1.0, max(c.score for c in chunks) + min(0.15, len(chunks) * 0.03)), 4)
+
+
+def _log_agent_run(agent_run_id: str, started_ts: str, query: str, status: str = "completed", confidence: float = 0.0, num_sources: int = 0, error: str = None) -> None:
+    db = get_db()
+    try:
+        db.execute('''
+            INSERT OR REPLACE INTO agent_runs
+            (id, agent_name, agent_version, trigger_event, input_summary, output_summary, status, started_ts, completed_ts, records_processed, records_created, error_text, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            agent_run_id, AGENT_NAME, AGENT_VERSION, "knowledge_query", f"Query: {query[:150]}",
+            f"Confidence={confidence:.2f} | {num_sources} sources" if status == "completed" else f"Failed: {(error or '')[:200]}",
+            status, started_ts, datetime.now(timezone.utc).isoformat(), num_sources, 0, error, json.dumps({"confidence": confidence})
+        ))
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to log knowledge agent run: {e}")
+    finally:
+        db.close()

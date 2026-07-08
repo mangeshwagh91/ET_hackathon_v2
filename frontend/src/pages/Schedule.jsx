@@ -15,6 +15,7 @@ function AnimatedCounter({ value, suffix = "" }) {
 
 export default function Schedule() {
   const [tasks, setTasks] = useState([]);
+  const [delayData, setDelayData] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState(null);
@@ -30,6 +31,11 @@ export default function Schedule() {
     try {
       const data = await api.getScheduleTasks();
       setTasks(data.tasks || []);
+      // Also load delay comparison
+      try {
+        const dc = await api.getDelayComparison();
+        setDelayData(dc);
+      } catch (_) {}
     } catch (err) {
       setError(err.message);
     }
@@ -159,15 +165,15 @@ export default function Schedule() {
               <button
                 onClick={handleAnalyze}
                 disabled={analyzing || tasks.length === 0}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden group"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl p-6 shadow-md hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden group"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-sky-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
                   <Play fill="currentColor" size={24} />
                 </div>
                 <div className="text-center">
                   <h3 className="font-bold text-lg">Run AI Risk Analysis</h3>
-                  <p className="text-slate-400 text-xs font-medium">Predict delays and generate mitigations</p>
+                  <p className="text-indigo-200 text-xs font-medium">Predict delays and generate mitigations</p>
                 </div>
               </button>
             </motion.div>
@@ -282,49 +288,49 @@ export default function Schedule() {
                                   initial={{ height: 0, opacity: 0 }}
                                   animate={{ height: 'auto', opacity: 1 }}
                                   exit={{ height: 0, opacity: 0 }}
-                                  className="overflow-hidden bg-slate-900 border-t border-slate-800"
+                                  className="overflow-hidden bg-slate-50 border-t border-slate-200"
                                 >
-                                  <div className="p-6 text-slate-300">
+                                  <div className="p-6 text-slate-650">
                                     <div className="flex items-center gap-3 mb-4">
-                                      <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
                                         <Zap size={16} />
                                       </div>
-                                      <h5 className="font-bold text-white text-lg">AI Mitigation Strategy</h5>
+                                      <h5 className="font-bold text-slate-800 text-lg">AI Mitigation Strategy</h5>
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                                      <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                      <div className="bg-white p-4 rounded-xl border border-slate-200">
                                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Equipment Context</span>
-                                        <span className="text-sm text-slate-200">{task.equipment_description || "Standard civil/structural task"}</span>
+                                        <span className="text-sm text-slate-700">{task.equipment_description || "Standard civil/structural task"}</span>
                                       </div>
-                                      <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                      <div className="bg-white p-4 rounded-xl border border-slate-200">
                                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Predecessors</span>
-                                        <span className="text-sm font-mono text-indigo-300">
+                                        <span className="text-sm font-mono text-indigo-600">
                                           {task.predecessor_ids_json && JSON.parse(task.predecessor_ids_json).length > 0 
                                             ? JSON.parse(task.predecessor_ids_json).join(", ") 
                                             : "None"}
                                         </span>
                                       </div>
-                                      <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col justify-center">
+                                      <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col justify-center">
                                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Timeline Impact</span>
-                                        <span className="text-sm text-slate-200 flex items-center gap-2"><Clock size={14} /> {task.planned_start} to {task.planned_finish}</span>
+                                        <span className="text-sm text-slate-700 flex items-center gap-2"><Clock size={14} /> {task.planned_start} to {task.planned_finish}</span>
                                       </div>
                                     </div>
 
                                     {task.mitigation_text ? (
-                                      <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-2xl p-5 shadow-inner">
-                                        <p className="text-sm leading-relaxed text-indigo-100 whitespace-pre-wrap">{task.mitigation_text}</p>
+                                      <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-inner">
+                                        <p className="text-sm leading-relaxed text-indigo-900 whitespace-pre-wrap">{task.mitigation_text}</p>
                                         <div className="mt-4 flex items-center justify-end">
-                                          <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
+                                          <button className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors">
                                             Apply to Schedule
                                           </button>
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="text-center p-8 bg-slate-800/30 rounded-2xl border border-slate-700 border-dashed">
+                                      <div className="text-center p-8 bg-white rounded-2xl border border-slate-200 border-dashed">
                                         <AlertTriangle size={32} className="mx-auto text-amber-500/50 mb-3" />
-                                        <p className="text-slate-400 font-medium">No AI mitigation has been generated for this task yet.</p>
-                                        <p className="text-sm text-slate-500 mt-1">Click the <strong className="text-slate-300">Run AI Risk Analysis</strong> button to compute strategies.</p>
+                                        <p className="text-slate-500 font-medium">No AI mitigation has been generated for this task yet.</p>
+                                        <p className="text-sm text-slate-450 mt-1">Click the <strong className="text-slate-700">Run AI Risk Analysis</strong> button to compute strategies.</p>
                                       </div>
                                     )}
                                   </div>
@@ -336,6 +342,67 @@ export default function Schedule() {
                       })}
                     </div>
                   </div>
+
+                  {delayData && delayData.tasks && delayData.tasks.length > 0 && (
+                    <div className="bg-white/80 backdrop-blur-md border border-slate-200 rounded-3xl overflow-hidden shadow-lg">
+                      <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                        <div className="flex items-center gap-2">
+                          <Clock size={18} className="text-amber-600" />
+                          <h3 className="font-bold text-slate-700">Delay Prediction vs Historical Average</h3>
+                        </div>
+                        <div className="flex gap-6 mt-2 text-xs text-slate-500">
+                          <span>Avg predicted: <strong className="text-amber-600">{delayData.avg_predicted_delay_days}d</strong></span>
+                          <span>Avg historical: <strong className="text-slate-600">{delayData.avg_historical_delay_days}d</strong></span>
+                          <span>Exceeding historical: <strong className="text-red-500">{delayData.tasks_exceeding_historical}</strong></span>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
+                        {delayData.tasks.filter(t => t.predicted_delay_days > 0 || t.historical_avg_delay > 0).slice(0, 10).map((task) => {
+                          const predicted = task.predicted_delay_days || 0;
+                          const historical = task.historical_avg_delay || 0;
+                          const maxVal = Math.max(predicted, historical, 1);
+                          const isWorse = predicted > historical;
+                          return (
+                            <div key={task.id} className="px-6 py-3 flex items-center gap-4">
+                              <div className="w-32 min-w-[8rem] truncate">
+                                <span className="text-xs font-mono text-slate-500">{task.task_code}</span>
+                                <p className="text-xs text-slate-700 truncate font-medium">{task.description?.slice(0, 30)}</p>
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-400 w-20">Predicted</span>
+                                  <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${(predicted / maxVal) * 100}%` }}
+                                      transition={{ duration: 0.8 }}
+                                      className={`h-full rounded-full ${isWorse ? 'bg-red-400' : 'bg-amber-400'}`}
+                                    />
+                                  </div>
+                                  <span className={`text-xs font-bold w-8 text-right ${isWorse ? 'text-red-500' : 'text-amber-600'}`}>{predicted}d</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-400 w-20">Historical</span>
+                                  <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${(historical / maxVal) * 100}%` }}
+                                      transition={{ duration: 0.8, delay: 0.1 }}
+                                      className="h-full rounded-full bg-slate-400"
+                                    />
+                                  </div>
+                                  <span className="text-xs font-bold w-8 text-right text-slate-500">{historical}d</span>
+                                </div>
+                              </div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${task.verdict === 'On Track' ? 'bg-green-100 text-green-700' : task.verdict === 'At Risk' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                                {task.verdict}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                 </motion.div>
               ) : (

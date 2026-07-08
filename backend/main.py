@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 
 from database.schema import init_db
+from services.ingestion_queue import ingestion_queue
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -85,6 +86,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Validate environment configuration
     _validate_environment()
 
+    # Start ingestion queue worker
+    ingestion_queue.start()
+
     logger.info("=" * 60)
     logger.info("✅ DCPI API ready — all systems nominal")
     logger.info("=" * 60)
@@ -104,6 +108,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as e:
         logger.warning(f"⚠️  Error during vector store cleanup: {e}")
     
+    # Stop ingestion queue worker
+    ingestion_queue.stop()
+
     logger.info("✅ DCPI API shutdown complete")
 
 
@@ -226,10 +233,15 @@ def _register_router(
 logger.info("Registering API routers...")
 
 _register_router("routers.upload", "/api/upload", ["Upload"], critical=True)
+_register_router("routers.auth", "/api/auth", ["Auth"])
+_register_router("routers.projects", "/api/projects", ["Projects"])
+_register_router("routers.bids", "/api/bids", ["Bids"])
 _register_router("routers.compliance", "/api/compliance", ["Compliance"])
 _register_router("routers.schedule", "/api/schedule", ["Schedule"])
 _register_router("routers.rfi", "/api/rfi", ["RFI"])
 _register_router("routers.dashboard", "/api/dashboard", ["Dashboard"])
+_register_router("routers.commissioning", "/api/commissioning", ["Commissioning"])
+_register_router("routers.supply_chain", "/api/supply-chain", ["Supply Chain"])
 
 
 # ============================================================================

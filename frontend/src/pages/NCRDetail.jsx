@@ -78,7 +78,7 @@ export default function NCRDetail() {
           </span>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-750 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors shadow-sm"
           >
             <Printer size={14} strokeWidth={1.75} /> Export to PDF
           </button>

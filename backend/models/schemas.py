@@ -166,3 +166,98 @@ class DashboardSummaryResponse(BaseModel):
     recent_agent_runs: List[Any]
     project_health_score: float
     purchase_orders: List[Any] = Field(default_factory=list, description="Recent purchase orders")
+    # Quantification metrics
+    manual_hours_saved_weekly: float = Field(default=0.0, description="Estimated manual hours saved per week")
+    compliance_accuracy_pct: float = Field(default=0.0, description="Compliance check accuracy percentage")
+    risks_flagged_avg_days_advance: float = Field(default=0.0, description="Average days risks flagged before planned start")
+    commissioning_pass_rate_pct: float = Field(default=0.0, description="Commissioning step pass rate")
+    total_ncrs_raised: int = Field(default=0, description="Total NCRs auto-raised by AI")
+    compliance_checks_total: int = Field(default=0, description="Total compliance checks ever run")
+
+
+class OrchestratorResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    query: str
+    intent: str
+    response: Any
+    agent_run_id: str
+
+
+class BidRecommendation(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    vendor_name: str
+    price_score: float
+    compliance_score: float
+    lead_time_score: float
+    quality_score: float
+    overall_score: float
+    recommendation: str
+    justification: str
+
+
+class DocumentMemoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    document_id: str
+    memory_type: str
+    extracted_text: str
+    timestamp: str
+
+
+# --- New Schemas for Full Backend ---
+
+class ProjectCreate(BaseModel):
+    name: str
+    size_mw: float
+    deadline: str
+    budget: float
+
+
+class ProjectResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    size_mw: float
+    deadline: str
+    budget: float
+    status: str
+    created_at: str
+
+
+class VendorRegister(BaseModel):
+    company_name: str
+    email: str
+    password: str
+
+
+class VendorResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    company_name: str
+    email: str
+    registered_at: str
+
+
+class BidCreate(BaseModel):
+    project_id: str
+    vendor_id: str
+    price: float
+    lead_time_days: int
+    equipment_catalog_json: str
+
+
+class BidResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    project_id: str
+    vendor_id: str
+    price: float
+    lead_time_days: int
+    equipment_catalog_json: str
+    status: str
+    created_at: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    vendor_id: Optional[str] = None

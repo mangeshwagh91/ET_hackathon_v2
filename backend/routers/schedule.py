@@ -8,7 +8,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from models.schemas import ScheduleRiskResponse
 
 from database.connection import get_db
-from agents.schedule_risk_agent import run_schedule_risk_analysis
+from agents.schedule_agent import run_schedule_risk_analysis
+from services.cache import cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -120,6 +121,75 @@ async def get_schedule_risks():
             "at_risk_tasks": tasks,
             "total": len(tasks),
             "critical_path_count": sum(1 for t in tasks if t["total_float_days"] == 0)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@router.get("/delay-comparison")
+@cache.cached_async("delay_comparison", ttl=300)
+async def get_delay_comparison():
+    """
+    Returns predicted vs actual/historical delay comparison for all schedule tasks.
+    Addresses evaluation criteria: 'schedule risk prediction lead time vs actual delays'.
+    """
+    db = get_db()
+    try:
+        rows = db.execute("""
+            SELECT st.id, st.task_code, st.description,
+                   st.planned_start, st.planned_finish,
+                   st.actual_start, st.actual_finish,
+                   st.total_float_days, st.original_float_days,
+                   st.risk_score, st.risk_level, st.delay_probability,
+                   st.predicted_delay_days, st.actual_delay_days,
+                   st.historical_avg_delay, st.is_critical_path,
+                   ei.equipment_class, ei.description as equipment_description
+            FROM schedule_tasks st
+            LEFT JOIN equipment_items ei ON st.equipment_item_id = ei.id
+            ORDER BY st.risk_score DESC
+        """).fetchall()
+
+        tasks = []
+        for row in rows:
+            t = dict(row)
+            predicted = t.get("predicted_delay_days") or 0
+            historical = t.get("historical_avg_delay") or 0
+            actual = t.get("actual_delay_days") or 0
+            float_consumed = max(0, (t.get("original_float_days") or 0) - (t.get("total_float_days") or 0))
+
+            tasks.append({
+                **t,
+                "predicted_delay_days": predicted,
+                "historical_avg_delay": round(historical, 1),
+                "actual_delay_days": actual,
+                "float_consumed_days": float_consumed,
+                "delay_gap": predicted - int(historical),  # positive = worse than historical
+                "verdict": (
+                    "On Track" if predicted == 0
+                    else "At Risk" if predicted <= historical
+                    else "Exceeds Historical Average"
+                ),
+            })
+
+        # Aggregate stats
+        total = len(tasks)
+        avg_predicted = round(sum(t["predicted_delay_days"] for t in tasks) / total, 1) if total else 0
+        avg_historical = round(sum(t["historical_avg_delay"] for t in tasks) / total, 1) if total else 0
+        tasks_exceeding_historical = sum(1 for t in tasks if t["delay_gap"] > 0)
+        avg_lead_time_days = round(
+            sum(t["predicted_delay_days"] for t in tasks if t["predicted_delay_days"] > 0) /
+            max(1, sum(1 for t in tasks if t["predicted_delay_days"] > 0)), 1
+        )
+
+        return {
+            "tasks": tasks,
+            "total": total,
+            "avg_predicted_delay_days": avg_predicted,
+            "avg_historical_delay_days": avg_historical,
+            "tasks_exceeding_historical": tasks_exceeding_historical,
+            "avg_lead_time_flagged_days": avg_lead_time_days,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

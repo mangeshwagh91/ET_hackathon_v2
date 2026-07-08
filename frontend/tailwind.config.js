@@ -4,18 +4,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        background:       '#F8FAFC',
-        card:             '#FFFFFF',
-        surface:          '#F1F5F9',
-        primary:          '#14B8A6',
-        'primary-hover':  '#0F9D8A',
-        accent:           '#3B82F6',
-        success:          '#22C55E',
+        background:       '#020617',
+        card:             '#0f172a',
+        surface:          '#1e293b',
+        primary:          '#10B981', // Emerald Green
+        'primary-hover':  '#059669',
+        accent:           '#3B82F6', // Tech Blue
+        success:          '#10B981',
         warning:          '#F59E0B',
         danger:           '#EF4444',
-        text:             '#0F172A',
-        'text-muted':     '#64748B',
-        border:           '#E2E8F0',
+        text:             '#F8FAFC',
+        'text-muted':     '#94A3B8',
+        border:           '#1E293B',
       },
       fontFamily: {
         sans: ['Inter', 'Geist', 'system-ui', 'sans-serif'],
