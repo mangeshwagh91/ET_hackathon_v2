@@ -18,7 +18,14 @@ const DEMO_QUESTIONS = [
 ];
 
 export default function RFIChat() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    const saved = sessionStorage.getItem("dcpi_rfi_chat");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [pastConversations, setPastConversations] = useState(() => {
+    const saved = sessionStorage.getItem("dcpi_rfi_history");
+    return saved ? JSON.parse(saved) : [];
+  });
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [currentSources, setCurrentSources] = useState([]);
@@ -38,6 +45,32 @@ export default function RFIChat() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, sending]);
+
+  useEffect(() => {
+    sessionStorage.setItem("dcpi_rfi_chat", JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    sessionStorage.setItem("dcpi_rfi_history", JSON.stringify(pastConversations));
+  }, [pastConversations]);
+
+  const handleNewQuery = () => {
+    if (messages.length > 0) {
+      const firstUserMsg = messages.find(m => m.role === 'user');
+      const title = firstUserMsg ? firstUserMsg.content : "Conversation";
+      setPastConversations(prev => [{ id: Date.now(), title, messages }, ...prev]);
+    }
+    setMessages([]);
+    setCurrentSources([]);
+    setCurrentPrecedents([]);
+    setInput("");
+  };
+
+  const loadConversation = (conv) => {
+    setMessages(conv.messages);
+    setCurrentSources([]);
+    setCurrentPrecedents([]);
+  };
 
   const handleInput = (e) => {
     setInput(e.target.value);
@@ -163,14 +196,14 @@ export default function RFIChat() {
         {/* Left Panel: Conversation History */}
         <div className="w-64 flex-shrink-0 flex flex-col gap-4 hidden lg:flex">
           <button 
-            onClick={() => { setMessages([]); setCurrentSources([]); setCurrentPrecedents([]); setInput(""); }}
+            onClick={handleNewQuery}
             className="w-full bg-white/80 hover:bg-white backdrop-blur-md border border-slate-200/60 rounded-xl p-3 flex items-center justify-center gap-2 text-sm font-bold text-slate-800 transition-all shadow-sm hover:shadow"
           >
             <Plus size={18} /> New Query
           </button>
 
           <div className="flex-1 bg-white/60 backdrop-blur-md border border-white/40 rounded-2xl p-4 overflow-y-auto custom-scrollbar shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2 mt-4">
               <Search size={12} /> Historical RFIs
             </h2>
             
@@ -189,6 +222,31 @@ export default function RFIChat() {
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-slate-700 truncate">{rfi.rfi_code}</p>
                         <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-tight">{rfi.title}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 mt-6 flex items-center gap-2">
+              <MessageSquare size={12} /> Recent Conversations
+            </h2>
+            
+            {pastConversations.length === 0 ? (
+              <p className="text-xs text-slate-400 p-2 text-center bg-slate-50/50 rounded-lg">No recent chats</p>
+            ) : (
+              <div className="space-y-1">
+                {pastConversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    onClick={() => loadConversation(conv)}
+                    className="cursor-pointer rounded-xl p-2.5 hover:bg-white/80 transition-all group border border-transparent hover:border-slate-200/50 hover:shadow-sm"
+                  >
+                    <div className="flex items-start gap-2">
+                      <BrainCircuit size={14} className="text-slate-400 group-hover:text-indigo-500 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[11px] text-slate-600 line-clamp-2 leading-tight">{conv.title}</p>
                       </div>
                     </div>
                   </div>

@@ -15,6 +15,7 @@ from database.connection import get_db
 from services.pdf_extractor import extract_full_text
 from services.llm_client import call_claude_json, has_available_provider
 from services.ingestion_queue import ingestion_queue
+from services.cache import cache
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -296,6 +297,7 @@ async def get_upload_status(doc_id: str):
 
 
 @router.get("/documents")
+@cache.cached_async("documents_list", ttl=30)
 async def get_documents(project_id: str = None):
     """Get all uploaded documents."""
     db = get_db()

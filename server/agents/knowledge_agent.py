@@ -21,6 +21,7 @@ from services.vector_store import (
     search_standards,
     get_or_create_collection,
     embed_text,
+    embed_texts,
     _serialize_metadata,
     CHROMADB_AVAILABLE
 )
@@ -75,24 +76,47 @@ STRICT RULES:
 8. End with: [Confidence: HIGH/MEDIUM/LOW]"""
 
 
+def _chunk_text(text: str, chunk_size: int = 2000, overlap: int = 200) -> List[str]:
+    chunks = []
+    start = 0
+    text_len = len(text)
+    while start < text_len:
+        end = start + chunk_size
+        chunks.append(text[start:end])
+        start += chunk_size - overlap
+    return chunks
+
+
 def ingest_document_memory(document_id: str, text: str, document_type: str, metadata: Dict[str, Any]) -> bool:
     """Ingest a document chunk into the 'document_memory' collection for delay memory/design updates."""
     if not text or not text.strip() or not CHROMADB_AVAILABLE:
         return False
     try:
         collection = get_or_create_collection("document_memory")
-        chunk_id = f"{document_id}_{uuid.uuid4().hex[:8]}"
-        embedding = embed_text(text)
-        meta = metadata.copy()
-        meta["document_type"] = document_type
-        meta["ingested_at"] = datetime.now(timezone.utc).isoformat()
-        collection.upsert(
-            ids=[chunk_id],
-            documents=[text],
-            embeddings=[embedding],
-            metadatas=[_serialize_metadata(meta)]
-        )
-        logger.info(f"Ingested document memory chunk for {document_id} ({document_type})")
+        
+        chunks = _chunk_text(text, chunk_size=2000, overlap=200)
+        
+        batch_size = 100
+        for i in range(0, len(chunks), batch_size):
+            batch_chunks = chunks[i:i+batch_size]
+            ids = [f"{document_id}_{i}_{j}_{uuid.uuid4().hex[:4]}" for j in range(len(batch_chunks))]
+            embeddings = embed_texts(batch_chunks)
+            
+            metadatas = []
+            for _ in batch_chunks:
+                meta = metadata.copy()
+                meta["document_type"] = document_type
+                meta["ingested_at"] = datetime.now(timezone.utc).isoformat()
+                metadatas.append(_serialize_metadata(meta))
+                
+            collection.upsert(
+                ids=ids,
+                documents=batch_chunks,
+                embeddings=embeddings,
+                metadatas=metadatas
+            )
+            
+        logger.info(f"Ingested {len(chunks)} document memory chunks for {document_id} ({document_type})")
         return True
     except Exception as e:
         logger.error(f"Failed to ingest document memory: {e}")

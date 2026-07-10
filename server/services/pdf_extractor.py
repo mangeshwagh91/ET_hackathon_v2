@@ -19,7 +19,8 @@ OCR_LANGUAGES = os.getenv("PDF_OCR_LANGUAGES", "eng")
 OCR_CONFIG = os.getenv("PDF_OCR_CONFIG", "--oem 3 --psm 6")
 MAX_OCR_PAGES = int(os.getenv("PDF_MAX_OCR_PAGES", "100"))
 PARALLEL_PAGE_THRESHOLD = int(os.getenv("PDF_PARALLEL_THRESHOLD", "20"))
-OCR_MAX_WORKERS = int(os.getenv("PDF_OCR_MAX_WORKERS", "4"))
+OCR_MAX_WORKERS = int(os.getenv("PDF_OCR_MAX_WORKERS", str(min(32, (os.cpu_count() or 4) * 2))))
+NATIVE_MAX_WORKERS = int(os.getenv("PDF_NATIVE_MAX_WORKERS", str(min(32, (os.cpu_count() or 4) * 2))))
 
 
 # ── Custom Exceptions ──────────────────────────────────────────────────────────
@@ -110,7 +111,7 @@ def extract_text_from_pdf(
 
         # Extract pages
         if parallel and pages_to_extract >= PARALLEL_PAGE_THRESHOLD:
-            pages = _extract_pages_parallel(fitz, doc, pages_to_extract)
+            pages = _extract_pages_parallel(fitz, doc, pages_to_extract, max_workers=NATIVE_MAX_WORKERS)
         else:
             pages = _extract_pages_sequential(fitz, doc, pages_to_extract)
 
@@ -235,7 +236,7 @@ def _extract_pages_sequential(
 
 
 def _extract_pages_parallel(
-    fitz, doc, num_pages: int, max_workers: int = 4
+    fitz, doc, num_pages: int, max_workers: int = 8
 ) -> List[Dict[str, Any]]:
     doc_path = doc.name  # Get file path for thread-local re-open
 

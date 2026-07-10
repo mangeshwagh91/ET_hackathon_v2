@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from routers import upload, documents, chat, extract, compare, check, dashboard, auth, ncr, schedule, rfi
 
 from database.schema import init_db
 from services.ingestion_queue import ingestion_queue
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     # ============ STARTUP ============
     logger.info("=" * 60)
-    logger.info("🚀 DCPI API Starting Up")
+    logger.info("🚀 DataForge AI API Starting Up")
     logger.info("=" * 60)
     
     # Create required directories
@@ -88,14 +89,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     ingestion_queue.start()
 
     logger.info("=" * 60)
-    logger.info("✅ DCPI API ready — all systems nominal")
+    logger.info("✅ DataForge AI API ready — all systems nominal")
     logger.info("=" * 60)
     
     yield  # Application runs here
     
     # ============ SHUTDOWN ============
     logger.info("=" * 60)
-    logger.info("🛑 DCPI API Shutting Down")
+    logger.info("🛑 DataForge AI API Shutting Down")
     logger.info("=" * 60)
     
     # Cleanup vector store connections
@@ -109,7 +110,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Stop ingestion queue worker
     ingestion_queue.stop()
 
-    logger.info("✅ DCPI API shutdown complete")
+    logger.info("✅ DataForge AI API shutdown complete")
 
 
 def _validate_environment() -> None:
@@ -149,7 +150,7 @@ def _validate_environment() -> None:
 # ============================================================================
 
 app = FastAPI(
-    title="DCPI — Data Centre Project Intelligence API",
+    title="DataForge AI — Data Centre Project Intelligence API",
     version="1.0.0",
     description="""
     AI-powered EPC project intelligence for data centre construction.
@@ -377,7 +378,7 @@ async def root() -> dict:
     """Root endpoint - basic health check."""
     return {
         "status": "running",
-        "service": "DCPI API",
+        "service": "DataForge AI API",
         "version": app.version,
         "docs": "/docs",
         "health": "/health",

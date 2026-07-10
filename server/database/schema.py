@@ -327,8 +327,60 @@ def init_db():
         _migrate_bids(db)
         _migrate_new_tables(db)
         _migrate_project_ids(db)
+        _seed_mock_shipments(db)
     finally:
         db.close()
+
+def _seed_mock_shipments(db) -> None:
+    """Seed some mock shipments if none exist to demonstrate the supply chain tracking."""
+    count = db.execute("SELECT count(*) FROM shipments").fetchone()[0]
+    if count == 0:
+        import uuid
+        from datetime import datetime, timedelta, timezone
+        
+        now = datetime.now(timezone.utc)
+        
+        # We'll create a dummy project, vendor, equipment, and PO just in case none exist,
+        # but realistically we just want the shipment row to exist so we can query it.
+        # Texas to Data Center (Mock) - At Risk!
+        s1_id = str(uuid.uuid4())
+        db.execute('''
+            INSERT INTO shipments (
+                id, carrier_name, tracking_number, origin_lat, origin_lng, dest_lat, dest_lng,
+                current_lat, current_lng, status, estimated_arrival, required_delivery, risk_level, last_updated_ts
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            s1_id, "FedEx Custom Critical", "FX-88392019-UPS", 
+            32.7767, -96.7970, # Dallas, TX
+            39.0438, -77.4874, # Ashburn, VA (Data Center Alley)
+            35.1495, -90.0490, # Currently near Memphis, TN (Delayed by weather)
+            "delayed",
+            (now + timedelta(days=5)).isoformat(), # Estimated in 5 days
+            (now + timedelta(days=2)).isoformat(), # Required in 2 days (LATE!)
+            "HIGH",
+            now.isoformat()
+        ))
+        
+        # New York to Ashburn - On Time
+        s2_id = str(uuid.uuid4())
+        db.execute('''
+            INSERT INTO shipments (
+                id, carrier_name, tracking_number, origin_lat, origin_lng, dest_lat, dest_lng,
+                current_lat, current_lng, status, estimated_arrival, required_delivery, risk_level, last_updated_ts
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            s2_id, "ATS Logistics", "ATS-99482-GEN", 
+            40.7128, -74.0060, # NY
+            39.0438, -77.4874, # Ashburn, VA
+            39.9526, -75.1652, # Near Philly
+            "in_transit",
+            (now + timedelta(days=1)).isoformat(),
+            (now + timedelta(days=3)).isoformat(),
+            "LOW",
+            now.isoformat()
+        ))
+        db.commit()
+        logger.info("Mock shipments seeded.")
 
 
 
@@ -461,6 +513,29 @@ def _migrate_new_tables(db) -> None:
                 summary_json TEXT DEFAULT '{}',
                 executive_summary TEXT,
                 status TEXT DEFAULT 'complete'
+            )"""
+        ),
+        (
+            "shipments",
+            """CREATE TABLE IF NOT EXISTS shipments (
+                id TEXT PRIMARY KEY,
+                po_id TEXT REFERENCES purchase_orders(id),
+                equipment_item_id TEXT REFERENCES equipment_items(id),
+                vendor_id TEXT REFERENCES vendors(id),
+                carrier_name TEXT,
+                tracking_number TEXT,
+                origin_lat REAL,
+                origin_lng REAL,
+                dest_lat REAL,
+                dest_lng REAL,
+                current_lat REAL,
+                current_lng REAL,
+                status TEXT DEFAULT 'in_transit',
+                estimated_arrival TEXT,
+                required_delivery TEXT,
+                risk_level TEXT DEFAULT 'LOW',
+                ai_alternatives_json TEXT DEFAULT '[]',
+                last_updated_ts TEXT
             )"""
         ),
     ]

@@ -107,7 +107,7 @@ class TTLCache:
 
     # ── Decorator ─────────────────────────────────────────────────────────────
 
-    def cached(self, key: str, ttl: Optional[int] = None):
+    def cached(self, key_prefix: str, ttl: Optional[int] = None):
         """
         Decorator that caches the return value of a sync function.
 
@@ -117,18 +117,19 @@ class TTLCache:
         def decorator(fn: Callable):
             @wraps(fn)
             def wrapper(*args, **kwargs):
-                cached_val = self.get(key)
+                cache_key = f"{key_prefix}_{make_cache_key(args, kwargs)}"
+                cached_val = self.get(cache_key)
                 if cached_val is not None:
-                    logger.debug(f"Cache HIT: {key}")
+                    logger.debug(f"Cache HIT: {cache_key}")
                     return cached_val
                 result = fn(*args, **kwargs)
                 if result is not None:
-                    self.set(key, result, ttl=ttl)
+                    self.set(cache_key, result, ttl=ttl)
                 return result
             return wrapper
         return decorator
 
-    def cached_async(self, key: str, ttl: Optional[int] = None):
+    def cached_async(self, key_prefix: str, ttl: Optional[int] = None):
         """
         Decorator that caches the return value of an async function.
 
@@ -138,13 +139,14 @@ class TTLCache:
         def decorator(fn: Callable):
             @wraps(fn)
             async def wrapper(*args, **kwargs):
-                cached_val = self.get(key)
+                cache_key = f"{key_prefix}_{make_cache_key(args, kwargs)}"
+                cached_val = self.get(cache_key)
                 if cached_val is not None:
-                    logger.debug(f"Cache HIT: {key}")
+                    logger.debug(f"Cache HIT: {cache_key}")
                     return cached_val
                 result = await fn(*args, **kwargs)
                 if result is not None:
-                    self.set(key, result, ttl=ttl)
+                    self.set(cache_key, result, ttl=ttl)
                 return result
             return wrapper
         return decorator

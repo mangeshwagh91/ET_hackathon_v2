@@ -9,6 +9,7 @@ from models.schemas import RFIQueryResponse
 from database.connection import get_db
 from agents.orchestrator_agent import process_request
 from services.vector_store import index_rfi
+from services.cache import cache
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -47,6 +48,7 @@ async def query_rfi(request: RFIQueryRequest):
 
 
 @router.get("/rfis")
+@cache.cached_async("rfis_list", ttl=30)
 async def get_rfis():
     db = get_db()
     try:

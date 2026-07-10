@@ -131,10 +131,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             onClick={() => setIsOpen(false)}
           >
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-              <span className="text-white font-black text-[11px] tracking-tight">DC</span>
+              <span className="text-white font-black text-[11px] tracking-tight">DF</span>
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-slate-900 text-base tracking-tight leading-none">DCPI</span>
+              <span className="font-extrabold text-slate-900 text-base tracking-tight leading-none">DataForge AI</span>
               <span className="text-[10px] text-slate-400 font-medium">Platform</span>
             </div>
           </Link>

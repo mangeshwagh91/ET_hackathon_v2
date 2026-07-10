@@ -23,9 +23,9 @@ function SplashGrid({ bright }) {
   );
 }
 
-// ─── "DCPI" letters appearing one by one ─────────────────────────────────────
-function DCPILetters({ delay = 1.2 }) {
-  const letters = ["D", "C", "P", "I"];
+// ─── "DataForge" letters appearing one by one ─────────────────────────────────────
+function DataForgeLetters({ delay = 1.2 }) {
+  const letters = ["D", "a", "t", "a", "F", "o", "r", "g", "e", " ", "A", "I"];
   return (
     <div
       className="flex items-end gap-[2px]"
@@ -172,8 +172,8 @@ export default function SplashScreen() {
         {/* 0.4s → Logo assembles */}
         <AssemblingLogo delay={0.4} />
 
-        {/* 0.8s → DCPI letters */}
-        <DCPILetters delay={0.8} />
+        {/* 0.8s → DataForge letters */}
+        <DataForgeLetters delay={0.8} />
 
         {/* 1.2s → subtitle */}
         <Subtitle delay={1.2} />

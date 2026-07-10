@@ -6,7 +6,10 @@ import LoadingSpinner from "../components/LoadingSpinner.jsx";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 export default function DocumentsPage() {
-  const [documents, setDocuments] = useState([]);
+  const [documents, setDocuments] = useState(() => {
+    const cached = sessionStorage.getItem("dcpi_documents");
+    return cached ? JSON.parse(cached) : [];
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { currentProject } = useWorkspace();
@@ -23,21 +26,26 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     if (currentProject) {
-      fetchDocuments();
+      if (documents.length === 0) {
+        fetchDocuments();
+      } else {
+        fetchDocuments(true); // background refresh
+      }
     }
   }, [currentProject]);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (background = false) => {
     if (!currentProject) return;
-    setLoading(true);
-    setError(null);
+    if (!background) setLoading(true);
+    if (!background) setError(null);
     try {
       const data = await api.getDocuments(currentProject.id);
       setDocuments(data.documents || []);
+      sessionStorage.setItem("dcpi_documents", JSON.stringify(data.documents || []));
     } catch (err) {
-      setError(err.message || "Failed to load documents");
+      if (!background) setError(err.message || "Failed to load documents");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 

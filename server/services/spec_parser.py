@@ -423,9 +423,10 @@ def _extract_clauses_concurrent(
     
     from services.llm_client import _call_ollama
     
-    for i in range(0, len(clauses), batch_size):
-        batch = clauses[i:i + batch_size]
-        
+    import concurrent.futures
+    
+    def process_batch(batch):
+        batch_extracted = []
         user_message = "Extract requirements for the following clauses:\n\n"
         for c in batch:
             user_message += f"--- CLAUSE {c.get('clause_number', '?')} ---\n{c.get('text', '')[:3000]}\n\n"
@@ -443,7 +444,7 @@ def _extract_clauses_concurrent(
             for c_in, c_out in zip(batch, parsed_clauses):
                 if c_out.get("confidence_score", 0.0) >= 0.6:
                     processed = _postprocess_extraction(c_out, c_in, document_id)
-                    if processed: extracted.append(processed)
+                    if processed: batch_extracted.append(processed)
                 else:
                     raise ValueError(f"Low confidence ({c_out.get('confidence_score')}) from Ollama")
                     
@@ -452,7 +453,17 @@ def _extract_clauses_concurrent(
             for c in batch:
                 processed = extract_clause_requirements(c, document_id)
                 if processed:
-                    extracted.append(processed)
+                    batch_extracted.append(processed)
+        return batch_extracted
+
+    batches = [clauses[i:i + batch_size] for i in range(0, len(clauses), batch_size)]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_EXTRACTIONS) as executor:
+        futures = [executor.submit(process_batch, batch) for batch in batches]
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                extracted.extend(future.result())
+            except Exception as e:
+                logger.error(f"Batch extraction failed: {e}")
 
     def _parse_num(s: str) -> tuple:
         try:

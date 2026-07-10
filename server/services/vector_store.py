@@ -220,6 +220,16 @@ def embed_text(text: str, normalize: bool = True) -> List[float]:
     except Exception as e:
         raise EmbeddingError(f"Embedding failed: {e}") from e
 
+def embed_texts(texts: List[str], normalize: bool = True) -> List[List[float]]:
+    if not texts:
+        return []
+    try:
+        model = _get_embedding_model()
+        embeddings = model.encode(texts, normalize_embeddings=normalize, show_progress_bar=False)
+        return embeddings.tolist()
+    except Exception as e:
+        raise EmbeddingError(f"Batch embedding failed: {e}") from e
+
 
 # ── Indexing ───────────────────────────────────────────────────────────────────
 
@@ -576,15 +586,18 @@ def batch_index_spec_clauses(clauses: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 def _batch_upsert(collection, items: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Internal helper for batch upserts."""
-    ids, docs, embeddings, metadatas = [], [], [], []
+    ids, docs, metadatas = [], [], []
     for item in items:
         if not item.get("text", "").strip(): continue
         ids.append(item["id"])
         docs.append(item["text"])
-        embeddings.append(embed_text(item["text"]))
         metadatas.append(_serialize_metadata(item.get("metadata", {})))
     
     if not ids: return {"success": True, "count": 0}
+    
+    # Batch embed to drastically speed up sentence-transformers
+    embeddings = embed_texts(docs)
+    
     collection.upsert(ids=ids, documents=docs, embeddings=embeddings, metadatas=metadatas)
     return {"success": True, "count": len(ids)}
 
