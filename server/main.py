@@ -174,7 +174,7 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
@@ -240,11 +240,7 @@ _register_router("routers.rfi", "/api/rfi", ["RFI"])
 _register_router("routers.dashboard", "/api/dashboard", ["Dashboard"])
 _register_router("routers.commissioning", "/api/commissioning", ["Commissioning"])
 _register_router("routers.supply_chain", "/api/supply-chain", ["Supply Chain"])
-_register_router("routers.orchestrator", "/api/orchestrator", ["Orchestrator"])
-_register_router("routers.critical_path", "/api/critical-path", ["Critical Path"])
-_register_router("routers.report", "/api/report", ["Report"])
-_register_router("routers.vendor_scoring", "/api/vendors", ["Vendor Scoring"])
-_register_router("routers.workforce", "/api/workforce", ["Workforce"])
+_register_router("routers.webhooks", "/api/webhooks", ["Webhooks"])
 
 
 # ============================================================================

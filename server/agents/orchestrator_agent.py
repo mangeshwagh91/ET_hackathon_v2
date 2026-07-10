@@ -93,6 +93,14 @@ def classify_node(state: OrchestratorState) -> Dict:
     return {"intent": intent, "extracted_parameters": params}
 
 
+def simulate_supply_chain_shock(item_name: str, delay_weeks: int) -> dict:
+    return {
+        "status": "Mocked",
+        "message": f"Simulating supply chain shock for {item_name} by {delay_weeks} weeks",
+        "impact": "High"
+    }
+
+
 def knowledge_node(state: OrchestratorState) -> Dict:
     query = state.get("query", "")
     res = {

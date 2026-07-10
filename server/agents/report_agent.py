@@ -22,6 +22,12 @@ def process_request(query: str, context: dict = None) -> dict:
         "message": "This agent is scaffolded for the enterprise vision."
     }
 
+def generate_project_health_report(project_id: str = None):
+    return {"status": "Mocked", "report": "Project health report"}
+
+def get_latest_report(project_id: str = None):
+    return {"status": "Mocked", "report": "Latest project health report"}
+
 
 # ==============================================================================
 # INTEGRATED FROM: dashboard_agent.py

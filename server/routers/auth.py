@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from models.schemas import VendorRegister, VendorResponse, TokenResponse
 from database.connection import get_db
+from security import get_password_hash, verify_password, create_access_token
 
 router = APIRouter()
 
@@ -27,10 +28,11 @@ def register_vendor(vendor: VendorRegister):
         vendor_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
         
-        # NOTE: Using plaintext password for hackathon simplicity. Use bcrypt for production.
+        # Hash the password for security
+        hashed_password = get_password_hash(vendor.password)
         db.execute(
             "INSERT INTO vendors (id, company_name, email, password_hash, registered_at) VALUES (?, ?, ?, ?, ?)",
-            (vendor_id, vendor.company_name, vendor.email, vendor.password, now)
+            (vendor_id, vendor.company_name, vendor.email, hashed_password, now)
         )
         db.commit()
         
@@ -52,11 +54,11 @@ def login(request: LoginRequest):
     db = get_db()
     try:
         vendor = db.execute("SELECT id, password_hash FROM vendors WHERE email = ?", (request.email,)).fetchone()
-        if not vendor or vendor["password_hash"] != request.password:
+        if not vendor or not verify_password(request.password, vendor["password_hash"]):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        # Generate a mock token for the hackathon
-        token = f"mock-jwt-token-{vendor['id']}"
+        # Generate a real JWT token
+        token = create_access_token(data={"sub": vendor["id"]})
         return {"access_token": token, "token_type": "bearer", "vendor_id": vendor["id"]}
     finally:
         db.close()
