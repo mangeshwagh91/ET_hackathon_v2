@@ -10,7 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from routers import upload, documents, chat, extract, compare, check, dashboard, auth, ncr, schedule, rfi
 
 from database.schema import init_db
 from services.ingestion_queue import ingestion_queue
