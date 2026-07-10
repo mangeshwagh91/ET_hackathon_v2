@@ -41,8 +41,8 @@ export default function SettingsPage() {
       title: "Workspace Health",
       icon: <Layout size={18} />,
       items: [
-        { name: "Frontend Version", type: "text", value: "v1.0.0 (Demo)" },
-        { name: "Backend Status", type: "status", value: "Online", color: "text-emerald-500" },
+        { name: "Client Version", type: "text", value: "v1.0.0 (Demo)" },
+        { name: "Server Status", type: "status", value: "Online", color: "text-emerald-500" },
         { name: "API Health", type: "status", value: "99.9% Uptime", color: "text-emerald-500" },
         { name: "Storage Usage", type: "progress", value: 45, label: "4.5GB / 10GB" },
       ]

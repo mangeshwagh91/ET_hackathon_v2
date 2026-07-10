@@ -15,6 +15,7 @@ from typing import List, Dict, Optional, Any, Tuple
 
 from database.connection import get_db
 from services.llm_client import call_claude_batch, call_claude_json_batch, has_available_provider
+from services.vector_store import CHROMADB_AVAILABLE, search_spec_clauses
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,31 @@ def _safe_json_loads(value: Any, default: Any, label: str) -> Any:
         return default
 
 
+def check_quantities(po_id: str, project_reqs: Dict[str, int]) -> Dict[str, Any]:
+    """Lightweight rule-based quantity checker."""
+    db = get_db()
+    try:
+        po_row = db.execute("SELECT * FROM purchase_orders WHERE id = ?", (po_id,)).fetchone()
+        if not po_row:
+            return {"status": "ERROR", "message": "PO not found"}
+        po = dict(po_row)
+        
+        eq_row = db.execute("SELECT equipment_class FROM equipment_items WHERE id = ?", (po.get("equipment_item_id"),)).fetchone()
+        eq_class = dict(eq_row).get("equipment_class", "UNKNOWN") if eq_row else "UNKNOWN"
+        
+        ordered_qty = po.get("quantity", 1)
+        required_qty = project_reqs.get(eq_class, 0)
+        
+        if ordered_qty < required_qty:
+            return {"status": "SHORTFALL", "ordered": ordered_qty, "required": required_qty, "equipment_class": eq_class}
+        elif ordered_qty > required_qty:
+            return {"status": "SURPLUS", "ordered": ordered_qty, "required": required_qty, "equipment_class": eq_class}
+        else:
+            return {"status": "MATCH", "ordered": ordered_qty, "required": required_qty, "equipment_class": eq_class}
+    finally:
+        db.close()
+
+
 def run_compliance_check(po_id: str) -> Dict[str, Any]:
     agent_run_id = str(uuid.uuid4())
     started_ts = datetime.now(timezone.utc).isoformat()
@@ -140,25 +166,37 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
         equipment = dict(eq_row)
         equipment_class = equipment.get("equipment_class", "UPS")
 
-        spec_clause_ids = _safe_json_loads(
-            equipment.get("spec_clause_ids_json", "[]"),
-            [],
-            "equipment_items.spec_clause_ids_json",
-        )
-        if not isinstance(spec_clause_ids, list):
-            spec_clause_ids = []
+        clauses = []
+        if CHROMADB_AVAILABLE:
+            try:
+                # Use vector search to find relevant clauses for this equipment class
+                search_results = search_spec_clauses(equipment_class, n_results=10)
+                for res in search_results:
+                    if "requirements_json" in res["metadata"]:
+                        clauses.append(res["metadata"])
+                logger.info(f"Loaded {len(clauses)} spec clauses via Vector Search")
+            except Exception as e:
+                logger.warning(f"Vector search failed, falling back to SQLite: {e}")
+        
+        if not clauses:
+            spec_clause_ids = _safe_json_loads(
+                equipment.get("spec_clause_ids_json", "[]"),
+                [],
+                "equipment_items.spec_clause_ids_json",
+            )
+            if not isinstance(spec_clause_ids, list):
+                spec_clause_ids = []
 
-        if spec_clause_ids:
-            ph = ",".join(["?"] * len(spec_clause_ids))
-            clause_rows = db.execute(f"SELECT * FROM spec_clauses WHERE id IN ({ph})", spec_clause_ids).fetchall()
-        else:
-            clause_rows = db.execute(
-                "SELECT * FROM spec_clauses WHERE equipment_class = ?",
-                (equipment_class,)
-            ).fetchall()
-
-        clauses = [dict(r) for r in clause_rows]
-        logger.info(f"Loaded {len(clauses)} spec clauses")
+            if spec_clause_ids:
+                ph = ",".join(["?"] * len(spec_clause_ids))
+                clause_rows = db.execute(f"SELECT * FROM spec_clauses WHERE id IN ({ph})", spec_clause_ids).fetchall()
+            else:
+                clause_rows = db.execute(
+                    "SELECT * FROM spec_clauses WHERE equipment_class = ?",
+                    (equipment_class,)
+                ).fetchall()
+            clauses = [dict(r) for r in clause_rows]
+            logger.info(f"Loaded {len(clauses)} spec clauses via SQLite")
 
         all_requirements = _extract_requirements(clauses)
         logger.info(f"Extracted {len(all_requirements)} requirements")
@@ -223,7 +261,7 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
         summary = _build_summary(scored_deviations)
         processing_ms = round((datetime.now() - start_time).total_seconds() * 1000, 1)
 
-        _log_agent_run(
+        _log_agent_run_compliance_agent(
             agent_run_id=agent_run_id,
             started_ts=started_ts,
             po_id=po_id,
@@ -258,7 +296,7 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"Compliance check failed for PO {po_id}: {e}", exc_info=True)
-        _log_agent_run(
+        _log_agent_run_compliance_agent(
             agent_run_id=agent_run_id,
             started_ts=started_ts,
             po_id=po_id,
@@ -799,7 +837,7 @@ def _build_summary(deviations: List[Dict]) -> Dict[str, int]:
     return summary
 
 
-def _log_agent_run(
+def _log_agent_run_compliance_agent(
     agent_run_id: str,
     started_ts: str,
     po_id: str,
@@ -850,3 +888,62 @@ def _log_agent_run(
         logger.error(f"Failed to log compliance agent run: {e}")
     finally:
         db.close()
+
+# ==============================================================================
+# INTEGRATED FROM: qa_agent.py
+# ==============================================================================
+
+"""
+Mock Agent — DCPI.
+This is a scaffolded agent file to demonstrate the 16-agent architecture.
+Integration and logic are pending full enterprise implementation.
+"""
+
+import logging
+
+
+
+# AGENT_NAME = "qa_agent"
+# AGENT_VERSION = "0.1.0"
+
+def process_request(query: str, context: dict = None) -> dict:
+    """
+    Mock entry point for qa_agent.
+    """
+    logger.info(f"qa_agent received query: {query[:50]}")
+    return {
+        "agent": AGENT_NAME,
+        "status": "Not Implemented",
+        "message": "This agent is scaffolded for the enterprise vision."
+    }
+
+
+# ==============================================================================
+# INTEGRATED FROM: requirement_agent.py
+# ==============================================================================
+
+"""
+Mock Agent — DCPI.
+This is a scaffolded agent file to demonstrate the 16-agent architecture.
+Integration and logic are pending full enterprise implementation.
+"""
+
+import logging
+
+
+
+# AGENT_NAME = "requirement_agent"
+# AGENT_VERSION = "0.1.0"
+
+def process_request(query: str, context: dict = None) -> dict:
+    """
+    Mock entry point for requirement_agent.
+    """
+    logger.info(f"requirement_agent received query: {query[:50]}")
+    return {
+        "agent": AGENT_NAME,
+        "status": "Not Implemented",
+        "message": "This agent is scaffolded for the enterprise vision."
+    }
+
+

@@ -45,11 +45,10 @@ export default function Schedule() {
     try {
       setAnalyzing(true);
       setError(null);
-      setStatusMsg("Schedule Risk Agent running...");
       await api.analyzeSchedule();
-      setStatusMsg("✓ Analysis complete — reloading tasks");
       await loadTasks();
-      setStatusMsg("");
+      setStatusMsg("✓ Analysis complete");
+      setTimeout(() => setStatusMsg(""), 3000);
     } catch (err) {
       setError(err.message);
       setStatusMsg("");
@@ -66,11 +65,10 @@ export default function Schedule() {
     try {
       setImporting(true);
       setError(null);
-      setStatusMsg("Importing schedule...");
       await api.importSchedule(formData);
-      setStatusMsg("✓ Schedule imported");
       await loadTasks();
-      setStatusMsg("");
+      setStatusMsg("✓ Schedule imported successfully");
+      setTimeout(() => setStatusMsg(""), 3000);
     } catch (err) {
       setError(err.message);
       setStatusMsg("");

@@ -66,8 +66,9 @@ const api = {
     });
   },
 
-  getDocuments: async () => {
-    const res = await fetch(`${BASE}/upload/documents`);
+  getDocuments: async (projectId) => {
+    const query = projectId ? `?project_id=${projectId}` : "";
+    const res = await fetch(`${BASE}/upload/documents${query}`);
     return handleResponse(res);
   },
 

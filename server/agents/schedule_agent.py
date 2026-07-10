@@ -225,7 +225,7 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
         # ── Step 9: Compute and persist delay comparison metrics ──────────────
         _update_delay_metrics(db, tasks, computed_scores)
 
-        _log_agent_run(
+        _log_agent_run_schedule_agent(
             agent_run_id=agent_run_id,
             started_ts=started_ts,
             num_tasks=len(tasks),
@@ -251,7 +251,7 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Schedule risk analysis failed: {e}")
-        _log_agent_run(
+        _log_agent_run_schedule_agent(
             agent_run_id=agent_run_id,
             started_ts=started_ts,
             status="failed",
@@ -316,11 +316,11 @@ def compute_task_risk_score(
     weather_risk = _infer_weather_risk(task.get("planned_start", ""))
 
     risk_score = (
-        0.30 * float_factor
-        + 0.35 * procurement_risk
+        0.25 * float_factor
+        + 0.30 * procurement_risk
         + 0.20 * predecessor_risk
-        + 0.10 * resource_risk
-        + 0.05 * weather_risk
+        + 0.15 * resource_risk
+        + 0.10 * weather_risk
     )
 
     return round(min(1.0, max(0.0, risk_score)), 4)
@@ -379,13 +379,28 @@ def _infer_resource_risk(description: str) -> float:
 def _infer_weather_risk(planned_start: str) -> float:
     try:
         month = datetime.fromisoformat(planned_start.replace("Z", "+00:00")).month
+        weather_data = get_mock_weather_data(planned_start)
+        base_risk = 0.10
+        if "storm" in weather_data.get("forecast", "").lower():
+            base_risk += 0.30
+        elif "rain" in weather_data.get("forecast", "").lower():
+            base_risk += 0.15
+        
         if month in (6, 7, 8, 9):
-            return 0.20
+            base_risk += 0.10
         if month in (12, 1, 2):
-            return 0.15
-        return 0.10
+            base_risk += 0.05
+        return min(1.0, base_risk)
     except Exception:
         return 0.10
+
+def get_mock_weather_data(date_str: str) -> Dict[str, Any]:
+    return {
+        "date": date_str,
+        "forecast": "Heavy rain and thunderstorms expected",
+        "temp_c": 22,
+        "wind_kmh": 45
+    }
 
 
 # ── Dependency Graph ───────────────────────────────────────────────────────────
@@ -570,7 +585,7 @@ def _parse_json_list(value: Any) -> List[str]:
         return []
 
 
-def _log_agent_run(
+def _log_agent_run_schedule_agent(
     agent_run_id: str,
     started_ts: str,
     status: str = "completed",
@@ -708,3 +723,91 @@ def _update_delay_metrics(db, tasks: List[Dict], computed_scores: Dict[str, floa
         db.commit()
     except Exception as e:
         logger.warning(f"Delay metrics update failed (non-critical): {e}")
+
+# ==============================================================================
+# INTEGRATED FROM: critical_path_agent.py
+# ==============================================================================
+
+"""
+Mock Agent — DCPI.
+This is a scaffolded agent file to demonstrate the 16-agent architecture.
+Integration and logic are pending full enterprise implementation.
+"""
+
+import logging
+
+
+
+# AGENT_NAME = "critical_path_agent"
+# AGENT_VERSION = "0.1.0"
+
+def process_request(query: str, context: dict = None) -> dict:
+    """
+    Mock entry point for critical_path_agent.
+    """
+    logger.info(f"critical_path_agent received query: {query[:50]}")
+    return {
+        "agent": AGENT_NAME,
+        "status": "Not Implemented",
+        "message": "This agent is scaffolded for the enterprise vision."
+    }
+
+
+# ==============================================================================
+# INTEGRATED FROM: weather_agent.py
+# ==============================================================================
+
+"""
+Mock Agent — DCPI.
+This is a scaffolded agent file to demonstrate the 16-agent architecture.
+Integration and logic are pending full enterprise implementation.
+"""
+
+import logging
+
+
+
+# AGENT_NAME = "weather_agent"
+# AGENT_VERSION = "0.1.0"
+
+def process_request(query: str, context: dict = None) -> dict:
+    """
+    Mock entry point for weather_agent.
+    """
+    logger.info(f"weather_agent received query: {query[:50]}")
+    return {
+        "agent": AGENT_NAME,
+        "status": "Not Implemented",
+        "message": "This agent is scaffolded for the enterprise vision."
+    }
+
+
+# ==============================================================================
+# INTEGRATED FROM: workforce_agent.py
+# ==============================================================================
+
+"""
+Mock Agent — DCPI.
+This is a scaffolded agent file to demonstrate the 16-agent architecture.
+Integration and logic are pending full enterprise implementation.
+"""
+
+import logging
+
+
+
+# AGENT_NAME = "workforce_agent"
+# AGENT_VERSION = "0.1.0"
+
+def process_request(query: str, context: dict = None) -> dict:
+    """
+    Mock entry point for workforce_agent.
+    """
+    logger.info(f"workforce_agent received query: {query[:50]}")
+    return {
+        "agent": AGENT_NAME,
+        "status": "Not Implemented",
+        "message": "This agent is scaffolded for the enterprise vision."
+    }
+
+

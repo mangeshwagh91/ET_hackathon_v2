@@ -79,6 +79,7 @@ function AnimatedRoutes() {
 // Inner Application (Handles Auth Routing)
 function ApplicationCore() {
   const { isAuthenticated, isLoggingOut } = useAuth();
+  const location = useLocation();
   
   const [showSplash, setShowSplash] = useState(
     () => !sessionStorage.getItem(SPLASH_SEEN_KEY)
@@ -120,7 +121,6 @@ function ApplicationCore() {
     );
   }
 
-  const location = useLocation();
   const isFullscreen = location.pathname === "/projects/new";
 
   return (

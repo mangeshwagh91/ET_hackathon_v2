@@ -3,11 +3,13 @@ import { motion } from "framer-motion";
 import { Upload, FileText, CheckCircle, Clock, Trash2, ArrowRight, ShieldAlert } from "lucide-react";
 import api from "../api/client.js";
 import LoadingSpinner from "../components/LoadingSpinner.jsx";
+import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { currentProject } = useWorkspace();
   
   // Upload States
   const [file, setFile] = useState(null);
@@ -20,14 +22,17 @@ export default function DocumentsPage() {
   const [poNumber, setPoNumber] = useState("");
 
   useEffect(() => {
-    fetchDocuments();
-  }, []);
+    if (currentProject) {
+      fetchDocuments();
+    }
+  }, [currentProject]);
 
   const fetchDocuments = async () => {
+    if (!currentProject) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getDocuments();
+      const data = await api.getDocuments(currentProject.id);
       setDocuments(data.documents || []);
     } catch (err) {
       setError(err.message || "Failed to load documents");
@@ -47,6 +52,9 @@ export default function DocumentsPage() {
     setUploadStatus("Uploading file...");
     const formData = new FormData();
     formData.append("file", file);
+    if (currentProject) {
+      formData.append("project_id", currentProject.id);
+    }
 
     try {
       let result;

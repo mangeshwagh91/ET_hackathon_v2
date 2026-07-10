@@ -15,7 +15,15 @@ from dataclasses import dataclass, field
 
 from database.connection import get_db
 from services.llm_client import call_claude, has_available_provider
-from services.vector_store import search_spec_clauses, search_rfis, get_or_create_collection, embed_text, _serialize_metadata, CHROMADB_AVAILABLE
+from services.vector_store import (
+    search_spec_clauses,
+    search_rfis,
+    search_standards,
+    get_or_create_collection,
+    embed_text,
+    _serialize_metadata,
+    CHROMADB_AVAILABLE
+)
 
 logger = logging.getLogger(__name__)
 
@@ -129,15 +137,24 @@ def answer_query(query: str) -> Dict[str, Any]:
     try:
         spec_results = []
         rfi_results = []
+        std_results = []
         if CHROMADB_AVAILABLE:
             try:
                 spec_results = search_spec_clauses(query, n_results=MAX_SPEC_RESULTS)
                 rfi_results = search_rfis(query, n_results=MAX_RFI_RESULTS)
+                std_results = search_standards(query, n_results=MAX_SPEC_RESULTS)
             except Exception as e:
                 logger.warning(f"Vector search failed: {e}")
         
         memory_chunks = _search_document_memory(query)
         
+        # Convert standards into RetrievedSource objects
+        for std in std_results:
+            memory_chunks.append(RetrievedSource(
+                rank=0, doc_id=std["id"], doc_type="standard",
+                text=std["text"], score=std["score"], metadata=std.get("metadata", {})
+            ))
+
         all_chunks = _build_source_list(spec_results, rfi_results, memory_chunks)
         precedent_rfis = _find_precedent_rfis(rfi_results)
 
@@ -151,6 +168,7 @@ def answer_query(query: str) -> Dict[str, Any]:
 
             if not has_available_provider():
                 answer_text = _fallback_answer(all_chunks, precedent_rfis)
+                confidence = _compute_confidence(all_chunks)
             else:
                 try:
                     answer_text = call_claude(
@@ -158,11 +176,24 @@ def answer_query(query: str) -> Dict[str, Any]:
                         user_message,
                         max_tokens=1200
                     )
+                    
+                    # Parse LLM confidence if available
+                    llm_confidence = None
+                    match = re.search(r"\[Confidence:\s*(HIGH|MEDIUM|LOW)\]", answer_text, re.IGNORECASE)
+                    if match:
+                        conf_str = match.group(1).upper()
+                        if conf_str == "HIGH": llm_confidence = 0.95
+                        elif conf_str == "MEDIUM": llm_confidence = 0.70
+                        elif conf_str == "LOW": llm_confidence = 0.40
+                    
+                        # Remove the confidence tag from the answer text so it doesn't show in the UI twice
+                        answer_text = re.sub(r"\n?\[Confidence:\s*(HIGH|MEDIUM|LOW)\]\n?", "", answer_text, flags=re.IGNORECASE).strip()
+                    
+                    confidence = llm_confidence if llm_confidence is not None else _compute_confidence(all_chunks)
                 except Exception as e:
                     logger.error(f"LLM call failed for knowledge query: {e}")
                     answer_text = _fallback_answer(all_chunks, precedent_rfis)
-
-            confidence = _compute_confidence(all_chunks)
+                    confidence = _compute_confidence(all_chunks)
 
         sources = [
             {
@@ -176,7 +207,7 @@ def answer_query(query: str) -> Dict[str, Any]:
         ]
 
         processing_ms = round((datetime.now() - start_time).total_seconds() * 1000, 1)
-        _log_agent_run(agent_run_id, started_ts, query, status="completed", confidence=confidence, num_sources=len(all_chunks))
+        _log_agent_run_knowledge_agent(agent_run_id, started_ts, query, status="completed", confidence=confidence, num_sources=len(all_chunks))
         
         return {
             "answer": answer_text,
@@ -193,7 +224,7 @@ def answer_query(query: str) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Knowledge query failed [{agent_run_id[:8]}]: {e}")
-        _log_agent_run(agent_run_id, started_ts, query, status="failed", error=str(e))
+        _log_agent_run_knowledge_agent(agent_run_id, started_ts, query, status="failed", error=str(e))
         raise RuntimeError(f"Knowledge query processing failed: {e}") from e
 
 
@@ -273,7 +304,7 @@ def _compute_confidence(chunks: List[RetrievedSource]) -> float:
     return round(min(1.0, max(c.score for c in chunks) + min(0.15, len(chunks) * 0.03)), 4)
 
 
-def _log_agent_run(agent_run_id: str, started_ts: str, query: str, status: str = "completed", confidence: float = 0.0, num_sources: int = 0, error: str = None) -> None:
+def _log_agent_run_knowledge_agent(agent_run_id: str, started_ts: str, query: str, status: str = "completed", confidence: float = 0.0, num_sources: int = 0, error: str = None) -> None:
     db = get_db()
     try:
         db.execute('''
@@ -290,3 +321,5 @@ def _log_agent_run(agent_run_id: str, started_ts: str, query: str, status: str =
         logger.error(f"Failed to log knowledge agent run: {e}")
     finally:
         db.close()
+
+

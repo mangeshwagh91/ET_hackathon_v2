@@ -257,41 +257,71 @@ def index_rfi(
     text: str,
     metadata: Dict[str, Any]
 ) -> bool:
-    """
-    Index an RFI in the 'rfis' ChromaDB collection.
-    is_resolved is ALWAYS stored as the lowercase string "true" or "false".
-    """
     if not text or not text.strip():
         logger.warning(f"Skipping empty RFI '{rfi_id}'")
         return False
-
-    # Normalise before passing to serialize
-    raw_resolved = metadata.get("is_resolved", False)
-    metadata = dict(metadata)
-    if raw_resolved in (True, 1, "true", "True", "1", "yes", "YES"):
-        metadata["is_resolved"] = "true"
-    else:
-        metadata["is_resolved"] = "false"
-
     try:
         collection = get_or_create_collection("rfis")
         embedding = embed_text(text)
+        meta = _serialize_metadata(metadata)
+        if "is_resolved" not in meta:
+            meta["is_resolved"] = "false"
+
         collection.upsert(
             ids=[rfi_id],
-            documents=[text],
             embeddings=[embedding],
-            metadatas=[_serialize_metadata(metadata)]
+            documents=[text],
+            metadatas=[meta]
         )
-        logger.debug(
-            f"Indexed RFI '{rfi_id}' (is_resolved={metadata['is_resolved']}, {len(text)} chars)"
-        )
+        logger.info(f"Indexed RFI {rfi_id}")
         return True
-    except (ValueError, EmbeddingError) as e:
-        logger.error(f"Cannot index RFI '{rfi_id}': {e}")
-        raise IndexingError(str(e)) from e
     except Exception as e:
-        raise IndexingError(f"Failed to index RFI '{rfi_id}': {e}") from e
-    return False
+        logger.error(f"Failed to index RFI {rfi_id}: {e}")
+        return False
+
+def index_standard(
+    standard_id: str,
+    text: str,
+    metadata: Dict[str, Any]
+) -> bool:
+    try:
+        collection = get_or_create_collection("standards")
+        embedding = embed_text(text)
+        meta = _serialize_metadata(metadata)
+
+        collection.upsert(
+            ids=[standard_id],
+            embeddings=[embedding],
+            documents=[text],
+            metadatas=[meta]
+        )
+        logger.info(f"Indexed standard clause {standard_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to index standard {standard_id}: {e}")
+        return False
+
+def index_commissioning_checklist(
+    checklist_id: str,
+    text: str,
+    metadata: Dict[str, Any]
+) -> bool:
+    try:
+        collection = get_or_create_collection("commissioning_checklists")
+        embedding = embed_text(text)
+        meta = _serialize_metadata(metadata)
+
+        collection.upsert(
+            ids=[checklist_id],
+            embeddings=[embedding],
+            documents=[text],
+            metadatas=[meta]
+        )
+        logger.info(f"Indexed checklist {checklist_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to index checklist {checklist_id}: {e}")
+        return False
 
 
 # ── Search ─────────────────────────────────────────────────────────────────────
@@ -424,6 +454,44 @@ def search_rfis(
     except Exception as e:
         raise SearchError(f"rfis search failed: {e}") from e
 
+def search_standards(query: str, n_results: int = 5, threshold: float = 0.5) -> List[Dict[str, Any]]:
+    if not query or not query.strip(): return []
+    try:
+        collection = get_or_create_collection("standards")
+        count = collection.count()
+        if count == 0: return []
+        embedding = embed_text(query)
+        results = collection.query(
+            query_embeddings=[embedding],
+            n_results=min(n_results, count)
+        )
+        chunks = _build_chunks(results)
+        if threshold > 0:
+            chunks = [c for c in chunks if c["score"] >= threshold]
+        return chunks[:n_results]
+    except Exception as e:
+        logger.error(f"standards search failed: {e}")
+        return []
+
+def search_commissioning_checklists(query: str, n_results: int = 3, threshold: float = 0.5) -> List[Dict[str, Any]]:
+    if not query or not query.strip(): return []
+    try:
+        collection = get_or_create_collection("commissioning_checklists")
+        count = collection.count()
+        if count == 0: return []
+        embedding = embed_text(query)
+        results = collection.query(
+            query_embeddings=[embedding],
+            n_results=min(n_results, count)
+        )
+        chunks = _build_chunks(results)
+        if threshold > 0:
+            chunks = [c for c in chunks if c["score"] >= threshold]
+        return chunks[:n_results]
+    except Exception as e:
+        logger.error(f"commissioning checklists search failed: {e}")
+        return []
+
 
 # ── Utility ────────────────────────────────────────────────────────────────────
 
@@ -506,35 +574,58 @@ def batch_index_spec_clauses(clauses: List[Dict[str, Any]]) -> Dict[str, Any]:
     return results
 
 
+def _batch_upsert(collection, items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Internal helper for batch upserts."""
+    ids, docs, embeddings, metadatas = [], [], [], []
+    for item in items:
+        if not item.get("text", "").strip(): continue
+        ids.append(item["id"])
+        docs.append(item["text"])
+        embeddings.append(embed_text(item["text"]))
+        metadatas.append(_serialize_metadata(item.get("metadata", {})))
+    
+    if not ids: return {"success": True, "count": 0}
+    collection.upsert(ids=ids, documents=docs, embeddings=embeddings, metadatas=metadatas)
+    return {"success": True, "count": len(ids)}
+
 def batch_index_rfis(rfis: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Batch index RFIs. Each dict needs 'id', 'text', 'metadata' keys."""
-    results = {"total": len(rfis), "successful": 0, "failed": 0, "skipped": 0}
-    for i, rfi in enumerate(rfis):
-        rfi_id = rfi.get("id", f"rfi_{i}")
-        text = rfi.get("text", "")
-        if not text.strip():
-            results["skipped"] += 1
-            continue
-        try:
-            index_rfi(rfi_id, text, rfi.get("metadata", {}))
-            results["successful"] += 1
-        except Exception as e:
-            results["failed"] += 1
-            logger.error(f"Batch index failed for {rfi_id}: {e}")
-    return results
+    """Batch index RFIs. Expected keys: 'id', 'text', 'is_resolved', 'metadata'."""
+    try:
+        collection = get_or_create_collection("rfis")
+        return _batch_upsert(collection, rfis)
+    except Exception as e:
+        logger.error(f"Batch index RFIs failed: {e}")
+        return {"success": False, "count": 0, "error": str(e)}
+
+def batch_index_standards(standards: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Batch index standards. Expected keys: 'id', 'text', 'metadata'."""
+    try:
+        collection = get_or_create_collection("standards")
+        return _batch_upsert(collection, standards)
+    except Exception as e:
+        logger.error(f"Batch index standards failed: {e}")
+        return {"success": False, "count": 0, "error": str(e)}
+
+def batch_index_commissioning_checklists(checklists: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Batch index checklists. Expected keys: 'id', 'text', 'metadata'."""
+    try:
+        collection = get_or_create_collection("commissioning_checklists")
+        return _batch_upsert(collection, checklists)
+    except Exception as e:
+        logger.error(f"Batch index checklists failed: {e}")
+        return {"success": False, "count": 0, "error": str(e)}
 
 
 def initialize_collections() -> Dict[str, bool]:
-    """Create all required collections on startup."""
-    results = {}
-    for name in ["spec_clauses", "rfis"]:
+    """Force initialization of all core collections."""
+    status = {}
+    for coll_name in ["spec_clauses", "rfis", "standards", "commissioning_checklists"]:
         try:
-            get_or_create_collection(name)
-            results[name] = True
-        except Exception as e:
-            logger.error(f"Failed to initialize collection '{name}': {e}")
-            results[name] = False
-    return results
+            get_or_create_collection(coll_name)
+            status[coll_name] = True
+        except Exception:
+            status[coll_name] = False
+    return status
 
 
 def cleanup_collections() -> None:

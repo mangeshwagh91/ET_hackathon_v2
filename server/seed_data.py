@@ -18,7 +18,12 @@ load_dotenv()
 
 from database.schema import init_db
 from database.connection import get_db
-from services.vector_store import index_rfi, index_spec_clause
+from services.vector_store import (
+    index_rfi,
+    index_spec_clause,
+    index_standard,
+    index_commissioning_checklist
+)
 
 print("=" * 60)
 print("DCPI Demo Data Seeder")
@@ -655,6 +660,47 @@ for clause in spec_clauses:
         except Exception as e:
             print(f"        ✗ Failed to index clause {clause['clause_number']}: {e}")
 print(f"      ✓ Spec clauses indexed in ChromaDB")
+
+# ── 9. Index Standards and Commissioning Checklists ───────────────────────────
+print("\n[9/10] Indexing mock standards in ChromaDB...")
+standards_data = [
+    {
+        "id": "std-tia-942-b-4.1",
+        "text": "TIA-942-B Clause 4.1: Tier IV Data Center minimum requirements for concurrent maintainability and fault tolerance. Dual power paths required.",
+        "metadata": {"standard": "TIA-942", "version": "B"}
+    },
+    {
+        "id": "std-bicsi-002-2019-7.2",
+        "text": "BICSI 002-2019 Clause 7.2: Telecommunications spaces and pathways. Minimum clearance and cooling requirements for MDF and IDF rooms.",
+        "metadata": {"standard": "BICSI", "version": "002-2019"}
+    }
+]
+for std in standards_data:
+    try:
+        index_standard(std["id"], std["text"], std["metadata"])
+    except Exception as e:
+        print(f"        ✗ Failed to index standard {std['id']}: {e}")
+print("      ✓ Standards indexed in ChromaDB")
+
+print("\n[10/10] Indexing commissioning checklists in ChromaDB...")
+checklists_data = [
+    {
+        "id": "chk-ups-fat-001",
+        "text": "UPS Factory Acceptance Test Checklist: 1. Visual Inspection. 2. Battery Autonomy Discharge (min 10 min). 3. Transfer Time Measurement. 4. Full Load Efficiency Test.",
+        "metadata": {"equipment": "UPS", "type": "FAT"}
+    },
+    {
+        "id": "chk-gen-sat-002",
+        "text": "Generator Site Acceptance Test Checklist: 1. Verify alignment. 2. Load bank test (100% for 4 hours). 3. Step load transient response. 4. Emission check.",
+        "metadata": {"equipment": "Generator", "type": "SAT"}
+    }
+]
+for chk in checklists_data:
+    try:
+        index_commissioning_checklist(chk["id"], chk["text"], chk["metadata"])
+    except Exception as e:
+        print(f"        ✗ Failed to index checklist {chk['id']}: {e}")
+print("      ✓ Commissioning checklists indexed in ChromaDB")
 
 db.close()
 

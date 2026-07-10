@@ -17,50 +17,50 @@ This project is intended for use during the engineering, procurement, and constr
 
 The system follows a layered architecture:
 
-- Frontend: a React + Vite SPA for dashboards, compliance workflows, schedule review, RFI chat, and settings.
-- Backend: a FastAPI service that hosts REST endpoints, orchestrates business logic, and interacts with the database and AI services.
+- Client: a React + Vite SPA for dashboards, compliance workflows, schedule review, RFI chat, and settings.
+- Server: a FastAPI service that hosts REST endpoints, orchestrates business logic, and interacts with the database and AI services.
 - Persistence: SQLite stores project entities such as documents, clauses, POs, deviations, NCRs, schedule tasks, RFIs, and agent run logs.
 - Vector intelligence: ChromaDB stores embedded specification clauses and RFIs for semantic search and retrieval.
 - AI layer: LLM calls are centralized through a service that prefers Groq and falls back to Ollama when needed.
 
 ### Runtime Flow
 
-1. A user uploads a specification or submittal document through the frontend.
-2. The backend saves the file, extracts text, parses clauses or technical attributes, and stores the results in SQLite.
+1. A user uploads a specification or submittal document through the client.
+2. The server saves the file, extracts text, parses clauses or technical attributes, and stores the results in SQLite.
 3. The relevant information is indexed into ChromaDB for semantic retrieval.
 4. Domain agents analyze the stored data and produce structured outputs such as deviations, NCRs, risk scores, or RFI answers.
 5. The UI renders the results in dashboards, detail views, timeline components, and chat experiences.
 
 ## 3. Repository Structure
 
-### Frontend
+### Client
 
-The frontend is located in the [frontend](frontend) directory.
-
-Key areas:
-
-- [frontend/src/App.jsx](frontend/src/App.jsx): defines the main route structure and app shell.
-- [frontend/src/pages](frontend/src/pages): page-level experience for Dashboard, Compliance, NCRDetail, Schedule, RFIChat, SettingsPage, and ActivityCenter.
-- [frontend/src/components](frontend/src/components): reusable UI modules including navigation, cards, loading states, animated backgrounds, and workflow-specific components.
-- [frontend/src/context](frontend/src/context): authentication and workspace context providers.
-- [frontend/src/api/client.js](frontend/src/api/client.js): central API client for backend calls.
-
-### Backend
-
-The backend is located in the [backend](backend) directory.
+The client is located in the [client](client) directory.
 
 Key areas:
 
-- [backend/main.py](backend/main.py): FastAPI app configuration, startup lifecycle, router registration, middleware, and health endpoints.
-- [backend/routers](backend/routers): HTTP endpoints for upload, compliance, schedule, RFI, and dashboard features.
-- [backend/agents](backend/agents): domain agents responsible for orchestrating reasoning workflows.
-- [backend/services](backend/services): shared services for LLM access, vector search, parsing, and PDF extraction.
-- [backend/database](backend/database): SQLite schema and initialization logic.
-- [backend/models](backend/models): Pydantic response models and shared request/response schemas.
+- [client/src/App.jsx](client/src/App.jsx): defines the main route structure and app shell.
+- [client/src/pages](client/src/pages): page-level experience for Dashboard, Compliance, NCRDetail, Schedule, RFIChat, SettingsPage, and ActivityCenter.
+- [client/src/components](client/src/components): reusable UI modules including navigation, cards, loading states, animated backgrounds, and workflow-specific components.
+- [client/src/context](client/src/context): authentication and workspace context providers.
+- [client/src/api/client.js](client/src/api/client.js): central API client for server calls.
 
-## 4. Frontend Architecture
+### Server
 
-The frontend is a single-page application with animated page transitions and a lightweight auth/workspace shell.
+The server is located in the [server](server) directory.
+
+Key areas:
+
+- [server/main.py](server/main.py): FastAPI app configuration, startup lifecycle, router registration, middleware, and health endpoints.
+- [server/routers](server/routers): HTTP endpoints for upload, compliance, schedule, RFI, and dashboard features.
+- [server/agents](server/agents): domain agents responsible for orchestrating reasoning workflows.
+- [server/services](server/services): shared services for LLM access, vector search, parsing, and PDF extraction.
+- [server/database](server/database): SQLite schema and initialization logic.
+- [server/models](server/models): Pydantic response models and shared request/response schemas.
+
+## 4. Client Architecture
+
+The client is a single-page application with animated page transitions and a lightweight auth/workspace shell.
 
 ### Primary UI Areas
 
@@ -71,16 +71,16 @@ The frontend is a single-page application with animated page transitions and a l
 - RFI: chat-like assistant for asking project questions and reviewing answers with sources.
 - Settings and Activity: user preferences and recent system activity.
 
-### Important Frontend Patterns
+### Important Client Patterns
 
 - Page transitions are animated using Framer Motion.
 - The app uses route-based views with a shared navigation bar.
 - Authentication state is managed by context providers.
 - The UI is designed to be visually rich and presentation-oriented, with cards, animated counters, and progress visuals.
 
-## 5. Backend Architecture
+## 5. Server Architecture
 
-The backend is centered around FastAPI and uses thin routers that delegate to agents and services.
+The server is centered around FastAPI and uses thin routers that delegate to agents and services.
 
 ### Request Flow Pattern
 
@@ -88,28 +88,28 @@ The backend is centered around FastAPI and uses thin routers that delegate to ag
 2. The router validates the input and calls an agent or service.
 3. The agent uses database queries and/or vector search to gather context.
 4. The AI service is invoked to generate structured output or analysis.
-5. The router returns a JSON response consumed by the frontend.
+5. The router returns a JSON response consumed by the client.
 
-### Main Backend Services
+### Main Server Services
 
-- [backend/services/llm_client.py](backend/services/llm_client.py): centralized LLM integration.
+- [server/services/llm_client.py](server/services/llm_client.py): centralized LLM integration.
   - Uses Groq as the primary provider.
   - Falls back to Ollama when Groq credentials are unavailable.
   - Supports single-call and batch inference.
   - Includes JSON parsing utilities and retry/error handling.
 
-- [backend/services/vector_store.py](backend/services/vector_store.py): ChromaDB-backed semantic search.
+- [server/services/vector_store.py](server/services/vector_store.py): ChromaDB-backed semantic search.
   - Stores embeddings for specification clauses and RFIs.
   - Supports indexing and similarity search.
   - Handles metadata serialization and collection initialization.
 
-- [backend/services/pdf_extractor.py](backend/services/pdf_extractor.py): extracts text from uploaded PDFs.
+- [server/services/pdf_extractor.py](server/services/pdf_extractor.py): extracts text from uploaded PDFs.
 
-- [backend/services/spec_parser.py](backend/services/spec_parser.py): parses uploaded specifications into clause-level records.
+- [server/services/spec_parser.py](server/services/spec_parser.py): parses uploaded specifications into clause-level records.
 
 ## 6. Data Model and Persistence
 
-The database layer is implemented with SQLite and initialized by [backend/database/schema.py](backend/database/schema.py).
+The database layer is implemented with SQLite and initialized by [server/database/schema.py](server/database/schema.py).
 
 ### Core Tables
 
@@ -133,7 +133,7 @@ The application’s intelligence is organized around three domain agents.
 
 ### 7.1 Spec Compliance Agent
 
-Implemented in [backend/agents/spec_compliance_agent.py](backend/agents/spec_compliance_agent.py).
+Implemented in [server/agents/spec_compliance_agent.py](server/agents/spec_compliance_agent.py).
 
 Responsibilities:
 
@@ -156,7 +156,7 @@ This agent is the backbone of the compliance experience.
 
 ### 7.2 Schedule Risk Agent
 
-Implemented in [backend/agents/schedule_risk_agent.py](backend/agents/schedule_risk_agent.py).
+Implemented in [server/agents/schedule_risk_agent.py](server/agents/schedule_risk_agent.py).
 
 Responsibilities:
 
@@ -177,7 +177,7 @@ This agent powers the schedule analysis experience and the at-risk task recommen
 
 ### 7.3 RFI Knowledge Agent
 
-Implemented in [backend/agents/rfi_knowledge_agent.py](backend/agents/rfi_knowledge_agent.py).
+Implemented in [server/agents/rfi_knowledge_agent.py](server/agents/rfi_knowledge_agent.py).
 
 Responsibilities:
 
@@ -199,7 +199,7 @@ This agent is the intelligence layer behind the RFI assistant experience.
 
 ## 8. API Surface
 
-The backend exposes a set of REST endpoints grouped by feature.
+The server exposes a set of REST endpoints grouped by feature.
 
 ### Upload Routes
 
@@ -243,7 +243,7 @@ The platform uses both deterministic logic and large-language-model reasoning.
 ### Generative AI
 
 - LLMs are used to classify deviations, create NCR descriptions, generate mitigation actions, and answer RFI questions.
-- The system prefers structured outputs and uses robust JSON parsing so the backend can safely consume model responses.
+- The system prefers structured outputs and uses robust JSON parsing so the server can safely consume model responses.
 - The architecture is designed to work even when the LLM provider is unavailable by falling back to deterministic or heuristic responses.
 
 ## 10. Architecture Diagrams
@@ -252,8 +252,8 @@ The platform uses both deterministic logic and large-language-model reasoning.
 
 ```mermaid
 flowchart LR
-    U[Project Team / User] --> FE[React Frontend]
-    FE --> API[FastAPI Backend]
+    U[Project Team / User] --> FE[React Client]
+    FE --> API[FastAPI Server]
     API --> DB[(SQLite Database)]
     API --> VDB[(ChromaDB Vector Store)]
     API --> LLM[LLM Providers<br/>Groq / Ollama]
@@ -269,7 +269,7 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     participant User as User
-    participant FE as Frontend
+    participant FE as Client
     participant API as FastAPI
     participant DB as SQLite
     participant VDB as ChromaDB
@@ -462,7 +462,7 @@ flowchart TD
     J --> K
 ```
 
-### 11.8 Frontend Component and Data Flow
+### 11.8 Client Component and Data Flow
 
 ```mermaid
 flowchart TD
@@ -488,7 +488,7 @@ flowchart TD
         M[api/client.js → fetch wrapper]
     end
 
-    subgraph Backend
+    subgraph Server
         N[/api/dashboard/summary]
         O[/api/compliance/**]
         P[/api/schedule/**]
@@ -632,15 +632,15 @@ erDiagram
 ET_hackathon_v2/
 ├── overview.md
 ├── README.md
-├── backend/
+├── server/
 ├── docs/
-├── frontend/
+├── client/
 ```
 
-### Backend Structure
+### Server Structure
 
 ```text
-backend/
+server/
 ├── main.py
 ├── requirements.txt
 ├── seed_data.py
@@ -675,10 +675,10 @@ backend/
 └── chroma_db/
 ```
 
-### Frontend Structure
+### Client Structure
 
 ```text
-frontend/
+client/
 ├── index.html
 ├── package.json
 ├── postcss.config.js
@@ -699,7 +699,7 @@ frontend/
 
 ### Environment Variables
 
-The backend uses environment variables for configuration, including:
+The server uses environment variables for configuration, including:
 
 - GROQ_API_KEYS or GROQ_API_KEY
 - GROQ_MODEL
@@ -721,7 +721,7 @@ On startup, the application:
 
 ### Health and Diagnostics
 
-The backend exposes health endpoints that verify the database and vector store availability. Agent runs are logged for auditability and later inspection.
+The server exposes health endpoints that verify the database and vector store availability. Agent runs are logged for auditability and later inspection.
 
 ## 14. Development and Extension Points
 
@@ -730,11 +730,11 @@ The project is organized so new capabilities can be added cleanly.
 To extend the system:
 
 - add a new router for a new feature,
-- implement orchestration logic in a new agent under [backend/agents](backend/agents),
-- reuse [backend/services/llm_client.py](backend/services/llm_client.py) and [backend/services/vector_store.py](backend/services/vector_store.py) for AI and retrieval capabilities,
-- update the database schema in [backend/database/schema.py](backend/database/schema.py) if new entities are required.
+- implement orchestration logic in a new agent under [server/agents](server/agents),
+- reuse [server/services/llm_client.py](server/services/llm_client.py) and [server/services/vector_store.py](server/services/vector_store.py) for AI and retrieval capabilities,
+- update the database schema in [server/database/schema.py](server/database/schema.py) if new entities are required.
 
 ## 15. Summary
 
-DCPI is a practical AI-enabled construction intelligence platform that connects document processing, compliance review, schedule analysis, and RFI support into one coherent workflow. Its architecture is intentionally modular: the frontend renders workflows, the backend orchestrates data and logic, and the agents provide domain-specific intelligence grounded in project data and documentation.
+DCPI is a practical AI-enabled construction intelligence platform that connects document processing, compliance review, schedule analysis, and RFI support into one coherent workflow. Its architecture is intentionally modular: the client renders workflows, the server orchestrates data and logic, and the agents provide domain-specific intelligence grounded in project data and documentation.
 

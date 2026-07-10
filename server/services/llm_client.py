@@ -9,8 +9,6 @@ prompts concurrently against Groq for latency-sensitive multi-item workloads
 """
 from pathlib import Path
 
-print(Path(".env").resolve())
-print(Path(".env").exists())
 import asyncio
 import concurrent.futures
 import json
@@ -24,14 +22,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 from dotenv import load_dotenv
 
-from dotenv import load_dotenv
-from pathlib import Path
-
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH, override=True)
-
-print("Loaded .env from:", ENV_PATH)
-print("Exists:", ENV_PATH.exists())
 
 logger = logging.getLogger(__name__)
 

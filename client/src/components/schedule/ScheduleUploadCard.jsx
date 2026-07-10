@@ -73,7 +73,6 @@ export default function ScheduleUploadCard({
           >
             <input 
               type="file" 
-              accept=".csv"
               className="hidden" 
               ref={fileInputRef} 
               onChange={handleChange} 
@@ -88,9 +87,7 @@ export default function ScheduleUploadCard({
             
             <div className="flex items-center gap-3 text-xs font-semibold text-slate-400 bg-slate-100/50 px-4 py-2 rounded-lg">
               <span>SUPPORTED:</span>
-              <span className="text-slate-600">CSV</span>
-              <span className="text-slate-600">MPP</span>
-              <span className="text-slate-600">XML</span>
+              <span className="text-slate-600">ALL FORMATS</span>
             </div>
           </div>
         ) : (

@@ -7,9 +7,16 @@ logger = logging.getLogger(__name__)
 def init_db():
     db = get_db()
     try:
+        # Enable WAL mode for better concurrent write performance
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA synchronous=NORMAL")
+        db.execute("PRAGMA cache_size=-64000")  # 64MB page cache
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("PRAGMA temp_store=MEMORY")
         db.execute("""
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id),
                 filename TEXT NOT NULL,
                 doc_type TEXT NOT NULL,
                 upload_ts TEXT NOT NULL,
@@ -39,6 +46,7 @@ def init_db():
         db.execute("""
             CREATE TABLE IF NOT EXISTS equipment_items (
                 id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id),
                 item_code TEXT NOT NULL,
                 description TEXT NOT NULL,
                 equipment_class TEXT NOT NULL,
@@ -55,6 +63,7 @@ def init_db():
         db.execute("""
             CREATE TABLE IF NOT EXISTS purchase_orders (
                 id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id),
                 po_number TEXT NOT NULL,
                 vendor_name TEXT NOT NULL,
                 vendor_country TEXT DEFAULT 'India',
@@ -90,6 +99,7 @@ def init_db():
         db.execute("""
             CREATE TABLE IF NOT EXISTS ncrs (
                 id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id),
                 deviation_id TEXT NOT NULL REFERENCES deviations(id),
                 po_id TEXT NOT NULL REFERENCES purchase_orders(id),
                 equipment_item_id TEXT REFERENCES equipment_items(id),
@@ -111,6 +121,7 @@ def init_db():
         db.execute("""
             CREATE TABLE IF NOT EXISTS schedule_tasks (
                 id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id),
                 task_code TEXT NOT NULL,
                 description TEXT NOT NULL,
                 planned_start TEXT NOT NULL,
@@ -155,6 +166,7 @@ def init_db():
         db.execute("""
             CREATE TABLE IF NOT EXISTS rfis (
                 id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id),
                 rfi_code TEXT NOT NULL,
                 rfi_type TEXT DEFAULT 'TECHNICAL',
                 title TEXT NOT NULL,
@@ -174,6 +186,7 @@ def init_db():
         db.execute("""
             CREATE TABLE IF NOT EXISTS agent_runs (
                 id TEXT PRIMARY KEY,
+                project_id TEXT REFERENCES projects(id),
                 agent_name TEXT NOT NULL,
                 agent_version TEXT DEFAULT '1.0.0',
                 trigger_event TEXT,
@@ -220,7 +233,67 @@ def init_db():
                 lead_time_days INTEGER NOT NULL,
                 equipment_catalog_json TEXT DEFAULT '{}',
                 status TEXT DEFAULT 'submitted',
+                ai_recommendation TEXT,
+                ai_scores_json TEXT DEFAULT '{}',
                 created_at TEXT NOT NULL
+            )
+        """)
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS cost_records (
+                id TEXT PRIMARY KEY,
+                po_id TEXT REFERENCES purchase_orders(id),
+                equipment_item_id TEXT REFERENCES equipment_items(id),
+                delay_days INTEGER NOT NULL DEFAULT 0,
+                daily_rate REAL NOT NULL DEFAULT 0,
+                total_impact REAL NOT NULL DEFAULT 0,
+                mitigation_cost REAL DEFAULT 0,
+                impact_category TEXT DEFAULT 'Liquidated Damages',
+                currency TEXT DEFAULT 'USD',
+                narrative TEXT,
+                calculated_ts TEXT NOT NULL
+            )
+        """)
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS vendor_scores (
+                id TEXT PRIMARY KEY,
+                vendor_id TEXT NOT NULL REFERENCES vendors(id),
+                project_id TEXT REFERENCES projects(id),
+                compliance_score REAL DEFAULT 1.0,
+                delivery_score REAL DEFAULT 1.0,
+                quality_score REAL DEFAULT 1.0,
+                overall_score REAL DEFAULT 1.0,
+                ncr_count INTEGER DEFAULT 0,
+                critical_ncr_count INTEGER DEFAULT 0,
+                bids_submitted INTEGER DEFAULT 0,
+                bids_won INTEGER DEFAULT 0,
+                narrative TEXT,
+                calculated_ts TEXT NOT NULL
+            )
+        """)
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS workforce_demand (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL REFERENCES schedule_tasks(id),
+                week_start TEXT NOT NULL,
+                discipline TEXT NOT NULL,
+                required_headcount INTEGER NOT NULL DEFAULT 0,
+                available_headcount INTEGER DEFAULT 0,
+                conflict INTEGER DEFAULT 0
+            )
+        """)
+
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                id TEXT PRIMARY KEY,
+                report_type TEXT NOT NULL DEFAULT 'project_health',
+                project_id TEXT REFERENCES projects(id),
+                generated_ts TEXT NOT NULL,
+                summary_json TEXT DEFAULT '{}',
+                executive_summary TEXT,
+                status TEXT DEFAULT 'complete'
             )
         """)
 
@@ -251,8 +324,26 @@ def init_db():
         # Migrate existing tables to add new columns if missing
         _migrate_schedule_tasks(db)
         _migrate_projects(db)
+        _migrate_bids(db)
+        _migrate_new_tables(db)
+        _migrate_project_ids(db)
     finally:
         db.close()
+
+
+
+def _migrate_project_ids(db) -> None:
+    """Add project_id column to core tables if missing."""
+    tables = ["documents", "equipment_items", "purchase_orders", "ncrs", "schedule_tasks", "rfis", "agent_runs"]
+    for table in tables:
+        existing = {row[1] for row in db.execute(f"PRAGMA table_info({table})").fetchall()}
+        if "project_id" not in existing:
+            try:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN project_id TEXT REFERENCES projects(id)")
+                logger.info(f"Migrated {table}: added column project_id")
+            except Exception as e:
+                logger.warning(f"Could not add column project_id to {table}: {e}")
+    db.commit()
 
 
 def _migrate_projects(db) -> None:
@@ -289,3 +380,94 @@ def _migrate_schedule_tasks(db) -> None:
             except Exception as e:
                 logger.warning(f"Could not add column {col_name}: {e}")
     db.commit()
+
+
+def _migrate_bids(db) -> None:
+    """Add ai_recommendation and ai_scores_json columns to bids if missing."""
+    new_cols = [
+        ("ai_recommendation", "TEXT"),
+        ("ai_scores_json", "TEXT DEFAULT '{}'"),
+    ]
+    existing = {row[1] for row in db.execute("PRAGMA table_info(bids)").fetchall()}
+    for col_name, col_type in new_cols:
+        if col_name not in existing:
+            try:
+                db.execute(f"ALTER TABLE bids ADD COLUMN {col_name} {col_type}")
+                logger.info(f"Migrated bids: added column {col_name}")
+            except Exception as e:
+                logger.warning(f"Could not add column {col_name} to bids: {e}")
+    db.commit()
+
+
+def _migrate_new_tables(db) -> None:
+    """
+    Create new tables added in the production upgrade if they do not yet exist.
+    Safe to call multiple times (CREATE TABLE IF NOT EXISTS).
+    """
+    tables = [
+        (
+            "cost_records",
+            """CREATE TABLE IF NOT EXISTS cost_records (
+                id TEXT PRIMARY KEY,
+                po_id TEXT REFERENCES purchase_orders(id),
+                equipment_item_id TEXT REFERENCES equipment_items(id),
+                delay_days INTEGER NOT NULL DEFAULT 0,
+                daily_rate REAL NOT NULL DEFAULT 0,
+                total_impact REAL NOT NULL DEFAULT 0,
+                mitigation_cost REAL DEFAULT 0,
+                impact_category TEXT DEFAULT 'Liquidated Damages',
+                currency TEXT DEFAULT 'USD',
+                narrative TEXT,
+                calculated_ts TEXT NOT NULL
+            )"""
+        ),
+        (
+            "vendor_scores",
+            """CREATE TABLE IF NOT EXISTS vendor_scores (
+                id TEXT PRIMARY KEY,
+                vendor_id TEXT NOT NULL REFERENCES vendors(id),
+                project_id TEXT REFERENCES projects(id),
+                compliance_score REAL DEFAULT 1.0,
+                delivery_score REAL DEFAULT 1.0,
+                quality_score REAL DEFAULT 1.0,
+                overall_score REAL DEFAULT 1.0,
+                ncr_count INTEGER DEFAULT 0,
+                critical_ncr_count INTEGER DEFAULT 0,
+                bids_submitted INTEGER DEFAULT 0,
+                bids_won INTEGER DEFAULT 0,
+                narrative TEXT,
+                calculated_ts TEXT NOT NULL
+            )"""
+        ),
+        (
+            "workforce_demand",
+            """CREATE TABLE IF NOT EXISTS workforce_demand (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL REFERENCES schedule_tasks(id),
+                week_start TEXT NOT NULL,
+                discipline TEXT NOT NULL,
+                required_headcount INTEGER NOT NULL DEFAULT 0,
+                available_headcount INTEGER DEFAULT 0,
+                conflict INTEGER DEFAULT 0
+            )"""
+        ),
+        (
+            "reports",
+            """CREATE TABLE IF NOT EXISTS reports (
+                id TEXT PRIMARY KEY,
+                report_type TEXT NOT NULL DEFAULT 'project_health',
+                project_id TEXT REFERENCES projects(id),
+                generated_ts TEXT NOT NULL,
+                summary_json TEXT DEFAULT '{}',
+                executive_summary TEXT,
+                status TEXT DEFAULT 'complete'
+            )"""
+        ),
+    ]
+    for table_name, create_sql in tables:
+        try:
+            db.execute(create_sql)
+            logger.info(f"Table '{table_name}' ensured.")
+        except Exception as e:
+            logger.warning(f"Could not ensure table '{table_name}': {e}")
+    db.commit()

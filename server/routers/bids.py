@@ -62,29 +62,15 @@ def get_project_bids(project_id: str):
 
 @router.post("/recommend")
 def recommend_bids(project_id: str):
-    """Uses the Procurement & ERP Agent to analyze bids and recommend the best one."""
-    db = get_db()
+    """Uses the Procurement Agent to analyze all bids for a project from DB."""
+    from agents.procurement_agent import analyze_bids_for_project
     try:
-        rows = db.execute(
-            "SELECT b.id, b.price, b.lead_time_days, b.equipment_catalog_json, v.company_name as vendor_name FROM bids b JOIN vendors v ON b.vendor_id = v.id WHERE b.project_id = ?", 
-            (project_id,)
-        ).fetchall()
-        
-        bids_list = []
-        for r in rows:
-            bids_list.append({
-                "bid_id": r["id"],
-                "vendor_name": r["vendor_name"],
-                "price": r["price"],
-                "lead_time_days": r["lead_time_days"],
-                "catalog": json.loads(r["equipment_catalog_json"] or "{}")
-            })
-            
-        if not bids_list:
+        result = analyze_bids_for_project(project_id)
+        if result.get("bids_analyzed", 0) == 0:
             raise HTTPException(status_code=404, detail="No bids found for this project")
-            
-        # Call the Procurement Agent
-        result = analyze_bids(bids_list)
         return result
-    finally:
-        db.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

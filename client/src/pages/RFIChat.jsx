@@ -64,17 +64,34 @@ export default function RFIChat() {
       const data = await api.queryRFI(text);
       
       const responseData = data.agent_response || data;
+      const payload = responseData.knowledge_response || responseData.schedule_response || responseData.procurement_response || responseData.compliance_check || responseData.commissioning_tasks || responseData;
       
+      let contentStr = payload.answer || payload.message || payload.error || responseData.error;
+      if (!contentStr) {
+        if (payload.tasks_analyzed !== undefined) {
+          contentStr = `**Schedule Risk Analysis Complete**\n- Tasks Analyzed: ${payload.tasks_analyzed}\n- High Risk Tasks: ${payload.high_risk_count}\n`;
+          if (payload.at_risk_tasks?.length > 0) {
+            contentStr += "\n**At-Risk Tasks:**\n" + payload.at_risk_tasks.map(t => `- **${t.task_code}**: Risk Score ${Math.round(t.risk_score*100)}%`).join("\n");
+          }
+        } else if (payload.compliance_status) {
+          contentStr = `**Compliance Check: ${payload.po_id}**\nStatus: ${payload.compliance_status}\nDeviations: ${payload.total_deviations}`;
+        } else if (payload.tracking_number || payload.eta) {
+          contentStr = `**Shipment Tracking**\nStatus: ${payload.status}\nETA: ${payload.eta}`;
+        } else {
+          contentStr = typeof payload === 'string' ? payload : "```json\n" + JSON.stringify(payload, null, 2) + "\n```";
+        }
+      }
+
       const assistantMsg = {
         role: "assistant",
-        content: responseData.answer || responseData.error || "No response provided.",
-        confidence: responseData.confidence,
-        precedent_rfis: responseData.precedent_rfis || [],
-        sources: responseData.sources || [],
+        content: contentStr,
+        confidence: payload.confidence,
+        precedent_rfis: payload.precedent_rfis || [],
+        sources: payload.sources || [],
       };
       setMessages((prev) => [...prev, assistantMsg]);
-      setCurrentSources(responseData.sources || []);
-      setCurrentPrecedents(responseData.precedent_rfis || []);
+      setCurrentSources(payload.sources || []);
+      setCurrentPrecedents(payload.precedent_rfis || []);
     } catch (err) {
       const errMsg = {
         role: "assistant",

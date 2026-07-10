@@ -97,7 +97,8 @@ async def _parse_spec_bg(doc_id: str, file_path: str):
 
 @router.post("/specification", status_code=202)
 async def upload_specification(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    project_id: str = Form(None)
 ):
     """
     Upload a specification document.
@@ -114,10 +115,11 @@ async def upload_specification(
 
         db.execute("""
             INSERT OR REPLACE INTO documents 
-            (id, filename, doc_type, upload_ts, file_path, status, page_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (id, project_id, filename, doc_type, upload_ts, file_path, status, page_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             doc_id,
+            project_id,
             file.filename,
             "specification",
             datetime.utcnow().isoformat(),
@@ -189,7 +191,8 @@ async def upload_submittal(
     file: UploadFile = File(...),
     vendor_name: str = Form(...),
     po_number: str = Form(...),
-    equipment_item_id: str = Form(default="eq-ups-moda-001")
+    equipment_item_id: str = Form(default="eq-ups-moda-001"),
+    project_id: str = Form(None)
 ):
     """
     Upload a vendor submittal document.
@@ -207,10 +210,11 @@ async def upload_submittal(
 
         db.execute("""
             INSERT OR REPLACE INTO documents 
-            (id, filename, doc_type, upload_ts, file_path, status, page_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (id, project_id, filename, doc_type, upload_ts, file_path, status, page_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             doc_id,
+            project_id,
             file.filename,
             "submittal",
             datetime.utcnow().isoformat(),
@@ -230,11 +234,11 @@ async def upload_submittal(
         # Create PO with empty attributes for now
         db.execute("""
             INSERT OR REPLACE INTO purchase_orders
-            (id, po_number, vendor_name, document_id, equipment_item_id, po_date,
+            (id, project_id, po_number, vendor_name, document_id, equipment_item_id, po_date,
              technical_attributes_json, compliance_status, deviation_count, checked_ts)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            po_id, po_number, vendor_name, doc_id, equipment_item_id_to_use,
+            po_id, project_id, po_number, vendor_name, doc_id, equipment_item_id_to_use,
             datetime.utcnow().strftime("%Y-%m-%d"), "{}", "PENDING", 0, None
         ))
         db.commit()
@@ -292,13 +296,19 @@ async def get_upload_status(doc_id: str):
 
 
 @router.get("/documents")
-async def get_documents():
+async def get_documents(project_id: str = None):
     """Get all uploaded documents."""
     db = get_db()
     try:
-        rows = db.execute(
-            "SELECT * FROM documents ORDER BY upload_ts DESC"
-        ).fetchall()
+        if project_id:
+            rows = db.execute(
+                "SELECT * FROM documents WHERE project_id = ? ORDER BY upload_ts DESC",
+                (project_id,)
+            ).fetchall()
+        else:
+            rows = db.execute(
+                "SELECT * FROM documents ORDER BY upload_ts DESC"
+            ).fetchall()
         return {"success": True, "documents": [dict(r) for r in rows]}
     except Exception as e:
         logger.error(f"Failed to get documents: {str(e)}")
@@ -485,6 +495,7 @@ async def _process_general_upload_background(doc_id: str, file_path: str, doc_ty
 async def upload_general(
     file: UploadFile = File(...),
     doc_type: str = Form(default="general"),
+    project_id: str = Form(None),
     background_tasks: BackgroundTasks = None
 ):
     """
@@ -502,10 +513,11 @@ async def upload_general(
 
         db.execute("""
             INSERT OR REPLACE INTO documents 
-            (id, filename, doc_type, upload_ts, file_path, status, page_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (id, project_id, filename, doc_type, upload_ts, file_path, status, page_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             doc_id,
+            project_id,
             file.filename,
             doc_type,
             datetime.utcnow().isoformat(),

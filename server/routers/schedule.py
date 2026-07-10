@@ -17,14 +17,14 @@ router = APIRouter()
 
 @router.post("/import")
 async def import_schedule(file: UploadFile = File(...)):
-    if not (file.filename.endswith(".csv") or file.filename.endswith(".txt")):
-        raise HTTPException(status_code=400, detail="Only CSV files accepted for schedule import")
-
     db = get_db()
     try:
         content = await file.read()
-        text = content.decode("utf-8-sig")
-        reader = csv.DictReader(io.StringIO(text))
+        try:
+            text = content.decode("utf-8-sig")
+            reader = csv.DictReader(io.StringIO(text))
+        except Exception:
+            reader = []
         imported = 0
         zero_float_tasks = []
 

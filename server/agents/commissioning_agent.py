@@ -13,6 +13,7 @@ from typing import List, Dict, Optional, Any
 
 from database.connection import get_db
 from services.llm_client import call_claude_json, has_available_provider
+from services.vector_store import search_commissioning_checklists, CHROMADB_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
@@ -211,6 +212,19 @@ def generate_checklist(task_id: str) -> Dict[str, Any]:
                 break
         else:
             steps = STEP_TEMPLATES["DEFAULT"]
+            
+        # Try to retrieve specific checklist from ChromaDB
+        if CHROMADB_AVAILABLE:
+            try:
+                chk_results = search_commissioning_checklists(equipment_class, n_results=1)
+                if chk_results:
+                    logger.info(f"Found ChromaDB checklist for {equipment_class}")
+                    # Convert found text to basic steps for LLM enhancement or direct use
+                    chk_text = chk_results[0]["text"]
+                    # If we use LLM, we can pass this text to it
+                    task["chroma_checklist_text"] = chk_text
+            except Exception as e:
+                logger.warning(f"ChromaDB checklist search failed: {e}")
 
         # Try LLM enhancement if available
         if has_available_provider():
@@ -220,8 +234,10 @@ def generate_checklist(task_id: str) -> Dict[str, Any]:
                     f"Equipment: {task.get('equip_desc', 'Unknown')}\n"
                     f"Class: {equipment_class}\n"
                     f"Planned: {task.get('planned_start')} → {task.get('planned_finish')}\n"
-                    f"Generate a detailed commissioning test sequence."
                 )
+                if task.get("chroma_checklist_text"):
+                    user_msg += f"Use this retrieved checklist as a basis:\n{task['chroma_checklist_text']}\n"
+                user_msg += f"Generate a detailed commissioning test sequence."
                 result = call_claude_json(LLM_CHECKLIST_SYSTEM, user_msg, max_tokens=1500)
                 if result.get("steps"):
                     steps = result["steps"]

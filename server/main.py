@@ -19,8 +19,6 @@ from pathlib import Path
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH, override=True)
 
-print("Loaded .env from:", ENV_PATH)
-print("Exists:", ENV_PATH.exists())
 
 # Configure logging
 logging.basicConfig(
@@ -243,6 +241,10 @@ _register_router("routers.dashboard", "/api/dashboard", ["Dashboard"])
 _register_router("routers.commissioning", "/api/commissioning", ["Commissioning"])
 _register_router("routers.supply_chain", "/api/supply-chain", ["Supply Chain"])
 _register_router("routers.orchestrator", "/api/orchestrator", ["Orchestrator"])
+_register_router("routers.critical_path", "/api/critical-path", ["Critical Path"])
+_register_router("routers.report", "/api/report", ["Report"])
+_register_router("routers.vendor_scoring", "/api/vendors", ["Vendor Scoring"])
+_register_router("routers.workforce", "/api/workforce", ["Workforce"])
 
 
 # ============================================================================
