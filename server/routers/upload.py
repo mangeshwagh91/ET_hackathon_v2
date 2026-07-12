@@ -372,7 +372,8 @@ async def delete_document(doc_id: str):
         ).fetchone()
 
         if not doc:
-            raise HTTPException(status_code=404, detail="Document not found")
+            cache.invalidate_prefix("documents_list")
+            return {"success": True, "message": "Document not found or already deleted"}
 
         doc_dict = dict(doc)
 
@@ -383,8 +384,18 @@ async def delete_document(doc_id: str):
             except Exception as e:
                 logger.warning(f"Failed to delete file: {e}")
 
+        # Clean up foreign key references
+        db.execute("""
+            UPDATE deviations SET spec_clause_id = NULL 
+            WHERE spec_clause_id IN (SELECT id FROM spec_clauses WHERE document_id = ?)
+        """, (doc_id,))
+        
+        db.execute("DELETE FROM spec_clauses WHERE document_id = ?", (doc_id,))
+        db.execute("UPDATE purchase_orders SET document_id = NULL WHERE document_id = ?", (doc_id,))
+        
         db.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
         db.commit()
+        cache.invalidate_prefix("documents_list")
 
         return {"success": True, "message": f"Document {doc_id} deleted"}
 

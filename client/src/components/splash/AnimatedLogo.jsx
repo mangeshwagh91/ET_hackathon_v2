@@ -23,13 +23,13 @@ export default function AnimatedLogo({ delay = 0.8 }) {
         </svg>
       </motion.div>
 
-      {/* DCPI wordmark */}
+      {/* DataForge AI wordmark */}
       <div className="text-center">
         <div
           className="text-3xl font-bold tracking-tight text-[#0F172A]"
           style={{ fontFamily: "'Inter', sans-serif", letterSpacing: "-0.02em" }}
         >
-          DCPI
+          DataForge AI
         </div>
         <div
           className="text-xs font-medium tracking-[0.18em] uppercase text-[#64748B] mt-1"

@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 
@@ -16,7 +16,7 @@ from services.ingestion_queue import ingestion_queue
 from dotenv import load_dotenv
 from pathlib import Path
 
-ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+ENV_PATH = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 
@@ -368,7 +368,7 @@ async def add_process_time_header(request: Request, call_next):
 # Health Check & Status Endpoints
 # ============================================================================
 
-@app.get("/", tags=["Health"])
+@app.get("/api/", tags=["Health"])
 async def root() -> dict:
     """Root endpoint - basic health check."""
     return {
@@ -447,6 +447,37 @@ async def api_status() -> dict:
         "routes": sorted(routes, key=lambda x: x["path"]),
         "total_endpoints": len(routes)
     }
+
+# ============================================================================
+# React SPA Serving
+# ============================================================================
+
+client_dist = Path(__file__).resolve().parent.parent / "client" / "dist"
+if client_dist.exists():
+    logger.info(f"✅ Found compiled frontend at {client_dist}")
+    
+    # Serve assets directory directly
+    assets_dir = client_dist / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    # Catch-all for React Router SPA
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        # Ignore API paths, let them hit the 404 handler
+        if full_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"error": "Not found"})
+        
+        # Check if the requested file exists in dist (like favicon.ico, vite.svg)
+        if full_path:
+            file_path = client_dist / full_path
+            if file_path.is_file():
+                return FileResponse(str(file_path))
+                
+        # Otherwise serve index.html
+        return FileResponse(str(client_dist / "index.html"))
+else:
+    logger.warning("⚠️ Compiled frontend not found. Run 'npm run build' in the client directory.")
 
 
 # ============================================================================

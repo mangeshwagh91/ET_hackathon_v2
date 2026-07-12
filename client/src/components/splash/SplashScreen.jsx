@@ -33,7 +33,7 @@ function DataForgeLetters({ delay = 1.2 }) {
     >
       {letters.map((l, i) => (
         <motion.span
-          key={l}
+          key={`${l}-${i}`}
           initial={{ opacity: 0, y: 18, filter: "blur(10px)" }}
           animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
           transition={{

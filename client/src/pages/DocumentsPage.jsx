@@ -117,7 +117,7 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="mb-8 border-b border-slate-200 pb-6">
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Project Documents</h1>
-        <p className="text-slate-500 text-sm mt-1">Incorporate specifications, vendor submittals, and delay notices to train and update your project intelligence agents.</p>
+        <p className="text-slate-500 text-base mt-1">Incorporate specifications, vendor submittals, and delay notices to train and update your project intelligence agents.</p>
       </div>
 
       {error && (
@@ -151,7 +151,7 @@ export default function DocumentsPage() {
 
           <form onSubmit={handleUpload} className="space-y-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Document Type</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Document Type</label>
               <select
                 value={docType}
                 onChange={(e) => {
@@ -159,7 +159,7 @@ export default function DocumentsPage() {
                   setError(null);
                   setUploadStatus("");
                 }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors"
               >
                 <option value="specification">Specification (PDF)</option>
                 <option value="submittal">Vendor Submittal (PDF)</option>
@@ -170,30 +170,30 @@ export default function DocumentsPage() {
             {docType === "submittal" && (
               <>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Vendor Name</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Vendor Name</label>
                   <input
                     type="text"
                     value={vendorName}
                     onChange={(e) => setVendorName(e.target.value)}
                     placeholder="e.g. Vertiv"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-400"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">PO Number</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">PO Number</label>
                   <input
                     type="text"
                     value={poNumber}
                     onChange={(e) => setPoNumber(e.target.value)}
                     placeholder="e.g. PO-2026-001"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-400"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-400"
                   />
                 </div>
               </>
             )}
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select PDF File</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select PDF File</label>
               <div 
                 className={`relative border-2 border-dashed rounded-2xl bg-slate-50/30 transition-colors flex flex-col items-center justify-center p-8 text-center group cursor-pointer overflow-hidden ${file ? 'border-emerald-500/50' : 'border-slate-250 hover:border-emerald-500/40'}`}
                 onDragOver={(e) => e.preventDefault()}
@@ -217,13 +217,13 @@ export default function DocumentsPage() {
                 
                 {file ? (
                   <>
-                    <span className="text-sm font-semibold text-emerald-400 truncate w-full max-w-[200px]">{file.name}</span>
-                    <span className="text-xs text-slate-500 mt-1">Ready to upload</span>
+                    <span className="text-base font-semibold text-emerald-400 truncate w-full max-w-[200px]">{file.name}</span>
+                    <span className="text-sm text-slate-500 mt-1">Ready to upload</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-sm font-semibold text-slate-300">Drag & Drop PDF</span>
-                    <span className="text-xs text-slate-500 mt-1">or click to browse</span>
+                    <span className="text-base font-semibold text-slate-300">Drag & Drop PDF</span>
+                    <span className="text-sm text-slate-500 mt-1">or click to browse</span>
                   </>
                 )}
               </div>
@@ -233,7 +233,7 @@ export default function DocumentsPage() {
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               type="submit"
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-900 font-extrabold py-3.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/10 mt-6"
+              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-900 font-extrabold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-emerald-500/10 mt-6"
             >
               <span>Ingest Document</span>
               <ArrowRight size={14} className="text-slate-900" />
@@ -253,7 +253,7 @@ export default function DocumentsPage() {
                 <button
                   key={type}
                   onClick={() => setFilter(type)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${filter === type ? 'bg-white text-emerald-600 border border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${filter === type ? 'bg-white text-emerald-600 border border-slate-200 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   {type}
                 </button>
@@ -266,8 +266,8 @@ export default function DocumentsPage() {
           ) : documents.length === 0 ? (
             <div className="text-center py-16 bg-white border border-slate-200 rounded-3xl shadow-sm">
               <FileText className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-slate-800 font-bold text-sm">No Documents Ingested</h3>
-              <p className="text-slate-500 text-xs mt-1">Upload files using the panel on the left to index project details.</p>
+              <h3 className="text-slate-800 font-bold text-base">No Documents Ingested</h3>
+              <p className="text-slate-500 text-sm mt-1">Upload files using the panel on the left to index project details.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -283,16 +283,16 @@ export default function DocumentsPage() {
                       <FileText size={20} className="text-emerald-500" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-slate-850 truncate max-w-[200px] sm:max-w-md">{doc.filename}</h4>
+                      <h4 className="font-bold text-base text-slate-850 truncate max-w-[200px] sm:max-w-md">{doc.filename}</h4>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{doc.doc_type}</span>
-                        <span className="text-[10px] text-slate-450">{doc.upload_ts?.slice(0, 10)}</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{doc.doc_type}</span>
+                        <span className="text-xs text-slate-450">{doc.upload_ts?.slice(0, 10)}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border flex items-center gap-1 ${
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold uppercase border flex items-center gap-1 ${
                       doc.status === 'ready' 
                         ? 'bg-emerald-50 border-emerald-250 text-emerald-700' 
                         : doc.status === 'processing'

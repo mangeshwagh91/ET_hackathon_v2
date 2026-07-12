@@ -41,3 +41,23 @@ def analyze_shipment(shipment_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error analyzing shipment: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/alerts")
+def get_supply_chain_alerts() -> List[Dict[str, Any]]:
+    # Mock alerts since there is no alerts table currently
+    return [
+        {
+            "id": "alert-1",
+            "type": "weather",
+            "severity": "high",
+            "message": "Hurricane warning off the coast of Florida affecting shipping routes.",
+            "timestamp": "2026-07-11T12:00:00Z"
+        },
+        {
+            "id": "alert-2",
+            "type": "port_congestion",
+            "severity": "medium",
+            "message": "Heavy congestion at Port of Long Beach. Expect 2-4 day delays.",
+            "timestamp": "2026-07-10T08:30:00Z"
+        }
+    ]

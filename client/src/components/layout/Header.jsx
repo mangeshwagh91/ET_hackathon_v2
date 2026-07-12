@@ -1,94 +1,74 @@
 import { useState } from "react";
-import { Menu, Search, Bell, ChevronRight } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import { useWorkspace } from "../../context/WorkspaceContext.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { Search, HelpCircle, Lightbulb, Menu } from "lucide-react";
+import { Link } from "react-router-dom";
 import ProfileDropdown from "../workspace/ProfileDropdown.jsx";
 
 export default function Header({ toggleSidebar, hideSidebarToggle }) {
-  const { toggleNotifications, unreadNotifications, currentProject } = useWorkspace();
-  const { user } = useAuth();
-  const location = useLocation();
   const [searchFocused, setSearchFocused] = useState(false);
 
-  const routeLabel = {
-    "/dashboard": "Dashboard",
-    "/documents": "Documents & Specs",
-    "/rfi": "RFI Copilot",
-    "/compliance": "Compliance & NCRs",
-    "/schedule": "Schedule Risk",
-    "/commissioning": "Commissioning",
-    "/bids": "Bids & Contracts",
-    "/activity": "Activity Log",
-    "/projects": "Projects",
-    "/projects/new": "New Project",
-  }[location.pathname] ?? "Dashboard";
-
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/90 backdrop-blur-xl border-b border-slate-200 flex items-center justify-between px-4 lg:px-6">
-      {/* Left */}
-      <div className="flex items-center gap-4 flex-1 min-w-0">
-        {hideSidebarToggle ? (
-          <Link to="/" className="flex items-center gap-2 font-black text-lg tracking-tighter text-slate-900">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-sm shadow-emerald-500/20">
-              <span className="text-white font-black text-[11px]">DC</span>
-            </div>
-            DCPI
-          </Link>
-        ) : (
-          <>
-            <button
-              onClick={toggleSidebar}
-              className="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 lg:hidden transition-colors"
-            >
-              <Menu size={20} />
-            </button>
-
-            {/* Breadcrumb */}
-            <div className="hidden sm:flex items-center gap-1 text-sm">
-              <span className="text-slate-400 font-medium">{currentProject?.name ?? "DCPI"}</span>
-              <ChevronRight size={13} className="text-slate-300 mx-0.5" />
-              <span className="text-slate-700 font-semibold">{routeLabel}</span>
-            </div>
-          </>
+    <header className="sticky top-0 z-30 h-16 bg-[#0a0a0a] border-b border-[#27272a] flex items-center justify-between px-4 lg:px-6">
+      {/* Left: Org Name & Badge */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {!hideSidebarToggle && (
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 -ml-2 rounded-md text-[#888888] hover:text-white hover:bg-[#1a1a1a] lg:hidden transition-colors"
+          >
+            <Menu size={18} />
+          </button>
         )}
+        <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-white font-medium text-[15px] tracking-tight hover:text-[#eaeaea] transition-colors">
+              mangeshwagh91's Org
+            </span>
+          </Link>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#1a1a1a] text-[#888888] tracking-widest border border-[#27272a]">
+            FREE
+          </span>
+        </div>
+      </div>
 
+      {/* Right: Controls & Profile */}
+      <div className="flex items-center gap-4">
+        <a href="#" className="hidden md:block text-[13px] font-medium text-[#888888] hover:text-white transition-colors">
+          Feedback
+        </a>
+        
         {/* Search */}
         <div
-          className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full w-60 transition-all duration-200 ${
+          className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md w-56 transition-all duration-200 ${
             searchFocused
-              ? "bg-white border border-emerald-400 ring-2 ring-emerald-500/10"
-              : "bg-slate-50 border border-slate-200"
+              ? "bg-[#000000] border border-[#444] ring-1 ring-[#444]"
+              : "bg-[#000000] border border-[#27272a] hover:border-[#444]"
           }`}
         >
-          <Search size={13} className="text-slate-400 shrink-0" />
+          <Search size={14} className="text-[#888888] shrink-0" />
           <input
             type="text"
             placeholder="Search..."
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
-            className="bg-transparent border-none outline-none text-sm text-slate-700 w-full placeholder:text-slate-400"
+            className="bg-transparent border-none outline-none text-[13px] text-white w-full placeholder:text-[#888888]"
           />
-          <span className="text-[10px] text-slate-300 font-mono hidden lg:inline shrink-0">⌘K</span>
+          <span className="text-[10px] text-[#888888] font-mono hidden lg:inline shrink-0 border border-[#27272a] rounded px-1 py-0.5 bg-[#1a1a1a]">
+            Ctrl K
+          </span>
         </div>
-      </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 text-[#888888]">
+          <button className="p-1.5 rounded-md hover:text-white hover:bg-[#1a1a1a] transition-colors">
+            <HelpCircle size={18} />
+          </button>
+          <button className="p-1.5 rounded-md hover:text-white hover:bg-[#1a1a1a] transition-colors">
+            <Lightbulb size={18} />
+          </button>
+        </div>
 
-<button
-          onClick={toggleNotifications}
-          className="relative p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-        >
-          <Bell size={17} />
-          {unreadNotifications > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white shadow-[0_0_8px_rgba(244,63,94,0.4)]" />
-          )}
-        </button>
-
-        <div className="h-5 w-px bg-slate-200 hidden sm:block" />
-
-        <ProfileDropdown />
+        <div className="pl-1">
+          <ProfileDropdown />
+        </div>
       </div>
     </header>
   );

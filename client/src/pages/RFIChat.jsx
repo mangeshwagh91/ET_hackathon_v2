@@ -301,7 +301,7 @@ export default function RFIChat() {
                           {/* Response Header */}
                           <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
                             <span className="font-bold text-slate-800 flex items-center gap-2">
-                              DCPI Knowledge Engine
+                              DataForge AI Knowledge Engine
                               <CheckCircle size={14} className="text-indigo-500" />
                             </span>
                             <div className="flex gap-2">

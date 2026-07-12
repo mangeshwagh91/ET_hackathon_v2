@@ -72,6 +72,13 @@ const api = {
     return handleResponse(res);
   },
 
+  deleteDocument: async (docId) => {
+    const res = await fetch(`${BASE}/upload/document/${docId}`, {
+      method: "DELETE",
+    });
+    return handleResponse(res);
+  },
+
   getEquipmentItems: async () => {
     const res = await fetch(`${BASE}/upload/equipment`);
     return handleResponse(res);

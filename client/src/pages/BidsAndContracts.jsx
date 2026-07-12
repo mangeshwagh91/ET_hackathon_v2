@@ -235,9 +235,14 @@ export default function BidsAndContracts() {
                 <Package size={16} className="text-slate-400" /> Shipment Tracking
               </h3>
               {(shipments?.shipments || []).map((s) => {
-                const pct = ((s.tracking.status_index + 1) / s.tracking.total_stages) * 100;
-                const isDelayed = s.tracking.is_delayed;
-                const sev = s.criticality === "HIGH" ? "text-red-500" : s.criticality === "MEDIUM" ? "text-amber-600" : "text-slate-500";
+                const tracking = s.tracking || {
+                  status_index: s.status === 'delivered' ? 4 : s.status === 'in_transit' ? 2 : 0,
+                  total_stages: 4,
+                  is_delayed: s.risk_level === 'HIGH' || s.risk_level === 'CRITICAL'
+                };
+                const pct = ((tracking.status_index + 1) / tracking.total_stages) * 100;
+                const isDelayed = tracking.is_delayed;
+                const sev = s.risk_level === "HIGH" || s.risk_level === "CRITICAL" ? "text-red-500" : s.risk_level === "MEDIUM" ? "text-amber-600" : "text-slate-500";
                 return (
                   <motion.div
                     key={s.po_id}
