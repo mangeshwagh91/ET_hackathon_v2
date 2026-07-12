@@ -59,6 +59,10 @@ export default function BidsAndContracts() {
 
   const handleAction = (bidId, status) => {
     setActionMessage(`Bid ${status === 'accepted' ? 'approved' : 'rejected'} successfully!`);
+    
+    // Update local state to reflect the new status
+    setBids(prev => prev.map(b => b.id === bidId ? { ...b, status: status === 'accepted' ? 'approved' : 'rejected' } : b));
+    
     setTimeout(() => setActionMessage(""), 3000);
   };
 
@@ -255,21 +259,21 @@ export default function BidsAndContracts() {
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className="text-xs font-mono text-slate-450">{s.po_number}</span>
                           <span className={`text-xs font-bold ${sev}`}>{s.criticality}</span>
-                          {isDelayed && <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700">⚠ DELAYED {s.tracking.delay_days}d</span>}
+                          {isDelayed && <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700">⚠ DELAYED {s.tracking?.delay_days || 5}d</span>}
                         </div>
                         <p className="text-slate-800 text-sm font-medium">{s.equipment_description || s.equipment_class}</p>
                         <p className="text-slate-500 text-xs mt-0.5">
-                          <MapPin size={11} className="inline animate-pulse text-slate-400" /> {s.vendor_name} · {s.vendor_country} ({s.geo.origin_port})
+                          <MapPin size={11} className="inline animate-pulse text-slate-400" /> {s.vendor_name} · {s.vendor_country} {s.geo?.origin_port ? `(${s.geo.origin_port})` : ''}
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs text-slate-500">{s.tracking.status}</div>
-                        {s.tracking.eta && <div className="text-xs text-slate-400">ETA: {s.tracking.eta}</div>}
-                        {s.tracking.days_remaining != null && (
+                        <div className="text-xs text-slate-500">{s.tracking?.status || s.status || "IN TRANSIT"}</div>
+                        {(s.tracking?.eta || s.estimated_arrival) && <div className="text-xs text-slate-400">ETA: {s.tracking?.eta || new Date(s.estimated_arrival).toLocaleDateString()}</div>}
+                        {(s.tracking?.days_remaining != null) ? (
                           <div className={`text-xs font-bold mt-0.5 ${s.tracking.days_remaining < 7 ? 'text-red-500' : s.tracking.days_remaining < 14 ? 'text-amber-600' : 'text-emerald-600'}`}>
                             {s.tracking.days_remaining < 0 ? `${Math.abs(s.tracking.days_remaining)}d overdue` : `${s.tracking.days_remaining}d left`}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                     {/* Progress Bar */}
@@ -289,7 +293,7 @@ export default function BidsAndContracts() {
                     </div>
                     {/* Supplier Tiers */}
                     <div className="mt-3 flex gap-2 flex-wrap">
-                      {s.supplier_tiers.map((tier) => (
+                      {(s.supplier_tiers || []).map((tier) => (
                         <span key={tier.tier} className="text-xs px-2 py-0.5 bg-slate-50 rounded-full text-slate-650 border border-slate-200">
                           T{tier.tier}: {tier.name}
                         </span>
@@ -361,22 +365,24 @@ export default function BidsAndContracts() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleAction(bid.id, "accepted")}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm"
-                    >
-                      <Check size={14} />
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleAction(bid.id, "rejected")}
-                      className="bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors"
-                    >
-                      <X size={14} />
-                      Reject
-                    </button>
-                  </div>
+                  {bid.status === 'submitted' && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleAction(bid.id, "accepted")}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                      >
+                        <Check size={14} />
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleAction(bid.id, "rejected")}
+                        className="bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors"
+                      >
+                        <X size={14} />
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>

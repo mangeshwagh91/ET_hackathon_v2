@@ -63,9 +63,21 @@ def get_project_bids(project_id: str):
 @router.post("/recommend")
 def recommend_bids(project_id: str):
     """Uses the Procurement Agent to analyze all bids for a project from DB."""
-    from agents.procurement_agent import analyze_bids_for_project
+    from agents.procurement_agent import analyze_bids
+    from database.connection import get_db
+    
+    db = get_db()
     try:
-        result = analyze_bids_for_project(project_id)
+        rows = db.execute("SELECT * FROM bids WHERE project_id = ?", (project_id,)).fetchall()
+        bids = [dict(row) for row in rows]
+    finally:
+        db.close()
+        
+    if not bids:
+        raise HTTPException(status_code=404, detail="No bids found for this project")
+
+    try:
+        result = analyze_bids(bids)
         if result.get("bids_analyzed", 0) == 0:
             raise HTTPException(status_code=404, detail="No bids found for this project")
         return result

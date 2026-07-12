@@ -17,7 +17,7 @@
   }
 
   html {
-    font-size: 108% !important; /* Globally increased size per user request */
+    font-size: 97% !important; /* Reduced by 10% from previous 108% */
     background-color: var(--bg-primary);
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
