@@ -5,7 +5,7 @@ import {
   Activity, AlertTriangle, Shield, FileText, Clock, Zap,
   ChevronDown, ExternalLink, RefreshCw,
   Database, Server, GitBranch, Archive, BarChart2, CheckCircle2,
-  XCircle, AlertCircle, Play, TrendingUp
+  XCircle, AlertCircle, Play, TrendingUp, ArrowRight
 } from "lucide-react";
 import api from "../api/client.js";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";

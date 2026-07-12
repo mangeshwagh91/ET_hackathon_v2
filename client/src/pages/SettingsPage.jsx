@@ -56,7 +56,7 @@ export default function SettingsPage() {
       <div className="max-w-4xl mx-auto pt-8 relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Workspace Settings</h1>
-          <p className="text-slate-500 mt-2">Manage your DCPI experience, appearance, and AI preferences.</p>
+          <p className="text-slate-500 mt-2">Manage your DataForge AI experience, appearance, and AI preferences.</p>
         </motion.div>
 
         <div className="space-y-8">
@@ -148,7 +148,7 @@ export default function SettingsPage() {
             <div className="flex justify-center gap-2 mb-2">
               <Zap size={16} /> <Server size={16} /> <Shield size={16} />
             </div>
-            <p className="font-semibold text-slate-500">DCPI Enterprise Architecture</p>
+            <p className="font-semibold text-slate-500">DataForge AI Enterprise Architecture</p>
             <p>Hackathon Build v1.0 • Demo Data Only</p>
           </motion.div>
         </div>

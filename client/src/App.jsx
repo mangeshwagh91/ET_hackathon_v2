@@ -8,7 +8,6 @@ import NCRDetail from "./pages/NCRDetail.jsx";
 import Schedule from "./pages/Schedule.jsx";
 import RFIChat from "./pages/RFIChat.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
-import ActivityCenter from "./pages/ActivityCenter.jsx";
 import BidsAndContracts from "./pages/BidsAndContracts.jsx";
 import DocumentsPage from "./pages/DocumentsPage.jsx";
 import VendorDashboard from "./pages/VendorDashboard.jsx";
@@ -16,12 +15,10 @@ import VendorBids from "./pages/VendorBids.jsx";
 import VendorProfile from "./pages/VendorProfile.jsx";
 import SplashScreen from "./components/splash/SplashScreen.jsx";
 import PageTransition from "./components/PageTransition.jsx";
-import CommissioningCopilot from "./pages/CommissioningCopilot.jsx";
 import NewProject from "./pages/NewProject.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import ProjectsPage from "./pages/ProjectsPage.jsx";
 import SupplyChainPage from "./pages/SupplyChainPage.jsx";
-import OrchestratorSpace from "./pages/OrchestratorSpace.jsx";
 import IntegrationsPage from "./pages/IntegrationsPage.jsx";
 
 // Auth and Workspace Layout
@@ -57,15 +54,12 @@ function AnimatedRoutes() {
         <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<PageTransition><ProjectsPage /></PageTransition>} />
         <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
-        <Route path="/orchestrator" element={<PageTransition><OrchestratorSpace /></PageTransition>} />
         <Route path="/integrations" element={<PageTransition><IntegrationsPage /></PageTransition>} />
         <Route path="/compliance" element={<PageTransition><Compliance /></PageTransition>} />
         <Route path="/ncr/:ncrId" element={<PageTransition><NCRDetail /></PageTransition>} />
         <Route path="/schedule" element={<PageTransition><Schedule /></PageTransition>} />
-        <Route path="/commissioning" element={<PageTransition><CommissioningCopilot /></PageTransition>} />
         <Route path="/rfi" element={<PageTransition><RFIChat /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><SettingsPage /></PageTransition>} />
-        <Route path="/activity" element={<PageTransition><ActivityCenter /></PageTransition>} />
         <Route path="/bids" element={<PageTransition><BidsAndContracts /></PageTransition>} />
         <Route path="/supply-chain" element={<PageTransition><SupplyChainPage /></PageTransition>} />
         <Route path="/documents" element={<PageTransition><DocumentsPage /></PageTransition>} />

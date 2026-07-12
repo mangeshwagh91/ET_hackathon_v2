@@ -160,7 +160,6 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                 <button
                   type="button"
                   onClick={() => { setRole("team"); setError(""); }}
-                  disabled={isRegister}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${role === "team" ? "bg-white text-emerald-600 shadow-sm border border-slate-200/50" : "text-slate-550 hover:text-slate-800 disabled:opacity-40"}`}
                 >
                   Project Team
