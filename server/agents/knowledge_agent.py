@@ -72,7 +72,7 @@ STRICT RULES:
 4. If the context does NOT contain sufficient information, explicitly state: "The project documents do not contain a definitive answer. Recommend raising a formal RFI."
 5. Be DIRECT and ACTIONABLE.
 6. Keep your answer under {max_words} words.
-7. Structure: (a) Precedent resolution if any, (b) Specification/Memory requirements, (c) Recommended action.
+7. Structure: If answering a complex technical RFI, use: (a) Precedent resolution if any, (b) Specification/Memory requirements, (c) Recommended action. For general project queries (like weather, bids, or status), answer naturally and directly in a few sentences.
 8. End with: [Confidence: HIGH/MEDIUM/LOW]"""
 
 
@@ -157,6 +157,25 @@ def answer_query(query: str) -> Dict[str, Any]:
     start_time = datetime.now()
 
     logger.info(f"Knowledge query [{agent_run_id[:8]}]: {query[:100]}")
+
+    # Explicit Memory Injection check
+    lower_query = query.strip().lower()
+    if lower_query.startswith("remember:") or lower_query.startswith("save:"):
+        text_to_save = query.split(":", 1)[1].strip()
+        if text_to_save:
+            success = ingest_document_memory(
+                document_id=str(uuid.uuid4()),
+                text=text_to_save,
+                document_type="user_chat_memory",
+                metadata={"source": "user_input", "query": query}
+            )
+            return {
+                "answer": "Memory saved successfully. The RFI Copilot will now consider this in future answers." if success else "Failed to save memory to the database.",
+                "sources": [],
+                "precedent_rfis": [],
+                "confidence": 1.0,
+                "agent_run_id": agent_run_id
+            }
 
     try:
         spec_results = []
@@ -302,8 +321,62 @@ def _build_precedent_text(precedents: List[Dict]) -> str:
     return "\n".join(lines)
 
 
+import urllib.request
+import urllib.parse
+import json
+
 def _build_user_message(context_text: str, precedent_text: str, query: str) -> str:
-    parts = [f"CONTEXT FROM PROJECT DOCUMENTS:\n{context_text}"]
+    db = get_db()
+    project_context = ""
+    try:
+        proj_row = db.execute("SELECT * FROM projects ORDER BY created_at DESC LIMIT 1").fetchone()
+        if proj_row:
+            proj = dict(proj_row)
+            location = proj.get('location') or 'N/A'
+            weather_data = "Weather data unavailable."
+            if location and location != 'N/A':
+                try:
+                    loc_enc = urllib.parse.quote(location)
+                    req = urllib.request.Request(f"https://wttr.in/{loc_enc}?format=j1", headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=1.5) as response:
+                        w_json = json.loads(response.read().decode())
+                        cc = w_json['current_condition'][0]
+                        weather_data = f"{cc['temp_C']}°C, {cc['weatherDesc'][0]['value']}, Humidity: {cc['humidity']}%"
+                except Exception as e:
+                    logger.warning(f"Failed to fetch weather for {location}: {e}")
+            
+            project_context += (
+                f"CURRENT PROJECT CONTEXT:\n"
+                f"- Name: {proj['name']}\n"
+                f"- Capacity: {proj['size_mw']} {proj.get('capacity_unit') or 'MW'}\n"
+                f"- Deadline: {proj['deadline']}\n"
+                f"- Location: {location}\n"
+                f"- Current Weather: {weather_data}\n"
+                f"- Tier: {proj.get('tier') or 'N/A'}\n"
+                f"- Project Manager: {proj.get('pm') or 'N/A'}\n"
+                f"- Total Budget: ${proj['budget']}\n\n"
+            )
+
+            # Fetch recent bids
+            bids = db.execute("SELECT * FROM bids WHERE project_id = ? ORDER BY created_at DESC LIMIT 3", (proj['id'],)).fetchall()
+            if bids:
+                project_context += "RECENT VENDOR BIDS:\n"
+                for b in bids:
+                    project_context += f"- ID: {b['id'][:8]} | Vendor: {b['vendor_id']} | Price: ${b['price']} | Lead Time: {b['lead_time_days']} days | Status: {b['status']}\n"
+                project_context += "\n"
+            
+            # Fetch recent purchase orders
+            pos = db.execute("SELECT * FROM purchase_orders WHERE project_id = ? ORDER BY po_date DESC LIMIT 3", (proj['id'],)).fetchall()
+            if pos:
+                project_context += "RECENT PURCHASE ORDERS & TRACKING:\n"
+                for p in pos:
+                    project_context += f"- PO Number: {p['po_number']} | Vendor: {p['vendor_name']} | Status: {p['compliance_status']} | Conformance: {p['conformance_score']}\n"
+                project_context += "\n"
+                
+    finally:
+        db.close()
+        
+    parts = [project_context + f"CONTEXT FROM PROJECT DOCUMENTS:\n{context_text}"]
     if precedent_text: parts.append(precedent_text)
     parts.append(f"QUERY FROM PROJECT TEAM:\n{query}")
     parts.append("Answer using ONLY the context above. Cite sources using [SOURCE N]. Lead with any precedent RFI if found. Be specific and actionable.")

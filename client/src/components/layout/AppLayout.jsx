@@ -8,13 +8,13 @@ export default function AppLayout({ children, hideSidebar = false }) {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <div className="min-h-screen flex font-sans bg-[#000000] text-[#eaeaea]">
+    <div className="h-full w-full flex font-sans bg-[#000000] text-[#eaeaea] overflow-hidden">
       {!hideSidebar && <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />}
 
-      <div className={`flex-1 flex flex-col min-h-screen min-w-0`}>
+      <div className={`flex-1 flex flex-col h-full min-w-0`}>
         <Header toggleSidebar={toggleSidebar} hideSidebarToggle={hideSidebar} />
 
-        <main className={`flex-1 w-full mx-auto p-4 sm:p-6 lg:p-8 ${hideSidebar ? "max-w-4xl" : "max-w-[1600px]"}`}>
+        <main className="flex-1 w-full flex flex-col overflow-y-auto custom-scrollbar">
           {children}
         </main>
       </div>

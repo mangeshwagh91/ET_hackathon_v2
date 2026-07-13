@@ -7,7 +7,7 @@ export default function Header({ toggleSidebar, hideSidebarToggle }) {
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-[#0a0a0a] border-b border-[#27272a] flex items-center justify-between px-4 lg:px-6">
+    <header className="sticky top-0 z-30 h-12 bg-[#0a0a0a] border-b border-[#27272a] flex items-center justify-between px-4 lg:px-6">
       {/* Left: Org Name & Badge */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {!hideSidebarToggle && (

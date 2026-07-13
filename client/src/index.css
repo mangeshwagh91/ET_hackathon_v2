@@ -110,11 +110,11 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: #27272a;
+    background-color: #52525b;
     border-radius: 20px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: #3f3f46;
+    background-color: #71717a;
   }
 }
 
@@ -316,7 +316,7 @@ input::placeholder, textarea::placeholder {
 
 /* Scrollbars & custom components override */
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #27272a !important;
+  background-color: #52525b !important;
 }
 
 /* ─── Global Color Palette Mapping (Enforce Emerald & Copper Theme) ─── */

@@ -210,7 +210,13 @@ def init_db():
                 deadline TEXT,
                 budget REAL,
                 status TEXT DEFAULT 'active',
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                location TEXT,
+                capacity_unit TEXT,
+                equipment_budget REAL,
+                tier TEXT,
+                description TEXT,
+                pm TEXT
             )
         """)
 

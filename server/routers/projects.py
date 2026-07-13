@@ -20,8 +20,8 @@ def create_project(project: ProjectCreate):
         now = datetime.now(timezone.utc).isoformat()
         
         db.execute(
-            "INSERT INTO projects (id, name, size_mw, deadline, budget, status, created_at, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (project_id, project.name, project.size_mw, project.deadline, project.budget, "active", now, project.location)
+            "INSERT INTO projects (id, name, size_mw, deadline, budget, status, created_at, location, capacity_unit, equipment_budget, tier, description, pm) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (project_id, project.name, project.size_mw, project.deadline, project.budget, "active", now, project.location, project.capacity_unit, project.equipment_budget, project.tier, project.description, project.pm)
         )
         db.commit()
         
@@ -33,7 +33,12 @@ def create_project(project: ProjectCreate):
             "budget": project.budget,
             "status": "active",
             "created_at": now,
-            "location": project.location
+            "location": project.location,
+            "capacity_unit": project.capacity_unit,
+            "equipment_budget": project.equipment_budget,
+            "tier": project.tier,
+            "description": project.description,
+            "pm": project.pm
         }
     except Exception as e:
         db.rollback()

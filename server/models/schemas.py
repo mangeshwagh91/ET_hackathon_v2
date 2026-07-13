@@ -211,6 +211,11 @@ class ProjectCreate(BaseModel):
     deadline: str
     budget: float
     location: Optional[str] = None
+    capacity_unit: Optional[str] = "MW"
+    equipment_budget: Optional[float] = 0.0
+    tier: Optional[str] = None
+    description: Optional[str] = None
+    pm: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
@@ -223,6 +228,11 @@ class ProjectResponse(BaseModel):
     status: str
     created_at: str
     location: Optional[str] = None
+    capacity_unit: Optional[str] = "MW"
+    equipment_budget: Optional[float] = 0.0
+    tier: Optional[str] = None
+    description: Optional[str] = None
+    pm: Optional[str] = None
 
 
 class VendorRegister(BaseModel):

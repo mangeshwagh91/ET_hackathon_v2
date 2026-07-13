@@ -201,7 +201,7 @@ export default function Dashboard() {
   if (ncr.MINOR > 0) advisorIssues.push({ severity: "MINOR", category: "Compliance", title: `${ncr.MINOR} Minor NCR(s)`, description: "Minor deviations noted. Review and close with corrective action." });
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-700 -m-4 sm:-m-6 lg:-m-8 px-6 py-6 lg:px-10">
+    <div className="flex-1 bg-slate-50/50 text-slate-700 px-4 sm:px-6 py-6 lg:px-8">
 
       {/* ── Top: Project Header ── */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">

@@ -40,6 +40,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { name: "RFI Copilot", path: "/rfi", icon: <HelpCircle size={18} /> },
     { name: "Compliance", path: "/compliance", icon: <AlertCircle size={18} /> },
     { name: "Schedule", path: "/schedule", icon: <ActivitySquare size={18} /> },
+    { name: "Design", path: "/design", icon: <LayoutGrid size={18} /> },
     { name: "Bids", path: "/bids", icon: <Landmark size={18} /> },
     { name: "Logistics", path: "/supply-chain", icon: <Truck size={18} /> },
   ];
