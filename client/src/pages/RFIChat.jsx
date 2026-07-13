@@ -146,18 +146,120 @@ export default function RFIChat() {
     }
   }
 
-  // Helper to format basic markdown-like response styling
+  // Lines that are generic/empty and should not be shown as standalone paragraphs
+  const GENERIC_FILTERS = [
+    /there is no precedent rfi resolution found/i,
+    /no precedent rfi/i,
+    /review the project scope, budget, and timeline to ensure alignment/i,
+    /^\s*\[confidence:/i,
+  ];
+
+  const isGenericLine = (text) => GENERIC_FILTERS.some(rx => rx.test(text.trim()));
+
   const formatResponseContent = (content) => {
     if (!content) return null;
-    return content.split('\n').map((line, i) => {
-      if (line.startsWith('**') && line.endsWith('**')) {
-        return <h4 key={i} className="font-bold text-slate-800 mt-3 mb-1">{line.replace(/\*\*/g, '')}</h4>;
-      }
-      if (line.startsWith('- ')) {
-        return <li key={i} className="ml-4 list-disc text-slate-700">{line.substring(2)}</li>;
-      }
-      return <p key={i} className="text-slate-700 leading-relaxed mb-2">{line}</p>;
-    });
+
+    // Strip the trailing [Confidence: ...] tag from the bottom
+    const confidenceMatch = content.match(/\[confidence:\s*(high|medium|low)\]/i);
+    const confidenceLevel = confidenceMatch ? confidenceMatch[1].toUpperCase() : null;
+    const cleanContent = content.replace(/\[confidence:\s*(high|medium|low)\]/gi, '').trim();
+
+    // Split into sections: (a) ... (b) ... (c) ...
+    const sectionRegex = /\(([a-c])\)\s+([^:]+):\s*/gi;
+    const sections = [];
+    let lastIndex = 0;
+    let match;
+
+    // Try to find section headers (a), (b), (c)
+    const sectionMatches = [...cleanContent.matchAll(/\n?\(([a-c])\)\s+([^\n:]+):?\s*/gi)];
+
+    if (sectionMatches.length > 0) {
+      sectionMatches.forEach((sm, idx) => {
+        const start = sm.index;
+        const end = idx + 1 < sectionMatches.length ? sectionMatches[idx + 1].index : cleanContent.length;
+        const body = cleanContent.slice(start + sm[0].length, end).trim();
+
+        // Filter out empty or generic-only sections
+        const nonGenericLines = body.split('\n').filter(l => l.trim() && !isGenericLine(l));
+        if (nonGenericLines.length > 0) {
+          sections.push({ label: sm[2].trim(), body: nonGenericLines.join('\n') });
+        }
+      });
+    }
+
+    const renderLines = (text) =>
+      text.split('\n').map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+
+        // Bold markers become headings
+        if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+          return <h4 key={i} className="font-bold text-slate-800 mt-3 mb-1 text-sm">{trimmed.replace(/\*\*/g, '')}</h4>;
+        }
+
+        // Inline bold within lines
+        const withBold = trimmed.split(/(\*\*[^*]+\*\*)/).map((part, pi) =>
+          part.startsWith('**') ? <strong key={pi}>{part.replace(/\*\*/g, '')}</strong> : part
+        );
+
+        // Source citations highlight
+        const parts = [];
+        const sourceRx = /(\[SOURCE \d+[^\]]*\])/g;
+        let lastSplit = 0;
+        let src;
+        const withBoldStr = trimmed;
+        while ((src = sourceRx.exec(withBoldStr)) !== null) {
+          if (src.index > lastSplit) parts.push(withBoldStr.slice(lastSplit, src.index));
+          parts.push(<span key={`src-${src.index}`} className="text-indigo-600 font-semibold text-xs bg-indigo-50 px-1 py-0.5 rounded">{src[1]}</span>);
+          lastSplit = src.index + src[0].length;
+        }
+        if (lastSplit < withBoldStr.length) parts.push(withBoldStr.slice(lastSplit));
+
+        if (trimmed.startsWith('- ')) {
+          return <li key={i} className="ml-4 list-disc text-slate-700 mb-0.5">{parts.length > 0 ? parts : withBold}</li>;
+        }
+        return <p key={i} className="text-slate-700 leading-relaxed mb-2">{parts.length > 0 ? parts : withBold}</p>;
+      }).filter(Boolean);
+
+    if (sections.length > 0) {
+      return (
+        <div className="space-y-4">
+          {sections.map((sec, si) => (
+            <div key={si}>
+              <div className="text-xs font-bold uppercase tracking-wider text-indigo-600 mb-1">{sec.label}</div>
+              <div>{renderLines(sec.body)}</div>
+            </div>
+          ))}
+          {confidenceLevel && (
+            <div className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-1 ${
+              confidenceLevel === 'HIGH' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+              confidenceLevel === 'MEDIUM' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+              'bg-slate-50 text-slate-600 border border-slate-200'
+            }`}>
+              <span className="w-1.5 h-1.5 rounded-full inline-block bg-current" />
+              Confidence: {confidenceLevel}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Fallback: plain text rendering
+    return (
+      <div>
+        <div>{renderLines(cleanContent)}</div>
+        {confidenceLevel && (
+          <div className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-2 ${
+            confidenceLevel === 'HIGH' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+            confidenceLevel === 'MEDIUM' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+            'bg-slate-50 text-slate-600 border border-slate-200'
+          }`}>
+            <span className="w-1.5 h-1.5 rounded-full inline-block bg-current" />
+            Confidence: {confidenceLevel}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -165,28 +267,14 @@ export default function RFIChat() {
       <ComplianceBackground />
 
       {/* ─── Premium Header ────────────────────────────────────────────── */}
-      <header className="h-20 flex-shrink-0 border-b border-white/20 bg-white/40 backdrop-blur-md px-6 flex items-center justify-between relative z-20">
+      <header className="h-16 flex-shrink-0 border-b border-white/20 bg-white/40 backdrop-blur-md px-6 flex items-center justify-between relative z-20">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            RFI Intelligence <span className="bg-indigo-100 text-indigo-700 text-[10px] uppercase px-2 py-0.5 rounded-full tracking-widest font-bold">Workspace</span>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            RFI Intelligence
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
             Ask technical questions across specifications, standards, and historical data.
           </p>
-        </div>
-        
-        <div className="hidden md:flex gap-2">
-          {[
-            { label: "Project Specs", icon: <BookOpen size={14} /> },
-            { label: "Engineering Standards", icon: <FileText size={14} /> },
-            { label: "Historical RFIs", icon: <FolderClosed size={14} /> },
-            { label: "AI Engine", icon: <BrainCircuit size={14} /> }
-          ].map((badge, i) => (
-            <div key={i} className="flex items-center gap-1.5 bg-white/60 border border-slate-200/60 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 shadow-sm">
-              <span className="text-indigo-500">{badge.icon}</span>
-              {badge.label}
-            </div>
-          ))}
         </div>
       </header>
 
@@ -257,7 +345,7 @@ export default function RFIChat() {
         </div>
 
         {/* Center: Chat Area */}
-        <div className="flex-1 flex flex-col bg-white/70 backdrop-blur-xl rounded-3xl border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden relative">
+        <div className="flex-1 flex flex-col bg-white/70 backdrop-blur-xl rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] overflow-hidden relative">
           
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
             {messages.length === 0 ? (
@@ -298,51 +386,14 @@ export default function RFIChat() {
                       <div className="flex-1">
                         <div className="bg-white/80 border border-slate-100 rounded-2xl rounded-tl-sm p-6 shadow-sm">
                           
-                          {/* Response Header */}
-                          <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
-                            <span className="font-bold text-slate-800 flex items-center gap-2">
-                              DataForge AI Knowledge Engine
-                              <CheckCircle size={14} className="text-indigo-500" />
-                            </span>
-                            <div className="flex gap-2">
-                              {msg.confidence != null && (
-                                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md flex items-center gap-1 ${
-                                  msg.confidence >= 0.8 ? "bg-green-100 text-green-700" : msg.confidence >= 0.6 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
-                                }`}>
-                                  <ShieldAlert size={12} /> {Math.round(msg.confidence * 100)}% Confidence
-                                </span>
-                              )}
-                              <button className="text-slate-400 hover:text-slate-600 p-1"><Copy size={14} /></button>
-                              <button className="text-slate-400 hover:text-slate-600 p-1"><Maximize2 size={14} /></button>
-                            </div>
-                          </div>
+
 
                           {/* Response Body */}
                           <div className="text-[15px] text-slate-700 leading-relaxed">
                             {formatResponseContent(msg.content)}
                           </div>
 
-                          {/* Related Precedents Inline */}
-                          {msg.precedent_rfis && msg.precedent_rfis.length > 0 && (
-                            <div className="mt-6 pt-4 border-t border-slate-100">
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1">
-                                <Search size={14} /> Referenced Historical Data
-                              </h4>
-                              <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                                {msg.precedent_rfis.map((p, j) => (
-                                  <div key={j} className="bg-slate-50 border border-slate-200 rounded-xl p-3 min-w-[250px] max-w-[300px] flex-shrink-0 cursor-pointer hover:bg-slate-100 transition-colors">
-                                    <div className="flex justify-between items-center mb-1">
-                                      <span className="text-xs font-bold text-slate-700">{p.rfi_code}</span>
-                                      <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 px-1.5 rounded">
-                                        {Math.round(p.similarity_score * 100)}% Match
-                                      </span>
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 line-clamp-2">{p.resolution_summary}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+
 
                         </div>
                       </div>
@@ -358,8 +409,8 @@ export default function RFIChat() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 bg-white/50 backdrop-blur-xl border-t border-white/60">
-            <div className="max-w-4xl mx-auto relative bg-white border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.03)] rounded-2xl flex items-end p-2 transition-all focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-300">
+          <div className="p-4 bg-white/50 backdrop-blur-xl">
+            <div className="max-w-4xl mx-auto relative bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] rounded-2xl flex items-end p-2 transition-all">
               <button className="p-2.5 text-slate-400 hover:text-slate-600 transition-colors bg-slate-50 rounded-xl mb-0.5">
                 <Paperclip size={20} />
               </button>
@@ -394,65 +445,6 @@ export default function RFIChat() {
             <p className="text-center text-[10px] text-slate-400 mt-2 font-medium">AI can make mistakes. Verify critical engineering parameters against official documentation.</p>
           </div>
         </div>
-
-        {/* Right Panel: Dynamic Knowledge Sources */}
-        <div className="w-80 flex-shrink-0 hidden xl:flex flex-col gap-4">
-          <div className="flex-1 bg-white/60 backdrop-blur-md border border-white/40 rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.02)] flex flex-col">
-            <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
-              <Zap size={16} className="text-amber-500" />
-              Knowledge Base
-            </h3>
-            
-            <div className="flex-1 overflow-y-scroll custom-scrollbar pr-2 space-y-4">
-              {!currentSources.length && !currentPrecedents.length ? (
-                <div className="h-full flex flex-col items-center justify-center text-center opacity-50 space-y-3">
-                  <BookOpen size={32} className="text-slate-400" />
-                  <p className="text-sm font-medium text-slate-500">Sources will appear here based on your query.</p>
-                </div>
-              ) : (
-                <>
-                  {/* Extracted Clauses */}
-                  {currentSources.length > 0 && (
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Referenced Specifications</h4>
-                      <div className="space-y-2">
-                        {currentSources.map((src, i) => (
-                          <div key={i} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-indigo-300 transition-colors cursor-pointer group">
-                            <div className="flex justify-between items-start mb-1.5">
-                              <span className="text-[11px] font-bold font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                                {src.clause_number || `CLAUSE-${i+1}`}
-                              </span>
-                              <span className="text-[10px] font-bold text-green-500">
-                                {Math.round((src.score || 0) * 100)}% Match
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-600 line-clamp-3 leading-relaxed">{src.text_preview}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Precedent RFIs */}
-                  {currentPrecedents.length > 0 && (
-                    <div className="pt-2">
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Related RFI Data</h4>
-                      <div className="space-y-2">
-                        {currentPrecedents.map((p, i) => (
-                          <div key={i} className="bg-amber-50/50 border border-amber-200/50 rounded-xl p-3 shadow-sm hover:bg-amber-50 transition-colors cursor-pointer">
-                            <h5 className="text-[11px] font-bold text-amber-800 mb-1">{p.rfi_code}</h5>
-                            <p className="text-[11px] text-amber-700/80 line-clamp-2 leading-relaxed">{p.title}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        
       </div>
     </div>
   );

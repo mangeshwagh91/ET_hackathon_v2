@@ -1,35 +1,54 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Truck, AlertTriangle, CheckCircle2, ChevronRight, Activity, Zap, Server, Package } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
+import {
+  Truck, AlertTriangle, CheckCircle2, Activity, Zap,
+  RefreshCw, Info, ExternalLink, Plus, ChevronDown, Clock,
+  Filter, SlidersHorizontal
+} from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
+// Fix leaflet default icon
 let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [18, 30],
+  iconAnchor: [9, 30],
+  popupAnchor: [1, -28],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
+
+function riskColor(level) {
+  if (level === "CRITICAL") return "#ef4444";
+  if (level === "HIGH") return "#f87171";
+  if (level === "MEDIUM") return "#f59e0b";
+  return "#22c55e";
+}
 
 export default function SupplyChainPage() {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [riskFilter, setRiskFilter] = useState("All");
 
-  const fetchShipments = async () => {
+  const fetchShipments = async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true);
     try {
       const res = await fetch("http://localhost:8000/api/supply-chain/shipments");
       const data = await res.json();
-      setShipments(data.shipments || []);
+      const list = data.shipments || [];
+      setShipments(list);
+      if (!selected && list.length > 0) setSelected(list[0].id);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -42,9 +61,7 @@ export default function SupplyChainPage() {
   const analyzeRisk = async (id) => {
     setAnalyzing(id);
     try {
-      await fetch(`http://localhost:8000/api/supply-chain/shipments/${id}/analyze`, {
-        method: "POST"
-      });
+      await fetch(`http://localhost:8000/api/supply-chain/shipments/${id}/analyze`, { method: "POST" });
       await fetchShipments();
     } catch (e) {
       console.error(e);
@@ -53,73 +70,226 @@ export default function SupplyChainPage() {
     }
   };
 
+  const selectedShipment = shipments.find(s => s.id === selected);
+  const criticalCount = shipments.filter(s => s.risk_level === "CRITICAL" || s.risk_level === "HIGH").length;
+  const filteredMapShipments = riskFilter === "All"
+    ? shipments
+    : shipments.filter(s => s.risk_level === riskFilter);
+
   if (loading) {
-    return <div className="p-8 flex justify-center"><Activity className="animate-spin text-slate-400" /></div>;
-  }
-
-  const criticalShipments = shipments.filter(s => s.risk_level === "HIGH");
-
-  return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <Truck className="text-rose-500" size={32} />
-            Supply Chain & Risk Visibility
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">Live Geospatial Tracking & AI Risk Modelling</p>
+    return (
+      <div className="fixed inset-0 bg-[#0a0a0c] flex items-center justify-center z-50">
+        <div className="flex flex-col items-center gap-3">
+          <Activity className="animate-spin text-teal-500" size={24} />
+          <p className="text-[#555] text-xs font-medium">Loading shipments...</p>
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Map Section */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col h-[500px]">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <h2 className="font-bold text-slate-800 flex items-center gap-2">
-              <Activity size={18} className="text-blue-500" /> Live Transit Map
-            </h2>
-            <div className="flex items-center gap-4 text-xs font-semibold">
-               <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> On Time</span>
-               <span className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div> Delayed / At Risk</span>
+  return (
+    /*
+      We use -m-4 sm:-m-6 lg:-m-8 to counteract the parent <main> padding
+      so the page fills edge-to-edge like the Supabase layout.
+    */
+    <div className="-m-4 sm:-m-6 lg:-m-8 flex" style={{ height: "calc(100vh - 3.5rem)" }}>
+
+      {/* ─── LEFT INNER SIDEBAR ──────────────────────────── */}
+      <aside className="w-[200px] flex-shrink-0 border-r border-[#1c1c1f] bg-[#0a0a0c] flex flex-col overflow-hidden">
+
+        {/* Title */}
+        <div className="px-4 pt-5 pb-4">
+          <h2 className="text-[13px] font-semibold text-white">Supply Chain</h2>
+        </div>
+
+        {/* Nav sections */}
+        <nav className="flex-1 overflow-y-auto px-2 space-y-4 pb-4">
+
+          {/* GENERAL */}
+          <div>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-[#555] uppercase tracking-widest">General</div>
+            <button
+              onClick={() => setRiskFilter("All")}
+              className={`w-full text-left px-2 py-1.5 rounded text-[13px] transition-colors ${
+                riskFilter === "All"
+                  ? "bg-[#1c1c1f] text-white font-semibold"
+                  : "text-[#888] hover:text-white"
+              }`}
+            >
+              All Shipments
+            </button>
+          </div>
+
+          {/* RISK LEVELS */}
+          <div>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-[#555] uppercase tracking-widest">Risk Levels</div>
+            {[
+              { label: "Critical", value: "CRITICAL", dot: "bg-red-500" },
+              { label: "High Risk", value: "HIGH", dot: "bg-red-400" },
+              { label: "Medium", value: "MEDIUM", dot: "bg-amber-400" },
+              { label: "On Track", value: "LOW", dot: "bg-emerald-500" },
+            ].map(item => (
+              <button
+                key={item.value}
+                onClick={() => setRiskFilter(item.value)}
+                className={`w-full text-left px-2 py-1.5 rounded text-[13px] transition-colors flex items-center gap-2 ${
+                  riskFilter === item.value
+                    ? "bg-[#1c1c1f] text-white font-semibold"
+                    : "text-[#888] hover:text-white"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.dot}`} />
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {/* SHIPMENTS */}
+          <div>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-[#555] uppercase tracking-widest">Shipments</div>
+            {shipments.map(s => {
+              const dotCls =
+                s.risk_level === "CRITICAL" || s.risk_level === "HIGH" ? "bg-red-500" :
+                s.risk_level === "MEDIUM" ? "bg-amber-400" : "bg-emerald-500";
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSelected(s.id)}
+                  className={`w-full text-left px-2 py-1.5 rounded text-[13px] transition-colors flex items-center gap-2 ${
+                    selected === s.id
+                      ? "bg-[#1c1c1f] text-white font-semibold"
+                      : "text-[#888] hover:text-white"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
+                  <span className="truncate">{s.carrier_name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* CUSTOM SECTION (mirrors Supabase "Custom Reports" card) */}
+          <div>
+            <div className="px-2 mb-2 text-[10px] font-semibold text-[#555] uppercase tracking-widest">AI Analysis</div>
+            <div className="mx-1 rounded-lg border border-[#1c1c1f] bg-[#0d0d10] p-3 text-center">
+              {criticalCount === 0 ? (
+                <>
+                  <p className="text-[11px] text-white font-semibold mb-0.5">No risks detected</p>
+                  <p className="text-[10px] text-[#555] leading-relaxed">All shipments are on track.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[11px] text-white font-semibold mb-0.5">{criticalCount} at-risk shipments</p>
+                  <p className="text-[10px] text-[#555] leading-relaxed">Run AI models to get alternatives.</p>
+                </>
+              )}
+              <button
+                onClick={() => fetchShipments(true)}
+                className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-[#888] hover:text-white bg-[#1c1c1f] hover:bg-[#27272a] rounded px-2 py-1.5 transition-colors"
+              >
+                <RefreshCw size={10} className={refreshing ? "animate-spin" : ""} />
+                Refresh Data
+              </button>
             </div>
           </div>
-          <div className="flex-1 w-full bg-slate-100 z-0 relative">
-            <MapContainer 
-              center={[39.0438, -85.0]} 
-              zoom={5} 
-              style={{ height: "100%", width: "100%", zIndex: 0 }}
+
+        </nav>
+      </aside>
+
+      {/* ─── MAIN CONTENT AREA ───────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-[#0a0a0c]">
+
+        {/* Page Heading */}
+        <div className="px-6 pt-5 pb-3 flex-shrink-0">
+          <h1 className="text-[22px] font-semibold text-white tracking-tight">Live Transit Map</h1>
+        </div>
+
+        {/* Toolbar Row (filters bar) */}
+        <div className="px-6 pb-3 flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => fetchShipments(true)}
+            className="p-1.5 rounded text-[#555] hover:text-white hover:bg-[#1c1c1f] transition-colors"
+          >
+            <RefreshCw size={14} className={refreshing ? "animate-spin text-teal-400" : ""} />
+          </button>
+          <button className="flex items-center gap-1.5 text-[12px] text-[#888] bg-[#0d0d10] border border-[#1c1c1f] rounded px-3 py-1.5 hover:border-[#333] transition-colors">
+            <Clock size={12} />
+            Last 30 minutes
+            <ChevronDown size={11} className="text-[#555]" />
+          </button>
+          <button className="flex items-center gap-1.5 text-[12px] text-[#888] bg-[#0d0d10] border border-[#1c1c1f] rounded px-3 py-1.5 hover:border-[#333] transition-colors">
+            {riskFilter === "All" ? "All Risk Levels" : riskFilter}
+            <ChevronDown size={11} className="text-[#555]" />
+          </button>
+          <button className="flex items-center gap-1.5 text-[12px] text-[#888] bg-[#0d0d10] border border-[#1c1c1f] rounded px-3 py-1.5 hover:border-[#333] transition-colors">
+            <Plus size={11} />
+            Add filter
+          </button>
+          <div className="flex-1" />
+          <button className="flex items-center gap-1.5 text-[12px] text-[#888] bg-[#0d0d10] border border-[#1c1c1f] rounded px-3 py-1.5 hover:border-[#333] transition-colors">
+            <ExternalLink size={12} />
+            Export
+          </button>
+        </div>
+
+        {/* Map Container Panel */}
+        <div className="mx-6 mb-3 rounded-lg border border-[#1c1c1f] overflow-hidden flex flex-col flex-1 min-h-0">
+          {/* Panel Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1c1c1f] flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold text-white">Shipments by Geography</span>
+              <Info size={13} className="text-[#555]" />
+            </div>
+            <button className="p-1 text-[#555] hover:text-white transition-colors rounded hover:bg-[#1c1c1f]">
+              <ExternalLink size={13} />
+            </button>
+          </div>
+
+          {/* Map */}
+          <div className="flex-1 relative" style={{ minHeight: 0 }}>
+            <MapContainer
+              center={[20, 10]}
+              zoom={2}
+              style={{ height: "100%", width: "100%", background: "#0a0a0c" }}
               zoomControl={false}
+              attributionControl={false}
             >
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-                attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+                url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
               />
-              {shipments.map(s => {
-                const isDelayed = s.risk_level === "HIGH" || s.risk_level === "CRITICAL";
-                let color = "#10b981"; // LOW
-                if (s.risk_level === "CRITICAL") color = "#be123c"; // rose-700
-                else if (s.risk_level === "HIGH") color = "#f43f5e"; // rose-500
-                else if (s.risk_level === "MEDIUM") color = "#f59e0b"; // amber-500
+              {filteredMapShipments.map(s => {
+                const color = riskColor(s.risk_level);
+                const isSelected = s.id === selected;
                 return (
                   <React.Fragment key={s.id}>
-                    {/* Route Line */}
-                    <Polyline 
-                      positions={[ [s.origin_lat, s.origin_lng], [s.dest_lat, s.dest_lng] ]} 
-                      pathOptions={{ color: color, weight: 2, dashArray: '5, 10', opacity: 0.5 }} 
+                    <Polyline
+                      positions={[[s.origin_lat, s.origin_lng], [s.dest_lat, s.dest_lng]]}
+                      pathOptions={{
+                        color,
+                        weight: isSelected ? 2 : 1.2,
+                        dashArray: "5, 10",
+                        opacity: isSelected ? 0.8 : 0.35,
+                      }}
                     />
-                    
-                    {/* Origin Marker */}
-                    <Marker position={[s.origin_lat, s.origin_lng]} opacity={0.5}>
-                       <Popup>Origin</Popup>
-                    </Marker>
-                    
-                    {/* Current Position Marker */}
-                    <Marker position={[s.current_lat, s.current_lng]}>
+                    <Circle
+                      center={[s.current_lat, s.current_lng]}
+                      radius={isSelected ? 180000 : 100000}
+                      pathOptions={{
+                        color,
+                        fillColor: color,
+                        fillOpacity: isSelected ? 0.5 : 0.3,
+                        weight: 0,
+                      }}
+                      eventHandlers={{ click: () => setSelected(s.id) }}
+                    >
                       <Popup>
-                        <div className="font-bold text-sm">{s.carrier_name}</div>
-                        <div className="text-xs text-slate-500 mt-1">Status: {s.status.toUpperCase()}</div>
+                        <div style={{ fontFamily: "sans-serif", fontSize: 12 }}>
+                          <div style={{ fontWeight: 700, marginBottom: 2 }}>{s.carrier_name}</div>
+                          <div style={{ color: "#888", fontSize: 10 }}>{s.tracking_number}</div>
+                          <div style={{ color, fontWeight: 700, fontSize: 10, marginTop: 4 }}>{s.risk_level}</div>
+                        </div>
                       </Popup>
-                    </Marker>
+                    </Circle>
                   </React.Fragment>
                 );
               })}
@@ -127,115 +297,80 @@ export default function SupplyChainPage() {
           </div>
         </div>
 
-        {/* AI Analysis Sidebar */}
-        <div className="space-y-4 overflow-y-auto pr-2 max-h-[500px]">
-          <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wider mb-2">Active Shipments</h3>
-          
-          <AnimatePresence>
-            {shipments.map((s) => (
-              <motion.div 
-                key={s.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`bg-white rounded-xl border p-4 shadow-sm relative overflow-hidden ${
-                  s.risk_level === "CRITICAL" ? "border-rose-300" :
-                  s.risk_level === "HIGH" ? "border-rose-200" : 
-                  s.risk_level === "MEDIUM" ? "border-amber-200" : "border-slate-200"
-                }`}
-              >
-                {s.risk_level === "CRITICAL" && (
-                  <div className="absolute top-0 left-0 w-1 h-full bg-rose-700" />
-                )}
-                {s.risk_level === "HIGH" && (
-                  <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
-                )}
-                {s.risk_level === "MEDIUM" && (
-                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
-                )}
-                {s.risk_level === "LOW" && (
-                  <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
-                )}
-
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-1">
-                       <Package size={12} /> {s.carrier_name}
-                    </div>
-                    <div className="font-bold text-slate-800">{s.tracking_number}</div>
+        {/* Bottom: Selected Shipment Detail Panel */}
+        <AnimatePresence>
+          {selectedShipment && (
+            <motion.div
+              key={selectedShipment.id}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mx-6 mb-4 rounded-lg border border-[#1c1c1f] bg-[#0d0d10] flex-shrink-0 overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1c1c1f]">
+                <span className="text-[12px] font-semibold text-white flex items-center gap-2">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: riskColor(selectedShipment.risk_level) }}
+                  />
+                  {selectedShipment.carrier_name}
+                  <span className="text-[10px] font-mono text-[#555]">{selectedShipment.tracking_number}</span>
+                </span>
+                <span
+                  className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded"
+                  style={{
+                    color: riskColor(selectedShipment.risk_level),
+                    background: riskColor(selectedShipment.risk_level) + "15",
+                    border: `1px solid ${riskColor(selectedShipment.risk_level)}30`,
+                  }}
+                >
+                  {selectedShipment.risk_level}
+                </span>
+              </div>
+              <div className="px-4 py-3 flex items-center gap-10">
+                <div>
+                  <div className="text-[9px] text-[#555] uppercase tracking-widest mb-0.5">Est. Arrival</div>
+                  <div className="text-[12px] text-white font-semibold">
+                    {new Date(selectedShipment.estimated_arrival).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </div>
-                  {s.risk_level === "CRITICAL" ? (
-                    <span className="px-2 py-1 rounded bg-rose-200 text-rose-800 text-xs font-bold flex items-center gap-1">
-                      <AlertTriangle size={12} /> CRITICAL
-                    </span>
-                  ) : s.risk_level === "HIGH" ? (
-                    <span className="px-2 py-1 rounded bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1">
-                      <AlertTriangle size={12} /> HIGH RISK
-                    </span>
-                  ) : s.risk_level === "MEDIUM" ? (
-                    <span className="px-2 py-1 rounded bg-amber-100 text-amber-700 text-xs font-bold flex items-center gap-1">
-                      <AlertTriangle size={12} /> MEDIUM
-                    </span>
+                </div>
+                <div>
+                  <div className="text-[9px] text-[#555] uppercase tracking-widest mb-0.5">Required By</div>
+                  <div className="text-[12px] font-semibold"
+                    style={{ color: (selectedShipment.risk_level === "HIGH" || selectedShipment.risk_level === "CRITICAL") ? "#f87171" : "#fff" }}
+                  >
+                    {new Date(selectedShipment.required_delivery).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-[#555] uppercase tracking-widest mb-0.5">Status</div>
+                  <div className="text-[12px] text-[#888] font-semibold capitalize">{selectedShipment.status}</div>
+                </div>
+                <div className="flex-1" />
+                {(selectedShipment.risk_level === "HIGH" || selectedShipment.risk_level === "CRITICAL") && (
+                  !selectedShipment.ai_alternatives?.alternatives?.length ? (
+                    <button
+                      onClick={() => analyzeRisk(selectedShipment.id)}
+                      disabled={analyzing === selectedShipment.id}
+                      className="flex items-center gap-1.5 text-[11px] font-semibold text-[#888] hover:text-white bg-[#1c1c1f] hover:bg-[#27272a] border border-[#27272a] rounded px-3 py-1.5 transition-all disabled:opacity-50"
+                    >
+                      {analyzing === selectedShipment.id
+                        ? <><Activity size={11} className="animate-spin" /> Analyzing…</>
+                        : <><Zap size={11} /> Run AI Risk Model</>}
+                    </button>
                   ) : (
-                    <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1">
-                      <CheckCircle2 size={12} /> ON TRACK
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-slate-500">Est. Arrival:</span>
-                    <span className="text-slate-900">{new Date(s.estimated_arrival).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-slate-500">Required By:</span>
-                    <span className={s.risk_level === "HIGH" ? "text-rose-600 font-bold" : "text-slate-900"}>
-                      {new Date(s.required_delivery).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-
-                {(s.risk_level === "HIGH" || s.risk_level === "CRITICAL") && (
-                  <div className="border-t border-rose-100 pt-3 mt-2">
-                    {!s.ai_alternatives || !s.ai_alternatives.alternatives || s.ai_alternatives.alternatives.length === 0 ? (
-                      <button
-                        onClick={() => analyzeRisk(s.id)}
-                        disabled={analyzing === s.id}
-                        className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                      >
-                        {analyzing === s.id ? (
-                          <><Activity size={14} className="animate-spin" /> Analyzing Risk...</>
-                        ) : (
-                          <><Zap size={14} /> Run AI Risk Model</>
-                        )}
-                      </button>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="text-xs text-rose-800 bg-rose-50 p-2 rounded-lg leading-relaxed">
-                          <span className="font-bold block mb-1">AI Assessment:</span>
-                          {s.ai_alternatives.risk_assessment}
-                        </div>
-                        
-                        <div className="space-y-2">
-                           <span className="text-[10px] uppercase font-bold text-slate-400">Procurement Alternatives</span>
-                           {s.ai_alternatives.alternatives && s.ai_alternatives.alternatives.map((alt, i) => (
-                             <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg p-2 flex flex-col gap-1">
-                                <div className="text-xs font-bold text-slate-800">{alt.action}</div>
-                                <div className="flex justify-between text-[10px] font-semibold text-slate-500">
-                                   <span>Impact: <span className="text-amber-600">{alt.estimated_cost_impact}</span></span>
-                                   <span>Saves: <span className="text-emerald-600">{alt.time_saved_days} days</span></span>
-                                </div>
-                             </div>
-                           ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    <div className="text-[11px] text-red-400 bg-red-500/5 border border-red-500/10 rounded px-3 py-2 max-w-xs">
+                      <span className="font-bold text-[10px] uppercase tracking-widest block mb-0.5 text-red-500">AI Assessment</span>
+                      {selectedShipment.ai_alternatives.risk_assessment}
+                    </div>
+                  )
                 )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );
