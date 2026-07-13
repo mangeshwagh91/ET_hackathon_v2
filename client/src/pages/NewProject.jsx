@@ -41,7 +41,12 @@ export default function NewProject() {
         size_mw: parseFloat(formData.capacity) || 0.0,
         deadline: formData.goLiveDate,
         budget: parseFloat(formData.totalBudget) || 0.0,
-        location: formData.location || ""
+        location: formData.location || "",
+        capacity_unit: formData.capacityUnit,
+        equipment_budget: parseFloat(formData.equipmentBudget) || 0.0,
+        tier: formData.tier,
+        description: formData.description || "",
+        pm: formData.pm || ""
       });
       navigate("/projects");
     } catch (err) {

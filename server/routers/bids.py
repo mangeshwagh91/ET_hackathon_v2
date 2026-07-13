@@ -60,6 +60,21 @@ def get_project_bids(project_id: str):
         db.close()
 
 
+@router.patch("/update_status/{bid_id}")
+def update_bid_status(bid_id: str, status: str):
+    db = get_db()
+    try:
+        db.execute("UPDATE bids SET status = ? WHERE id = ?", (status, bid_id))
+        db.commit()
+        return {"status": "success", "message": f"Bid updated to {status}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+
 @router.post("/recommend")
 def recommend_bids(project_id: str):
     """Uses the Procurement Agent to analyze all bids for a project from DB."""

@@ -88,14 +88,11 @@ export default function SupplyChainPage() {
   }
 
   return (
-    /*
-      We use -m-4 sm:-m-6 lg:-m-8 to counteract the parent <main> padding
-      so the page fills edge-to-edge like the Supabase layout.
-    */
-    <div className="-m-4 sm:-m-6 lg:-m-8 flex" style={{ height: "calc(100vh - 3.5rem)" }}>
+    // The parent <main> no longer has padding, so we just use flex-1
+    <div className="flex-1 flex flex-row w-full h-full overflow-hidden">
 
       {/* ─── LEFT INNER SIDEBAR ──────────────────────────── */}
-      <aside className="w-[200px] flex-shrink-0 border-r border-[#1c1c1f] bg-[#0a0a0c] flex flex-col overflow-hidden">
+      <aside className="w-[240px] flex-shrink-0 border-r border-[#1c1c1f] bg-[#0a0a0c] flex flex-col overflow-hidden">
 
         {/* Title */}
         <div className="px-4 pt-5 pb-4">

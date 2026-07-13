@@ -15,6 +15,7 @@ import VendorBids from "./pages/VendorBids.jsx";
 import VendorProfile from "./pages/VendorProfile.jsx";
 import SplashScreen from "./components/splash/SplashScreen.jsx";
 import PageTransition from "./components/PageTransition.jsx";
+import DesignPage from "./pages/DesignPage.jsx";
 import NewProject from "./pages/NewProject.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import ProjectsPage from "./pages/ProjectsPage.jsx";
@@ -56,6 +57,7 @@ function AnimatedRoutes() {
         <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
         <Route path="/integrations" element={<PageTransition><IntegrationsPage /></PageTransition>} />
         <Route path="/compliance" element={<PageTransition><Compliance /></PageTransition>} />
+        <Route path="/design" element={<PageTransition><DesignPage /></PageTransition>} />
         <Route path="/ncr/:ncrId" element={<PageTransition><NCRDetail /></PageTransition>} />
         <Route path="/schedule" element={<PageTransition><Schedule /></PageTransition>} />
         <Route path="/rfi" element={<PageTransition><RFIChat /></PageTransition>} />
@@ -123,7 +125,7 @@ function ApplicationCore() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1] }}
-      className="min-h-screen"
+      className="h-screen w-full overflow-hidden"
     >
       {isLoggingOut && <LogoutAnimation />}
       <AppLayout hideSidebar={isFullscreen}>

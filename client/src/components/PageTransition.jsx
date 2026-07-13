@@ -14,6 +14,7 @@ export default function PageTransition({ children }) {
       animate="animate"
       exit="exit"
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+      className="flex-1 w-full h-full flex flex-col"
     >
       {children}
     </motion.div>

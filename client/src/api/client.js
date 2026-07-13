@@ -218,6 +218,13 @@ const api = {
     return handleResponse(res);
   },
 
+  updateBidStatus: async (bidId, status) => {
+    const res = await fetch(`${BASE}/bids/update_status/${bidId}?status=${status}`, {
+      method: "PATCH",
+    });
+    return handleResponse(res);
+  },
+
   getBidRecommendations: async (projectId) => {
     const res = await fetch(`${BASE}/bids/recommend?project_id=${projectId}`, {
       method: "POST",

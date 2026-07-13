@@ -27,10 +27,10 @@ AGENT_VERSION = "3.0.0"
 
 ORCHESTRATOR_SYSTEM = """You are the Main Orchestrator Agent for the DCPI platform.
 Classify the user's intent into one of the 7 components:
-1. KNOWLEDGE: RFI queries, document memory, delay precedents, specs.
+1. KNOWLEDGE: RFI queries, document memory, delay precedents, specs, weather (e.g., "tell me about the weather").
 2. PROCUREMENT: Bidding, purchase orders, supply chain, lead times.
 3. QUALITY: Spec compliance, NCRs, deviations.
-4. SCHEDULE: Schedule risk, critical path, float, weather, workforce.
+4. SCHEDULE: Schedule risk, critical path, float, workforce (DO NOT route weather queries here).
 5. COMMISSIONING: Testing, startup, functional tests, checklists, commissioning.
 6. REPORT: Dashboard, project health, summaries, metrics aggregation.
 7. GENERAL: Generic chat.
@@ -147,9 +147,7 @@ def schedule_node(state: OrchestratorState) -> Dict:
     event = state.get("extracted_parameters", {}).get("event_details")
     query = state.get("query", "").lower()
     
-    if "weather" in query:
-        res_data = {"weather_info": get_mock_weather_data(datetime.now().isoformat())}
-    elif event:
+    if event:
         res_data = update_timeline_dynamic(event)
     else:
         res_data = run_schedule_risk_analysis()
