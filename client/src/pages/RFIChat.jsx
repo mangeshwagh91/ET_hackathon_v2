@@ -33,6 +33,11 @@ export default function RFIChat() {
   const [currentPrecedents, setCurrentPrecedents] = useState([]);
   const [rfis, setRfis] = useState([]);
 
+  const [activeConversationId, setActiveConversationId] = useState(() => {
+    const saved = sessionStorage.getItem("dcpi_rfi_active_conv");
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const chatEndRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -55,20 +60,47 @@ export default function RFIChat() {
     sessionStorage.setItem("dcpi_rfi_history", JSON.stringify(pastConversations));
   }, [pastConversations]);
 
+  useEffect(() => {
+    if (activeConversationId) {
+      sessionStorage.setItem("dcpi_rfi_active_conv", JSON.stringify(activeConversationId));
+    } else {
+      sessionStorage.removeItem("dcpi_rfi_active_conv");
+    }
+  }, [activeConversationId]);
+
   const handleNewQuery = () => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && !activeConversationId) {
       const firstUserMsg = messages.find(m => m.role === 'user');
       const title = firstUserMsg ? firstUserMsg.content : "Conversation";
       setPastConversations(prev => [{ id: Date.now(), title, messages }, ...prev]);
+    } else if (messages.length > 0 && activeConversationId) {
+      // Update existing conversation with any new messages added
+      setPastConversations(prev => prev.map(conv => 
+        conv.id === activeConversationId ? { ...conv, messages } : conv
+      ));
     }
     setMessages([]);
     setCurrentSources([]);
     setCurrentPrecedents([]);
     setInput("");
+    setActiveConversationId(null);
   };
 
   const loadConversation = (conv) => {
+    // If there's an ongoing unsaved conversation, save it first
+    if (messages.length > 0 && !activeConversationId) {
+      const firstUserMsg = messages.find(m => m.role === 'user');
+      const title = firstUserMsg ? firstUserMsg.content : "Conversation";
+      setPastConversations(prev => [{ id: Date.now(), title, messages }, ...prev]);
+    } else if (messages.length > 0 && activeConversationId) {
+      // Update existing before switching
+      setPastConversations(prev => prev.map(c => 
+        c.id === activeConversationId ? { ...c, messages } : c
+      ));
+    }
+
     setMessages(conv.messages);
+    setActiveConversationId(conv.id);
     setCurrentSources([]);
     setCurrentPrecedents([]);
   };
@@ -174,8 +206,8 @@ export default function RFIChat() {
           const codeContent = codeLines.slice(1, -1).join('\n'); // drop ```lang and closing ```
 
           return (
-            <div key={index} className="bg-[#111] border border-[#27272a] rounded-xl p-4 my-3 overflow-x-auto custom-scrollbar">
-              <pre className="text-[12px] font-mono text-[#a1a1aa] whitespace-pre-wrap">
+            <div key={index} className="bg-[#131413] border border-[#2A2C2A] rounded-xl p-4 my-3 overflow-x-auto custom-scrollbar">
+              <pre className="text-[12px] font-mono text-[#8A8D8A] whitespace-pre-wrap">
                 {codeContent}
               </pre>
             </div>
@@ -231,7 +263,7 @@ export default function RFIChat() {
 
         // Inline bold within lines
         const withBold = trimmed.split(/(\*\*[^*]+\*\*)/).map((part, pi) =>
-          part.startsWith('**') ? <strong key={pi} className="text-[#eaeaea] font-semibold">{part.replace(/\*\*/g, '')}</strong> : part
+          part.startsWith('**') ? <strong key={pi} className="text-[#EDEFEE] font-semibold">{part.replace(/\*\*/g, '')}</strong> : part
         );
 
         // Source citations highlight
@@ -252,9 +284,9 @@ export default function RFIChat() {
         const finalContent = parts.length > 0 ? parts : withBold;
 
         if (trimmed.startsWith('- ')) {
-          return <li key={i} className="ml-4 list-disc text-[#a1a1aa] mb-0.5 leading-relaxed">{finalContent}</li>;
+          return <li key={i} className="ml-4 list-disc mb-1 leading-relaxed text-[#EDEFEE]">{finalContent}</li>;
         }
-        return <p key={i} className="text-[#a1a1aa] leading-relaxed mb-2">{finalContent}</p>;
+        return <p key={i} className="leading-relaxed mb-3 text-[#EDEFEE]">{finalContent}</p>;
       }).filter(Boolean);
 
     const renderConfidence = () => {
@@ -262,7 +294,7 @@ export default function RFIChat() {
       return (
         <div className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full mt-2 shadow-sm ${confidenceLevel === 'HIGH' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
             confidenceLevel === 'MEDIUM' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-              'bg-[#18181b] text-[#a1a1aa] border border-[#27272a]'
+              'bg-[#181A19] text-[#8A8D8A] border border-[#2A2C2A]'
           }`}>
           <span className="w-1.5 h-1.5 rounded-full inline-block bg-current" />
           Confidence: {confidenceLevel}
@@ -293,23 +325,23 @@ export default function RFIChat() {
   };
 
   return (
-    <div className="flex-1 w-full h-full relative bg-[#0a0a0a] overflow-hidden flex flex-col">
+    <div className="flex-1 w-full h-full relative bg-[#131413] overflow-hidden flex flex-col">
       <ComplianceBackground />
 
       {/* ─── Main Workspace ────────────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden relative z-10 w-full">
 
         {/* Left Panel: Sidebar */}
-        <div className="w-[240px] flex-none bg-[#0a0a0a] border-r border-[#27272a] flex flex-col overflow-hidden hidden lg:flex">
+        <div className="w-[240px] flex-none bg-[#131413] border-r border-[#2A2C2A] flex flex-col overflow-hidden hidden lg:flex">
           {/* Sidebar Header */}
-          <div className="h-12 border-b border-[#27272a] bg-[#0f0f11] flex items-center px-4 flex-shrink-0">
+          <div className="h-12 border-b border-[#2A2C2A] bg-[#181A19] flex items-center px-4 flex-shrink-0">
             <h1 className="text-[13px] font-bold text-white tracking-wide uppercase">RFI Intelligence</h1>
           </div>
 
-          <div className="p-4 border-b border-[#27272a]">
+          <div className="p-4 border-b border-[#2A2C2A]">
             <button
               onClick={handleNewQuery}
-              className="w-full bg-[#18181b] hover:bg-[#27272a] border border-[#3f3f46] rounded-md p-2 flex items-center justify-center gap-2 text-sm font-semibold text-white transition-colors"
+              className="w-full bg-[#181A19] hover:bg-[#2A2C2A] border border-[#2A2C2A] rounded-md p-2 flex items-center justify-center gap-2 text-sm font-semibold text-white transition-colors"
             >
               <Plus size={16} /> New Chat
             </button>
@@ -317,25 +349,25 @@ export default function RFIChat() {
 
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-6">
             <div>
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#71717a] mb-3 flex items-center gap-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#8A8D8A] mb-3 flex items-center gap-2">
                 <Search size={12} /> Historical RFIs
               </h2>
 
               {rfis.length === 0 ? (
-                <p className="text-[11px] text-[#555] p-2 text-center bg-[#111] rounded-md border border-[#1c1c1f]">No history available</p>
+                <p className="text-[11px] text-[#8A8D8A] p-2 text-center bg-[#131413] rounded-md border border-[#181A19]">No history available</p>
               ) : (
                 <div className="space-y-1">
                   {rfis.map((rfi) => (
                     <div
                       key={rfi.id}
                       onClick={() => sendMessage(`Explain the resolution for: ${rfi.title}`)}
-                      className="cursor-pointer rounded-md p-2 hover:bg-[#18181b] transition-all group border border-transparent hover:border-[#27272a]"
+                      className="cursor-pointer rounded-md p-2 hover:bg-[#181A19] transition-all group border border-transparent hover:border-[#2A2C2A]"
                     >
                       <div className="flex items-start gap-2">
-                        <MessageSquare size={12} className="text-[#555] group-hover:text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <MessageSquare size={12} className="text-[#8A8D8A] group-hover:text-emerald-500 mt-0.5 flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-[11px] font-semibold text-[#eaeaea] truncate">{rfi.rfi_code}</p>
-                          <p className="text-[10px] text-[#71717a] line-clamp-2 mt-0.5 leading-tight">{rfi.title}</p>
+                          <p className="text-[11px] font-semibold text-[#EDEFEE] truncate">{rfi.rfi_code}</p>
+                          <p className="text-[10px] text-[#8A8D8A] line-clamp-2 mt-0.5 leading-tight">{rfi.title}</p>
                         </div>
                       </div>
                     </div>
@@ -345,24 +377,24 @@ export default function RFIChat() {
             </div>
 
             <div>
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#71717a] mb-3 flex items-center gap-2">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#8A8D8A] mb-3 flex items-center gap-2">
                 <MessageSquare size={12} /> Recent Chats
               </h2>
 
               {pastConversations.length === 0 ? (
-                <p className="text-[11px] text-[#555] p-2 text-center bg-[#111] rounded-md border border-[#1c1c1f]">No recent chats</p>
+                <p className="text-[11px] text-[#8A8D8A] p-2 text-center bg-[#131413] rounded-md border border-[#181A19]">No recent chats</p>
               ) : (
                 <div className="space-y-1">
                   {pastConversations.map((conv) => (
                     <div
                       key={conv.id}
                       onClick={() => loadConversation(conv)}
-                      className="cursor-pointer rounded-md p-2 hover:bg-[#18181b] transition-all group border border-transparent hover:border-[#27272a]"
+                      className="cursor-pointer rounded-md p-2 hover:bg-[#181A19] transition-all group border border-transparent hover:border-[#2A2C2A]"
                     >
                       <div className="flex items-start gap-2">
-                        <BrainCircuit size={12} className="text-[#555] group-hover:text-emerald-500 mt-0.5 flex-shrink-0" />
+                        <BrainCircuit size={12} className="text-[#8A8D8A] group-hover:text-emerald-500 mt-0.5 flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-[11px] text-[#a1a1aa] line-clamp-2 leading-tight">{conv.title}</p>
+                          <p className="text-[11px] text-[#8A8D8A] line-clamp-2 leading-tight">{conv.title}</p>
                         </div>
                       </div>
                     </div>
@@ -374,16 +406,16 @@ export default function RFIChat() {
         </div>
 
         {/* Center: Chat Area */}
-        <div className="flex-1 flex flex-col bg-[#050505] relative overflow-hidden">
+        <div className="flex-1 flex flex-col bg-[#131413] relative overflow-hidden">
 
           <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto text-center px-4">
-                <div className="w-16 h-16 bg-[#18181b] border border-[#27272a] rounded-2xl flex items-center justify-center text-emerald-500 mb-6 shadow-xl">
+                <div className="w-16 h-16 bg-[#181A19] border border-[#2A2C2A] rounded-2xl flex items-center justify-center text-emerald-500 mb-6 shadow-xl">
                   <BrainCircuit size={32} />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">How can I assist you today?</h2>
-                <p className="text-[#a1a1aa] mb-8 max-w-md text-sm">
+                <p className="text-[#8A8D8A] mb-8 max-w-md text-sm">
                   I am your AI engineering assistant. I can cross-reference specifications, analyze vendor deviations, and search historical RFIs.
                 </p>
 
@@ -394,7 +426,7 @@ export default function RFIChat() {
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.99 }}
                       onClick={() => sendMessage(q)}
-                      className="bg-[#111] hover:bg-[#18181b] border border-[#27272a] rounded-xl px-4 py-3 text-[13px] font-medium text-[#d4d4d8] shadow-sm hover:border-[#3f3f46] transition-all text-left"
+                      className="bg-[#131413] hover:bg-[#181A19] border border-[#2A2C2A] rounded-xl px-4 py-3 text-[13px] font-medium text-[#d4d4d8] shadow-sm hover:border-[#2A2C2A] transition-all text-left"
                     >
                       {q}
                     </motion.button>
@@ -406,12 +438,12 @@ export default function RFIChat() {
                 {messages.map((msg, i) => (
                   <div key={i} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {msg.role === 'user' ? (
-                      <div className="bg-[#18181b] text-[#eaeaea] border border-[#27272a] rounded-2xl rounded-tr-sm px-5 py-3 max-w-2xl text-[14px] shadow-lg font-medium leading-relaxed">
+                      <div className="bg-[#181A19] text-[#EDEFEE] border border-[#2A2C2A] rounded-2xl rounded-tr-sm px-5 py-3 max-w-2xl text-[14px] shadow-lg font-medium leading-relaxed">
                         {msg.content}
                       </div>
                     ) : (
                       <div className="w-full flex gap-4">
-                        <div className="w-8 h-8 rounded-full bg-[#18181b] border border-[#27272a] flex flex-shrink-0 items-center justify-center text-emerald-500 shadow-sm mt-1">
+                        <div className="w-8 h-8 rounded-full bg-[#181A19] border border-[#2A2C2A] flex flex-shrink-0 items-center justify-center text-emerald-500 shadow-sm mt-1">
                           <BrainCircuit size={16} />
                         </div>
 
@@ -438,7 +470,7 @@ export default function RFIChat() {
 
           {/* Input Area */}
           <div className="p-4 relative bottom-[5px]">
-            <div className="max-w-4xl mx-auto bg-[#3f3f46] shadow-2xl rounded-full flex items-end p-1 pl-3 transition-all">
+            <div className="max-w-4xl mx-auto bg-[#212121] shadow-2xl rounded-full flex items-end p-1 pl-3 transition-all border border-[#2A2C2A]">
               <button className="p-2 text-white hover:text-gray-300 transition-colors rounded-full flex-shrink-0 mb-[1px]">
                 <Plus size={24} strokeWidth={2} />
               </button>
@@ -449,7 +481,7 @@ export default function RFIChat() {
                 onChange={handleInput}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask anything"
-                className="flex-1 max-h-32 min-h-[40px] bg-transparent border-0 px-3 py-2.5 text-[14px] resize-none focus:ring-0 text-white placeholder-[#a1a1aa] custom-scrollbar leading-relaxed overflow-hidden"
+                className="flex-1 max-h-32 min-h-[40px] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 px-3 py-2.5 text-[14px] resize-none text-white placeholder-[#8A8D8A] custom-scrollbar leading-relaxed overflow-hidden"
                 rows={1}
               />
 
@@ -460,14 +492,14 @@ export default function RFIChat() {
                 <button
                   onClick={() => input.trim() && !sending && sendMessage()}
                   disabled={sending}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${sending ? 'opacity-50 cursor-not-allowed bg-[#161616] text-white' : 'bg-[#161616] text-white hover:bg-[#2a2a2a]'
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${sending ? 'opacity-50 cursor-not-allowed bg-[#161616] text-white' : 'bg-[#161616] text-white hover:bg-[#2A2C2A]'
                     }`}
                 >
                   {input.trim() ? <Send size={16} strokeWidth={2.5} className="mr-[2px]" /> : <AudioLines size={18} strokeWidth={2.5} />}
                 </button>
               </div>
             </div>
-            <p className="text-center text-[10px] text-[#555] mt-3 font-medium">
+            <p className="text-center text-[10px] text-[#8A8D8A] mt-3 font-medium">
               AI can make mistakes. Verify critical engineering parameters against official documentation.
             </p>
           </div>

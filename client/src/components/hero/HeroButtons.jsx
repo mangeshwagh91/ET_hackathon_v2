@@ -26,7 +26,7 @@ export default function HeroButtons({ onExplore, onRunAI, delay = 0 }) {
         whileTap={{ scale: 0.95 }}
         className="px-6 py-3 bg-white hover:bg-slate-50 text-[#0F172A] border border-[#E2E8F0] rounded-full font-medium flex items-center gap-2 transition-all shadow-sm hover:shadow-md"
       >
-        <Zap size={18} className="text-[#3B82F6]" />
+        <Zap size={18} className="text-[#0F3058]" />
         <span>Run AI Intelligence</span>
       </motion.button>
     </motion.div>

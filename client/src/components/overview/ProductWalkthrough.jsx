@@ -59,12 +59,12 @@ function FlowNode({ icon, label, delay = 0, isLast = false, color = "#14B8A6", l
 // ─── Pipeline Section ──────────────────────────────────────────────────────────
 function PipelineSection() {
   const steps = [
-    { icon: <FileText strokeWidth={1.75} size={24} />, label: "Specification Documents", color: "#3B82F6" },
+    { icon: <FileText strokeWidth={1.75} size={24} />, label: "Specification Documents", color: "#0F3058" },
     { icon: <Package strokeWidth={1.75} size={24} />, label: "Vendor Submittals", color: "#8B5CF6" },
     { icon: <Cpu strokeWidth={1.75} size={32} />, label: "AI Intelligence Engine", color: "#14B8A6", large: true },
     { icon: <ShieldCheck strokeWidth={1.75} size={24} />, label: "Compliance Analysis", color: "#22C55E" },
-    { icon: <TrendingUp strokeWidth={1.75} size={24} />, label: "Schedule Risk Intelligence", color: "#F59E0B" },
-    { icon: <MessageSquareText strokeWidth={1.75} size={24} />, label: "RFI Intelligence", color: "#EF4444" },
+    { icon: <TrendingUp strokeWidth={1.75} size={24} />, label: "Schedule Risk Intelligence", color: "#F2AF48" },
+    { icon: <MessageSquareText strokeWidth={1.75} size={24} />, label: "RFI Intelligence", color: "#E24B4A" },
     { icon: <LayoutDashboard strokeWidth={1.75} size={24} />, label: "Executive Dashboard", color: "#14B8A6" },
   ];
 
@@ -168,7 +168,7 @@ function ComplianceDashboard() {
 
 function ScheduleVisualization() {
   return (
-    <GlassPanel glowColor="#F59E0B">
+    <GlassPanel glowColor="#F2AF48">
       <div className="space-y-4 relative z-10">
         <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
           <span className="font-semibold text-slate-700">Predictive Critical Path</span>
@@ -177,8 +177,8 @@ function ScheduleVisualization() {
         <div className="relative h-32 mt-4 border-l-2 border-slate-200 ml-4 space-y-6">
           {[
             { label: "Site Prep", progress: "100%", color: "#22C55E", delay: 0 },
-            { label: "MEP Delivery", progress: "60%", color: "#3B82F6", delay: 0.2 },
-            { label: "Commissioning", progress: "20%", color: "#EF4444", delay: 0.4 },
+            { label: "MEP Delivery", progress: "60%", color: "#0F3058", delay: 0.2 },
+            { label: "Commissioning", progress: "20%", color: "#E24B4A", delay: 0.4 },
           ].map((task, i) => (
             <motion.div key={i} className="relative pl-4" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: task.delay }}>
               <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full shadow-sm" style={{ background: task.color }} />
@@ -218,7 +218,7 @@ function AIChat() {
 
 function QualityDashboard() {
   return (
-    <GlassPanel glowColor="#3B82F6">
+    <GlassPanel glowColor="#0F3058">
       <div className="space-y-4 relative z-10">
         <div className="flex justify-between items-center border-b border-slate-200/50 pb-2">
           <span className="font-semibold text-slate-700">Quality NCR Tracker</span>

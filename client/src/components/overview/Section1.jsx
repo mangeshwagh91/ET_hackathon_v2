@@ -7,11 +7,11 @@ import { Cpu } from "lucide-react";
 // ─── Animated blueprint architecture visualization ────────────────────────────
 function BlueprintViz() {
   const nodes = [
-    { id: "specs",      label: "Specifications",    x: 50,  y: 10,  color: "#3B82F6" },
+    { id: "specs",      label: "Specifications",    x: 50,  y: 10,  color: "#0F3058" },
     { id: "vendor",     label: "Vendor Documents",  x: 50,  y: 30,  color: "#8B5CF6" },
     { id: "ai",         label: "AI Engine",          x: 50,  y: 52,  color: "#14B8A6", large: true },
     { id: "compliance", label: "Compliance",         x: 18,  y: 76,  color: "#22C55E" },
-    { id: "schedule",   label: "Schedule Risk",      x: 50,  y: 80,  color: "#F59E0B" },
+    { id: "schedule",   label: "Schedule Risk",      x: 50,  y: 80,  color: "#F2AF48" },
     { id: "dashboard",  label: "Dashboard",          x: 82,  y: 76,  color: "#14B8A6" },
   ];
   const edges = [

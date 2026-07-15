@@ -13,7 +13,8 @@ import {
   Settings,
   Truck,
   Triangle,
-  LogOut
+  LogOut,
+  CheckSquare
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useWorkspace } from "../../context/WorkspaceContext.jsx";
@@ -22,14 +23,14 @@ export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
   const { user } = useAuth();
   const isTeam = user?.type === "team";
-  const isGlobalPage = ["/projects", "/integrations", "/settings"].includes(location.pathname);
+  const isGlobalPage = ["/projects", "/integrations", "/settings", "/team"].includes(location.pathname);
   const [isHovered, setIsHovered] = useState(false);
   const isExpanded = isOpen || isHovered;
 
   const globalLinks = [
     { name: "Projects", path: "/projects", icon: <LayoutGrid size={18} /> },
-    { name: "Team", path: "#", icon: <FileText size={18} /> },
-    { name: "Integrations", path: "#", icon: <BarChart3 size={18} /> },
+    { name: "Team", path: "/team", icon: <FileText size={18} /> },
+    { name: "Integrations", path: "/integrations", icon: <BarChart3 size={18} /> },
     { name: "Usage", path: "#", icon: <ActivitySquare size={18} /> },
     { name: "Billing", path: "#", icon: <Landmark size={18} /> },
   ];
@@ -40,6 +41,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { name: "RFI Copilot", path: "/rfi", icon: <HelpCircle size={18} /> },
     { name: "Compliance", path: "/compliance", icon: <AlertCircle size={18} /> },
     { name: "Schedule", path: "/schedule", icon: <ActivitySquare size={18} /> },
+    { name: "Commissioning", path: "/commissioning", icon: <CheckSquare size={18} /> },
     { name: "Design", path: "/design", icon: <LayoutGrid size={18} /> },
     { name: "Bids", path: "/bids", icon: <Landmark size={18} /> },
     { name: "Logistics", path: "/supply-chain", icon: <Truck size={18} /> },
@@ -67,25 +69,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed lg:sticky top-0 left-0 h-screen bg-[#000000] border-r border-[#27272a] z-50 flex flex-col py-4 transition-all duration-300 ease-in-out lg:translate-x-0 overflow-hidden shrink-0 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        } ${isExpanded ? "w-64 px-4" : "w-14 px-2 items-center"}`}
+        className={`fixed lg:absolute top-0 left-0 h-full bg-[#131413] border-r border-[#2A2C2A] z-40 flex flex-col py-4 transition-all duration-250 ease-[cubic-bezier(0.4,0,0.2,1)] lg:translate-x-0 overflow-hidden shrink-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
+          } ${isExpanded ? "w-64 shadow-[4px_0_24px_rgba(0,0,0,0.5)]" : "w-14"} px-2`}
       >
-        {/* Brand */}
-        <div className={`flex w-full mb-6 ${isExpanded ? "justify-start px-2" : "justify-center"}`}>
-          <Link
-            to={isTeam ? "/projects" : "/"}
-            className="flex items-center gap-3 text-white hover:text-emerald-400 transition-colors shrink-0"
-            onClick={() => setIsOpen(false)}
-            title="Home"
-          >
-            <Triangle size={20} className="fill-current text-white shrink-0" />
-            {isExpanded && <span className="font-bold tracking-tight text-white whitespace-nowrap">DataForge AI</span>}
-          </Link>
-        </div>
 
         {/* Nav Icons */}
-        <div className="flex-1 flex flex-col gap-1 w-full">
+        <div className="flex-1 flex flex-col gap-0.5 w-full">
           {links.map((link) => {
             const isActive = location.pathname === link.path;
             return (
@@ -94,39 +83,48 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 to={link.path}
                 onClick={() => setIsOpen(false)}
                 title={!isExpanded ? link.name : ""}
-                className={`relative flex items-center rounded-md transition-colors group shrink-0 ${
-                  isExpanded ? "justify-start gap-3 w-full px-3 py-1.5" : "justify-center w-9 h-9 mx-auto"
-                } ${
-                  isActive
+                className={`relative flex items-center rounded-md transition-colors group w-full h-9 overflow-hidden ${isActive
                     ? "text-white bg-[#1e1e1e]"
-                    : "text-[#888888] hover:text-white hover:bg-[#1a1a1a]"
-                }`}
+                    : "text-[#8A8D8A] hover:text-white hover:bg-[#181A19]"
+                  }`}
               >
                 {isActive && (
                   <motion.div
                     layoutId="sidebarActive"
-                    className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-[2px] h-5 bg-white rounded-r-full"
+                    className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-[2px] h-5 bg-white rounded-r-full"
                     initial={false}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
-                <span className="shrink-0">{link.icon}</span>
-                {isExpanded && <span className="text-[13px] font-medium whitespace-nowrap">{link.name}</span>}
+                <div className="w-10 h-9 flex items-center justify-center shrink-0">
+                  {link.icon}
+                </div>
+                <span className={`ml-1 text-[13px] font-medium whitespace-nowrap transition-opacity duration-250 ${isExpanded ? "opacity-100 " : "opacity-0"}`}>
+                  {link.name}
+                </span>
               </Link>
             );
           })}
         </div>
 
         {/* Bottom Profile / Settings */}
-        <div className="mt-auto flex flex-col gap-1 w-full">
-           <button title={!isExpanded ? "Settings" : ""} className={`flex items-center rounded-lg text-[#888888] hover:text-white hover:bg-[#1a1a1a] transition-colors shrink-0 ${isExpanded ? "justify-start gap-3 w-full px-3 py-1.5" : "justify-center w-9 h-9 mx-auto"}`}>
-             <Settings size={18} className="shrink-0" />
-             {isExpanded && <span className="text-[13px] font-medium whitespace-nowrap">Settings</span>}
-           </button>
-           <button title={!isExpanded ? "Profile" : ""} className={`flex items-center rounded-lg text-[#888888] hover:text-white hover:bg-[#1a1a1a] transition-colors shrink-0 ${isExpanded ? "justify-start gap-3 w-full px-3 py-1.5" : "justify-center w-9 h-9 mx-auto"}`}>
-             <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 shrink-0" />
-             {isExpanded && <span className="text-[13px] font-medium whitespace-nowrap">Profile</span>}
-           </button>
+        <div className="mt-auto flex flex-col gap-0.5 w-full">
+          <button title={!isExpanded ? "Settings" : ""} className={`flex items-center rounded-md text-[#8A8D8A] hover:text-white hover:bg-[#181A19] transition-colors w-full h-9 overflow-hidden`}>
+            <div className="w-10 h-9 flex items-center justify-center shrink-0">
+              <Settings size={18} />
+            </div>
+            <span className={`ml-1 text-[13px] font-medium whitespace-nowrap transition-opacity duration-250 ${isExpanded ? "opacity-100 " : "opacity-0"}`}>
+              Settings
+            </span>
+          </button>
+          <button title={!isExpanded ? "Profile" : ""} className={`flex items-center rounded-md text-[#8A8D8A] hover:text-white hover:bg-[#181A19] transition-colors w-full h-9 overflow-hidden`}>
+            <div className="w-10 h-9 flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500" />
+            </div>
+            <span className={`ml-1 text-[13px] font-medium whitespace-nowrap transition-opacity duration-250 ${isExpanded ? "opacity-100 " : "opacity-0"}`}>
+              Profile
+            </span>
+          </button>
         </div>
       </aside>
     </>

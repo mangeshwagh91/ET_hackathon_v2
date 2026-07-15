@@ -161,10 +161,13 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
         )
 
         eq_row = db.execute("SELECT * FROM equipment_items WHERE id = ?", (po.get("equipment_item_id"),)).fetchone()
-        if not eq_row:
-            raise ValueError(f"Equipment item not found for PO {po_id}")
-        equipment = dict(eq_row)
-        equipment_class = equipment.get("equipment_class", "UPS")
+        if eq_row:
+            equipment = dict(eq_row)
+            equipment_class = equipment.get("equipment_class", "UPS")
+        else:
+            equipment = {}
+            equipment_class = "UPS"
+
 
         clauses = []
         if CHROMADB_AVAILABLE:
@@ -202,6 +205,23 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
         logger.info(f"Extracted {len(all_requirements)} requirements")
 
         raw_deviations = compare_attributes(po_attrs, all_requirements, equipment_class)
+        
+        # If no attributes were extracted at all, flag the entire document as invalid
+        if not po_attrs:
+            raw_deviations.append({
+                "attribute_name": "document_content",
+                "specified_value": "Technical Submittal with Performance Attributes",
+                "submitted_value": "No technical attributes found (Possible non-technical document)",
+                "deviation_pct": None,
+                "deviation_type": "INVALID_DOCUMENT",
+                "severity": "CRITICAL",
+                "w_conform": 0.0,
+                "justification": "The uploaded document contains no parsable technical attributes. It appears to be a non-technical document (e.g. delay notification, letter) rather than a valid equipment submittal.",
+                "recommended_action": "Reject submission. Request vendor to submit the correct technical datasheet or compliance statement.",
+                "mandatory": True,
+                "spec_clause_id": None
+            })
+
         logger.info(f"Found {len(raw_deviations)} deviations")
 
         # Batch-score all deviations concurrently instead of sequentially.
@@ -243,7 +263,7 @@ def run_compliance_check(po_id: str) -> Dict[str, Any]:
             dev for dev in scored_deviations
             if dev.get("severity") in ("CRITICAL", "MAJOR", "MINOR")
         ]
-        ncr_ids = _generate_ncrs_batch(ncr_targets, po_id, equipment.get("id", ""), clauses)
+        ncr_ids = _generate_ncrs_batch(ncr_targets, po_id, equipment.get("id"), clauses)
 
         compliance_status = _determine_compliance_status(scored_deviations)
         conformance_score = _calculate_conformance_score(scored_deviations)
@@ -521,6 +541,11 @@ def _score_deviations_batch(
         results = [None] * len(deviations)
 
     for dev, result in zip(deviations, results):
+        if dev.get("deviation_type") == "INVALID_DOCUMENT":
+            dev["severity"] = "CRITICAL"
+            dev["w_conform"] = 0.0
+            continue
+
         if isinstance(result, dict):
             try:
                 dev["severity"] = result.get("severity", "MINOR")
@@ -546,6 +571,9 @@ def _apply_heuristic_scoring(dev: Dict[str, Any]) -> None:
     if dev_type == "MISSING" and is_mandatory:
         dev["severity"] = "CRITICAL"
         dev["w_conform"] = 0.90
+    elif dev_type == "INVALID_DOCUMENT":
+        dev["severity"] = "CRITICAL"
+        dev["w_conform"] = 1.0
     elif dev_type == "STRING_MISMATCH":
         dev["severity"] = "MINOR"
         dev["w_conform"] = 0.30

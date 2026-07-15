@@ -77,7 +77,7 @@ export default function ComplianceBackground() {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 0.1, scale: 1 }}
         transition={{ duration: 2, ease: "easeOut", delay: 0.2 }}
-        className="absolute top-[20%] right-[-10%] w-[50%] h-[60%] rounded-full bg-[#3B82F6] blur-[120px] pointer-events-none"
+        className="absolute top-[20%] right-[-10%] w-[50%] h-[60%] rounded-full bg-[#0F3058] blur-[120px] pointer-events-none"
       />
       
       <AmbientParticles count={25} />

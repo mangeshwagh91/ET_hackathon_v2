@@ -55,11 +55,11 @@ function NetworkSVG() {
         <motion.circle
           key={i}
           cx={n.cx} cy={n.cy} r={i === 6 ? "5" : "3"}
-          fill={i === 6 ? "#14B8A6" : "#3B82F6"}
+          fill={i === 6 ? "#14B8A6" : "#0F3058"}
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: [0.3, i === 6 ? 1 : 0.7, 0.3], scale: [1, 1.4, 1] }}
           transition={{ duration: 3 + (i % 2), repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
-          style={{ filter: `drop-shadow(0 0 4px ${i === 6 ? "#14B8A6" : "#3B82F6"})` }}
+          style={{ filter: `drop-shadow(0 0 4px ${i === 6 ? "#14B8A6" : "#0F3058"})` }}
         />
       ))}
     </svg>
@@ -141,7 +141,7 @@ function IntelligenceViz({ summary, healthScore }) {
 
       {/* Ambient glows */}
       <div className="absolute top-[20%] left-[30%] w-64 h-64 rounded-full bg-[#14B8A6]/8 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[15%] right-[10%] w-48 h-48 rounded-full bg-[#3B82F6]/8 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[15%] right-[10%] w-48 h-48 rounded-full bg-[#0F3058]/8 blur-3xl pointer-events-none" />
 
       {/* Panel 1 — Compliance Intelligence (top-left, slight tilt) */}
       <Panel delay={0.6} floatY={8} x="2%" y="4%" rotate={-2} width="w-52" glowColor="#14B8A6" zIndex={12}>
@@ -176,29 +176,29 @@ function IntelligenceViz({ summary, healthScore }) {
       </Panel>
 
       {/* Panel 2 — Schedule Risk (top-right, wider, slight positive tilt) */}
-      <Panel delay={0.9} floatY={12} x="42%" y="1%" rotate={1.5} width="w-60" glowColor="#F59E0B" zIndex={11}>
+      <Panel delay={0.9} floatY={12} x="42%" y="1%" rotate={1.5} width="w-60" glowColor="#F2AF48" zIndex={11}>
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 rounded-lg bg-[#F59E0B]/12 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-[#F2AF48]/12 flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <polyline points="1,10 4,6 7,8 10,3 13,5" stroke="#F59E0B" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="1,10 4,6 7,8 10,3 13,5" stroke="#F2AF48" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
           <span className="text-[11px] font-semibold tracking-wide text-[#0F172A]">Schedule Risk</span>
-          <span className="ml-auto text-[10px] font-medium text-[#F59E0B] bg-[#F59E0B]/10 px-1.5 py-0.5 rounded-full">Live</span>
+          <span className="ml-auto text-[10px] font-medium text-[#F2AF48] bg-[#F2AF48]/10 px-1.5 py-0.5 rounded-full">Live</span>
         </div>
         {/* Mini sparkline */}
         <svg viewBox="0 0 100 30" className="w-full mb-2">
           <defs>
             <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+              <stop offset="0%" stopColor="#F2AF48" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#F2AF48" stopOpacity="0" />
             </linearGradient>
           </defs>
-          <path d="M0,20 L15,16 L30,22 L45,12 L60,18 L75,8 L90,14 L100,10" stroke="#F59E0B" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <path d="M0,20 L15,16 L30,22 L45,12 L60,18 L75,8 L90,14 L100,10" stroke="#F2AF48" strokeWidth="1.5" fill="none" strokeLinecap="round" />
           <path d="M0,20 L15,16 L30,22 L45,12 L60,18 L75,8 L90,14 L100,10 L100,30 L0,30Z" fill="url(#sg)" />
           <motion.circle
             cx="100" cy="10" r="2.5"
-            fill="#F59E0B"
+            fill="#F2AF48"
             animate={{ opacity: [1, 0.3, 1] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           />
@@ -241,7 +241,7 @@ function IntelligenceViz({ summary, healthScore }) {
           </div>
           <div className="space-y-1">
             <div className="text-[10px] text-[#64748B]">Critical NCRs</div>
-            <div className="text-lg font-bold text-[#EF4444]">
+            <div className="text-lg font-bold text-[#E24B4A]">
               <Counter to={summary?.open_ncr_count?.CRITICAL || 3} delay={2.0} />
             </div>
             <div className="text-[10px] text-[#22C55E]">↓ 2 resolved</div>
@@ -250,21 +250,21 @@ function IntelligenceViz({ summary, healthScore }) {
       </Panel>
 
       {/* Panel 4 — RFI Intelligence (right, tilted) */}
-      <Panel delay={1.5} floatY={14} x="45%" y="48%" rotate={-1} width="w-52" glowColor="#3B82F6" zIndex={10}>
+      <Panel delay={1.5} floatY={14} x="45%" y="48%" rotate={-1} width="w-52" glowColor="#0F3058" zIndex={10}>
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 rounded-lg bg-[#3B82F6]/12 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-[#0F3058]/12 flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <rect x="1" y="1" width="12" height="10" rx="2" stroke="#3B82F6" strokeWidth="1.1" />
-              <path d="M1 5h12" stroke="#3B82F6" strokeWidth="0.8" opacity="0.4" />
-              <path d="M4 8.5h2M4 8.5L3 10l1.5-.5" stroke="#3B82F6" strokeWidth="1" strokeLinecap="round" />
-              <circle cx="10.5" cy="8.5" r="1.5" stroke="#3B82F6" strokeWidth="0.9" />
+              <rect x="1" y="1" width="12" height="10" rx="2" stroke="#0F3058" strokeWidth="1.1" />
+              <path d="M1 5h12" stroke="#0F3058" strokeWidth="0.8" opacity="0.4" />
+              <path d="M4 8.5h2M4 8.5L3 10l1.5-.5" stroke="#0F3058" strokeWidth="1" strokeLinecap="round" />
+              <circle cx="10.5" cy="8.5" r="1.5" stroke="#0F3058" strokeWidth="0.9" />
             </svg>
           </div>
           <span className="text-[11px] font-semibold text-[#0F172A]">RFI Intelligence</span>
         </div>
         {/* Mock chat bubbles */}
         <div className="space-y-2">
-          <div className="bg-[#3B82F6]/8 rounded-xl rounded-tl-sm px-3 py-2 text-[10px] text-[#0F172A] max-w-[90%]">
+          <div className="bg-[#0F3058]/8 rounded-xl rounded-tl-sm px-3 py-2 text-[10px] text-[#0F172A] max-w-[90%]">
             What are the cooling specs for Zone B?
           </div>
           <motion.div
@@ -280,7 +280,7 @@ function IntelligenceViz({ summary, healthScore }) {
           <div className="flex gap-0.5">
             {[0.3, 0.5, 0.7].map((d, i) => (
               <motion.div key={i} animate={{ scaleY: [1, 2.5, 1] }} transition={{ duration: 0.8, repeat: Infinity, delay: d, ease: "easeInOut" }}
-                className="w-0.5 h-2 bg-[#3B82F6]/60 rounded-full" />
+                className="w-0.5 h-2 bg-[#0F3058]/60 rounded-full" />
             ))}
           </div>
           <span className="text-[10px] text-[#64748B]">AI answering…</span>
@@ -348,7 +348,7 @@ export default function DashboardHero({ summary, healthScore }) {
       />
       {/* Corner soft glows */}
       <div className="absolute top-0 left-0 w-[50vw] h-[50vh] rounded-full bg-[#14B8A6]/4 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[40vw] h-[40vh] rounded-full bg-[#3B82F6]/4 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[40vw] h-[40vh] rounded-full bg-[#0F3058]/4 blur-[120px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto w-full px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-8 lg:gap-0 items-center pt-20 pb-12">
 
@@ -455,7 +455,7 @@ export default function DashboardHero({ summary, healthScore }) {
               className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-[#0F172A] bg-white border border-[#E2E8F0]"
               style={{ boxShadow: "0 2px 8px rgba(15,23,42,0.06)" }}
             >
-              <Zap size={15} className="text-[#3B82F6]" />
+              <Zap size={15} className="text-[#0F3058]" />
               <span>Ask AI</span>
             </motion.button>
           </motion.div>

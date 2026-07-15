@@ -4,45 +4,34 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Play, ShieldAlert, CheckCircle, Activity, Box, ChevronDown, AlertTriangle } from "lucide-react";
 import api from "../api/client.js";
 import SeverityBadge from "../components/SeverityBadge.jsx";
-import ComplianceBackground from "../components/compliance/ComplianceBackground.jsx";
 import AIProcessingTimeline from "../components/compliance/AIProcessingTimeline.jsx";
+import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
-// ─── KPI Counters ─────────────────────────────────────────────────────────────
 function AnimatedCounter({ value, suffix = "" }) {
   return <span>{value}{suffix}</span>;
 }
 
-// ─── Document Select Dropdown ─────────────────────────────────────────────────
 function DocSelect({ label, stepNumber, color, docs, value, onChange, placeholder, docsLoading }) {
   return (
-    <div className={`relative z-10 bg-white/70 backdrop-blur-md border border-white/60 rounded-2xl p-5 shadow-sm`}>
-      <div className="flex items-center gap-3 mb-3">
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-          style={{ backgroundColor: color }}
-        >
-          {stepNumber}
-        </div>
-        <div>
-          <h3 className="font-bold text-slate-800 text-sm">{label}</h3>
-          <p className="text-xs text-slate-400">Select from uploaded documents</p>
-        </div>
-      </div>
+    <div className="mb-6">
+      <label className="flex items-center gap-2 text-[10px] font-bold text-[#8A8D8A] uppercase tracking-wider mb-2">
+        <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px]" style={{ backgroundColor: color }}>{stepNumber}</span>
+        {label}
+      </label>
 
       {docsLoading ? (
-        <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+        <div className="h-9 bg-[#2A2C2A] rounded-md animate-pulse" />
       ) : docs.length === 0 ? (
-        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-xs">
-          <AlertTriangle size={14} />
-          <span>No {label.toLowerCase()} found. <Link to="/documents" className="underline font-semibold">Upload in Documents & Specs →</Link></span>
+        <div className="flex items-start gap-2 p-3 bg-amber-950/20 border border-amber-900/50 rounded-md text-amber-500 text-xs">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <span>No {label.toLowerCase()} found. <Link to="/documents" className="underline font-semibold block mt-1 hover:text-amber-400">Upload in Documents →</Link></span>
         </div>
       ) : (
         <div className="relative">
           <select
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 pr-8"
-            style={{ focusRingColor: color }}
+            className="w-full appearance-none bg-[#181A19] border border-[#2A2C2A] rounded-md px-3 py-2 text-sm text-[#EDEFEE] focus:outline-none focus:border-[#3ECF8E] transition-colors pr-8"
           >
             <option value="">{placeholder}</option>
             {docs.map((d) => (
@@ -51,12 +40,12 @@ function DocSelect({ label, stepNumber, color, docs, value, onChange, placeholde
               </option>
             ))}
           </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8D8A] pointer-events-none" />
         </div>
       )}
 
       {value && (
-        <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#3ECF8E] font-medium">
           <CheckCircle size={12} /> Selected
         </div>
       )}
@@ -65,20 +54,17 @@ function DocSelect({ label, stepNumber, color, docs, value, onChange, placeholde
 }
 
 export default function Compliance() {
-  // Document library
-  const [documents, setDocuments] = useState([]);
-  const [docsLoading, setDocsLoading] = useState(true);
-
-  // Selected docs from library
+  const { currentProject } = useWorkspace();
+  const [documents, setDocuments] = useState(() => {
+    const cached = sessionStorage.getItem("dcpi_documents");
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [docsLoading, setDocsLoading] = useState(documents.length === 0);
   const [selectedSpecId, setSelectedSpecId] = useState("");
   const [selectedSubmId, setSelectedSubmId] = useState("");
-
-  // Equipment / PO
-  const [equipmentItemId, setEquipmentItemId] = useState("eq-ups-moda-001");
   const [equipmentList, setEquipmentList] = useState([]);
-  const [currentPoId, setCurrentPoId] = useState("po-ps1500-001");
-
-  // Run state
+  const [currentPoId, setCurrentPoId] = useState("");
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [runningCheck, setRunningCheck] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
@@ -88,18 +74,52 @@ export default function Compliance() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setDocsLoading(true);
-    api.getDocuments()
-      .then((data) => setDocuments(data.documents || []))
+    if (!currentProject) return;
+    setDocsLoading(documents.length === 0);
+    api.getDocuments(currentProject.id)
+      .then((data) => {
+        setDocuments(data.documents || []);
+        sessionStorage.setItem("dcpi_documents", JSON.stringify(data.documents || []));
+      })
       .catch(() => setDocuments([]))
       .finally(() => setDocsLoading(false));
 
     api.getEquipmentItems()
       .then((data) => setEquipmentList(data.equipment_items || []))
       .catch(() => {});
-  }, []);
 
-  // Derive filtered lists from loaded documents
+    api.getPurchaseOrders()
+      .then((data) => setPurchaseOrders(data || []))
+      .catch(() => {});
+  }, [currentProject]);
+
+  useEffect(() => {
+    if (selectedSubmId && purchaseOrders.length > 0) {
+      const po = purchaseOrders.find(p => p.document_id === selectedSubmId);
+      if (po) {
+        setCurrentPoId(po.id);
+      }
+    } else if (!selectedSubmId) {
+      setCurrentPoId("");
+    }
+  }, [selectedSubmId, purchaseOrders]);
+
+
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('agentSettings');
+    let autoRun = true;
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        autoRun = parsed.autoRunOnUpload;
+      } catch (_) {}
+    }
+    
+    if (autoRun && selectedSpecId && selectedSubmId && currentPoId && !runningCheck && !results && !error) {
+       handleRunCheck();
+    }
+  }, [selectedSpecId, selectedSubmId, currentPoId]);
+
   const specDocs = documents.filter(d => d.doc_type === "specification" || d.document_type === "specification");
   const submDocs = documents.filter(d => d.doc_type === "submittal" || d.document_type === "submittal");
 
@@ -124,84 +144,32 @@ export default function Compliance() {
     }
   }
 
-  const step3Active = !!selectedSpecId || currentPoId === "po-ps1500-001";
+  const step3Active = !!selectedSpecId && !!currentPoId;
 
   return (
-    <div className="min-h-screen relative pb-24">
-      <ComplianceBackground />
-      
-      <div className="max-w-7xl mx-auto px-4 pt-12 relative z-10">
+    <div className="flex-1 w-full h-full relative bg-[#131413] overflow-hidden flex flex-col text-white">
+      <div className="flex-1 flex overflow-hidden relative z-10 w-full">
         
-        {/* ─── Hero Section ────────────────────────────────────────────── */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-teal-200 bg-teal-50/80 backdrop-blur-sm mb-4">
-            <div className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-            <span className="text-[11px] font-bold tracking-widest uppercase text-teal-700">Workspace</span>
+        {/* ─── Left Sidebar: Pickers ────────────────────────────────────────────── */}
+        <div className="w-[280px] flex-none bg-[#131413] border-r border-[#2A2C2A] flex flex-col overflow-hidden hidden lg:flex">
+          {/* Sidebar Header */}
+          <div className="h-12 border-b border-[#2A2C2A] bg-[#181A19] flex items-center px-4 flex-shrink-0">
+            <h1 className="text-[13px] font-bold text-white tracking-wide uppercase">Compliance Intel</h1>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight" style={{ fontFamily: "'Inter', sans-serif" }}>
-            Compliance Intelligence
-          </h1>
-          <p className="text-lg text-slate-600 mt-4 max-w-2xl">
-            Compare project specifications with vendor submissions using AI to instantly identify deviations, ensure compliance and generate intelligent recommendations.
-          </p>
-          
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            {[
-              { label: "Documents Processed", val: 124, icon: <FileText size={18} /> },
-              { label: "Compliance Accuracy", val: 98, suffix: "%", icon: <CheckCircle size={18} /> },
-              { label: "Critical Deviations", val: results?.summary?.critical || 3, icon: <ShieldAlert size={18} /> },
-              { label: "AI Status", val: "Online", icon: <Activity size={18} /> }
-            ].map((kpi, i) => (
-              <motion.div 
-                key={i} 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ delay: 0.1 * i }}
-                whileHover={{ y: -2 }}
-                className="bg-white/60 backdrop-blur-md border border-white/40 p-4 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)]"
-              >
-                <div className="text-teal-600 mb-2">{kpi.icon}</div>
-                <div className="text-2xl font-bold text-slate-800"><AnimatedCounter value={kpi.val} suffix={kpi.suffix} /></div>
-                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-1">{kpi.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
 
-        {/* Global Error/Status Toast */}
-        <AnimatePresence>
-          {(error || status) && !runningCheck && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className={`mb-8 p-4 rounded-xl border backdrop-blur-md font-medium text-sm shadow-sm ${
-                error ? "bg-red-50/80 border-red-200 text-red-700" : "bg-teal-50/80 border-teal-200 text-teal-700"
-              }`}
-            >
-              {error || status}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
-          {/* ─── Left Panel: Document Picker + Run ─────────────────────── */}
-          <div className="lg:col-span-4 space-y-4">
-            {/* Info banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs text-blue-700 font-medium">
-              Documents are pulled from your <Link to="/documents" className="underline font-bold">Documents & Specs</Link> library. Upload files there first.
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col">
+            <div className="mb-6 bg-blue-950/20 border border-blue-900/50 rounded-lg p-3 text-xs text-blue-300/80 font-medium leading-relaxed">
+              Documents are pulled from your <Link to="/documents" className="underline font-bold text-blue-300">Documents</Link> library.
             </div>
 
             <DocSelect
               label="Specification"
               stepNumber="1"
-              color="#3B82F6"
+              color="#0F3058"
               docs={specDocs}
               value={selectedSpecId}
               onChange={setSelectedSpecId}
-              placeholder="— Select a specification —"
+              placeholder="Select specification"
               docsLoading={docsLoading}
             />
 
@@ -212,198 +180,254 @@ export default function Compliance() {
               docs={submDocs}
               value={selectedSubmId}
               onChange={setSelectedSubmId}
-              placeholder="— Select a vendor submittal —"
+              placeholder="Select vendor submittal"
               docsLoading={docsLoading}
             />
 
-            <motion.div 
-              className={`relative z-10 transition-all duration-300 ${!step3Active ? "opacity-40 pointer-events-none" : ""}`}
-            >
-            <button
-              onClick={handleRunCheck}
-              disabled={runningCheck || !step3Active}
-              className="w-full bg-indigo-600 hover:bg-indigo-750 text-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-all flex flex-col items-center justify-center gap-3 relative overflow-hidden group"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-teal-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
-                <Play fill="currentColor" size={20} />
-              </div>
-              <div className="text-center">
-                <h3 className="font-bold text-lg">Run AI Compliance</h3>
-                <p className="text-indigo-200 text-xs font-medium">Extract, compare, and analyze</p>
-              </div>
-            </button>
-          </motion.div>
-        </div>
-
-          {/* ─── Center Panel: Results Dashboard ───────────────────────── */}
-          <div className="lg:col-span-5 relative">
-            <AnimatePresence mode="wait">
-              {runningCheck ? (
-                <motion.div key="processing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, filter: "blur(10px)" }}>
-                  <AIProcessingTimeline />
-                </motion.div>
-              ) : results ? (
-                <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                  
-                  {/* Results Header Card */}
-                  <div className="bg-white/70 backdrop-blur-xl border border-white/60 rounded-3xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center font-bold text-xl">
-                          {results.compliance_status === "COMPLIANT" ? "A+" : "C"}
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-slate-800">Compliance Report</h2>
-                          <p className="text-sm text-slate-500">PO: {results.po_number}</p>
-                        </div>
-                      </div>
-                      <SeverityBadge severity={results.compliance_status === "COMPLIANT" ? "PASS" : "CRITICAL"} />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-red-50/50 border border-red-100 rounded-2xl p-4 text-center">
-                        <div className="text-3xl font-bold text-red-500">{results.summary?.critical || 0}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-red-400 mt-1">Critical</div>
-                      </div>
-                      <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-4 text-center">
-                        <div className="text-3xl font-bold text-amber-500">{results.summary?.major || 0}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400 mt-1">Major</div>
-                      </div>
-                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-center">
-                        <div className="text-3xl font-bold text-slate-500">{results.summary?.minor || 0}</div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">Minor</div>
-                      </div>
-                    </div>
+            <div className="mt-auto pt-6">
+              <motion.div 
+                className={`relative z-10 transition-all duration-300 ${!step3Active ? "opacity-40 pointer-events-none" : ""}`}
+              >
+                <button
+                  onClick={handleRunCheck}
+                  disabled={runningCheck || !step3Active}
+                  className="w-full bg-[#3ECF8E] hover:bg-[#3ECF8E]/90 text-white rounded-lg p-4 shadow-sm transition-all flex flex-col items-center justify-center gap-2 relative overflow-hidden group"
+                >
+                  <div className="w-8 h-8 bg-black/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Play fill="currentColor" size={14} className="ml-0.5" />
                   </div>
-
-                  {/* Deviations List */}
-                  {results.deviations && results.deviations.length > 0 ? (
-                    <div className="space-y-3">
-                      <h3 className="font-bold text-slate-700 text-sm pl-2 uppercase tracking-wider">Detected Deviations</h3>
-                      {results.deviations.map((dev, idx) => (
-                        <motion.div 
-                          key={dev.id}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.1 * idx }}
-                          onClick={() => setSelectedNcr(dev.ncr_id ? dev : null)}
-                          className={`bg-white/80 backdrop-blur-md border rounded-2xl p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md ${
-                            selectedNcr?.id === dev.id ? "ring-2 ring-blue-400 border-transparent shadow-lg" : "border-slate-200"
-                          }`}
-                        >
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="font-mono text-xs font-semibold bg-slate-100 px-2 py-1 rounded text-slate-600">
-                              {dev.clause_number || "CLAUSE-UNK"}
-                            </div>
-                            <SeverityBadge severity={dev.severity} />
-                          </div>
-                          <h4 className="font-bold text-slate-800 mb-2">{dev.attribute_name?.replace(/_/g, " ")}</h4>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                              <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Specified</span>
-                              <span className="text-slate-700 font-medium">{dev.specified_value}</span>
-                            </div>
-                            <div className="bg-red-50 p-2 rounded-lg border border-red-100">
-                              <span className="text-[10px] text-red-400 font-bold uppercase block mb-1">Submitted</span>
-                              <span className="text-red-700 font-medium">{dev.submitted_value}</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-teal-50/50 border border-teal-100 rounded-3xl p-8 text-center">
-                      <CheckCircle className="w-16 h-16 text-teal-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-bold text-teal-800">100% Compliant</h3>
-                      <p className="text-teal-600 mt-2">No deviations found in this submission.</p>
-                    </div>
-                  )}
-
-                </motion.div>
-              ) : (
-                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full min-h-[400px] flex items-center justify-center bg-white/30 backdrop-blur-sm border border-white/40 rounded-3xl border-dashed">
-                  <div className="text-center opacity-50">
-                    <Box size={48} className="mx-auto mb-4 text-slate-400" />
-                    <p className="text-lg font-medium text-slate-500">Workspace Ready</p>
-                    <p className="text-sm text-slate-400">Complete the workflow on the left</p>
+                  <div className="text-center">
+                    <h3 className="font-bold text-sm">Run AI Compliance</h3>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* ─── Right Panel: Intelligence Viewer ──────────────────────── */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-24 bg-white rounded-3xl overflow-hidden shadow-md border border-slate-200 flex flex-col h-[700px]">
-              {/* Fake PDF Toolbar */}
-              <div className="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
-                <div className="flex gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <div className="w-3 h-3 rounded-full bg-amber-400" />
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
-                </div>
-                <span className="text-xs font-mono text-slate-500">AI Document Viewer</span>
-              </div>
-              
-              {/* Document Content */}
-              <div className="flex-1 p-6 relative overflow-hidden bg-slate-100/60">
-                {!selectedNcr ? (
-                  <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center px-4">
-                    <FileText size={40} className="mb-4 opacity-50" />
-                    <p className="text-sm font-medium">Select a deviation to view AI insights and source citations.</p>
-                  </div>
-                ) : (
-                  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col">
-                    {/* Mocked PDF text showing highlight */}
-                    <div className="bg-white rounded shadow-sm p-4 text-[10px] leading-relaxed text-slate-400 font-serif relative overflow-hidden h-48 mb-4 border border-slate-200">
-                      Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                      <br/><br/>
-                      <span className="bg-yellow-100 text-slate-800 font-bold px-1 rounded relative inline-block">
-                        {selectedNcr.clause_number}: {selectedNcr.specified_value}
-                        <motion.span animate={{ opacity: [1, 0.5, 1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -left-1 -right-1 -top-1 -bottom-1 border border-yellow-350 rounded pointer-events-none" />
-                      </span>
-                      <br/><br/>
-                      Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                    </div>
-
-                    {/* AI Insights Panel */}
-                    <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl p-5 text-slate-800 flex flex-col">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                        <h4 className="font-bold text-sm text-slate-800">AI Insights</h4>
-                      </div>
-                      
-                      <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar text-sm">
-                        <div>
-                          <span className="text-slate-400 text-xs block mb-1">Deviation Rationale</span>
-                          <p className="text-slate-700 font-medium leading-relaxed">{selectedNcr.justification}</p>
-                        </div>
-                        
-                        <div className="bg-blue-50 border border-blue-150 p-3 rounded-xl">
-                          <span className="text-blue-600 text-xs font-bold uppercase tracking-wider block mb-1">Recommendation</span>
-                          <p className="text-blue-900 leading-relaxed">{selectedNcr.recommended_action}</p>
-                        </div>
-
-                        <div className="flex items-center justify-between bg-slate-100/50 p-3 rounded-xl border border-slate-200/40">
-                          <span className="text-slate-500 text-xs">AI Confidence</span>
-                          <span className="font-bold text-green-600">{(selectedNcr.w_conform * 100).toFixed(1)}%</span>
-                        </div>
-                      </div>
-                      
-                      <button
-                        onClick={() => navigate(`/ncr/${selectedNcr.ncr_id}`)}
-                        className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-3 rounded-xl transition-colors shadow-sm"
-                      >
-                        Open Full NCR
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
+                </button>
+              </motion.div>
             </div>
           </div>
         </div>
+
+        {/* ─── Main Canvas ────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 relative flex flex-col bg-[#131413]">
+          
+          <div className="max-w-6xl mx-auto w-full">
+            {/* Header / KPIs */}
+            <div className="mb-8">
+              <h2 className="text-[22px] font-bold tracking-tight mb-2">Compliance Intelligence</h2>
+              <p className="text-[#8A8D8A] text-sm max-w-2xl mb-8">
+                Compare project specifications with vendor submissions using AI to instantly identify deviations, ensure compliance and generate intelligent recommendations.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  { label: "Documents Processed", val: 124, icon: <FileText size={16} /> },
+                  { label: "Compliance Accuracy", val: 98, suffix: "%", icon: <CheckCircle size={16} /> },
+                  { label: "Critical Deviations", val: results?.summary?.critical || 3, icon: <ShieldAlert size={16} /> },
+                  { label: "AI Status", val: "Online", icon: <Activity size={16} /> }
+                ].map((kpi, i) => (
+                  <motion.div 
+                    key={i} 
+                    initial={{ opacity: 0, y: 10 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    transition={{ delay: 0.05 * i }}
+                    className="bg-[#181A19] border border-[#2A2C2A] p-4 rounded-xl shadow-sm"
+                  >
+                    <div className="text-[#3ECF8E] mb-2">{kpi.icon}</div>
+                    <div className="text-2xl font-bold text-white"><AnimatedCounter value={kpi.val} suffix={kpi.suffix} /></div>
+                    <div className="text-[10px] font-bold text-[#8A8D8A] uppercase tracking-widest mt-1">{kpi.label}</div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* Error/Status Toast */}
+            <AnimatePresence>
+              {(error || status) && !runningCheck && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className={`mb-6 p-3 rounded-md border text-sm font-medium ${
+                    error ? "bg-red-950/20 border-red-900/50 text-red-400" : "bg-[#3ECF8E]/10 border-[#3ECF8E]/30 text-[#3ECF8E]"
+                  }`}
+                >
+                  {error || status}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Results Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Center Panel: Results Dashboard */}
+              <div className="lg:col-span-6 relative">
+                <AnimatePresence mode="wait">
+                  {runningCheck ? (
+                    <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <AIProcessingTimeline />
+                    </motion.div>
+                  ) : results ? (
+                    <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                      
+                      {/* Results Header Card */}
+                      <div className="bg-[#181A19] border border-[#2A2C2A] rounded-xl p-5 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-[#131413] border border-[#2A2C2A] text-[#3ECF8E] flex items-center justify-center font-bold text-lg">
+                              {results.compliance_status === "COMPLIANT" ? "A+" : "C"}
+                            </div>
+                            <div>
+                              <h2 className="text-base font-bold text-white">Compliance Report</h2>
+                              <p className="text-xs text-[#8A8D8A]">PO: {results.po_number}</p>
+                            </div>
+                          </div>
+                          <SeverityBadge severity={results.compliance_status === "COMPLIANT" ? "PASS" : "CRITICAL"} />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="bg-[#131413] border border-red-900/30 rounded-lg p-3 text-center">
+                            <div className="text-2xl font-bold text-red-500">{results.summary?.critical || 0}</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-red-400/80 mt-1">Critical</div>
+                          </div>
+                          <div className="bg-[#131413] border border-amber-900/30 rounded-lg p-3 text-center">
+                            <div className="text-2xl font-bold text-amber-500">{results.summary?.major || 0}</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/80 mt-1">Major</div>
+                          </div>
+                          <div className="bg-[#131413] border border-[#2A2C2A] rounded-lg p-3 text-center">
+                            <div className="text-2xl font-bold text-zinc-400">{results.summary?.minor || 0}</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#8A8D8A] mt-1">Minor</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Deviations List */}
+                      {results.deviations && results.deviations.length > 0 ? (
+                        <div className="space-y-3">
+                          <h3 className="font-semibold text-white text-sm tracking-wide">Detected Deviations</h3>
+                          {results.deviations.map((dev, idx) => (
+                            <motion.div 
+                              key={dev.id}
+                              initial={{ opacity: 0, x: 10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.05 * idx }}
+                              onClick={() => setSelectedNcr(dev.ncr_id ? dev : null)}
+                              className={`bg-[#181A19] border rounded-xl p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:bg-[#2A2C2A]/50 ${
+                                selectedNcr?.id === dev.id ? "ring-1 ring-[#3ECF8E] border-[#3ECF8E] shadow-sm" : "border-[#2A2C2A]"
+                              }`}
+                            >
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="font-mono text-[10px] font-bold bg-[#131413] px-2 py-1 rounded text-[#8A8D8A] border border-[#2A2C2A]">
+                                  {dev.clause_number || "CLAUSE-UNK"}
+                                </div>
+                                <SeverityBadge severity={dev.severity} />
+                              </div>
+                              <h4 className="font-semibold text-white text-sm mb-2">{dev.attribute_name?.replace(/_/g, " ")}</h4>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="bg-[#131413] p-2 rounded-md border border-[#2A2C2A]">
+                                  <span className="text-[9px] text-[#8A8D8A] font-bold uppercase block mb-1">Specified</span>
+                                  <span className="text-zinc-300 font-medium text-xs">{dev.specified_value}</span>
+                                </div>
+                                <div className="bg-[#131413] p-2 rounded-md border border-red-900/20">
+                                  <span className="text-[9px] text-red-500/80 font-bold uppercase block mb-1">Submitted</span>
+                                  <span className="text-red-400 font-medium text-xs">{dev.submitted_value}</span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="bg-[#3ECF8E]/10 border border-[#3ECF8E]/20 rounded-xl p-6 text-center">
+                          <CheckCircle className="w-12 h-12 text-[#3ECF8E] mx-auto mb-3" />
+                          <h3 className="text-lg font-bold text-[#3ECF8E]">100% Compliant</h3>
+                          <p className="text-[#3ECF8E]/80 text-sm mt-1">No deviations found in this submission.</p>
+                        </div>
+                      )}
+
+                    </motion.div>
+                  ) : (
+                    <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full min-h-[300px] flex items-center justify-center bg-[#181A19] border border-[#2A2C2A] rounded-xl border-dashed">
+                      <div className="text-center">
+                        <Box size={32} className="mx-auto mb-3 text-[#2A2C2A]" />
+                        <p className="text-sm font-medium text-white mb-1">Workspace Ready</p>
+                        <p className="text-xs text-[#8A8D8A]">Select documents and run the agent.</p>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Right Panel: Intelligence Viewer */}
+              <div className="lg:col-span-6">
+                <div className="sticky top-0 bg-[#181A19] rounded-xl overflow-hidden shadow-sm border border-[#2A2C2A] flex flex-col h-[600px]">
+                  {/* Fake PDF Toolbar */}
+                  <div className="bg-[#181A19] px-4 py-2 flex items-center justify-between border-b border-[#2A2C2A]">
+                    <div className="flex gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#2A2C2A]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#2A2C2A]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#2A2C2A]" />
+                    </div>
+                    <span className="text-[10px] font-mono text-[#8A8D8A]">AI Document Viewer</span>
+                  </div>
+                  
+                  {/* Document Content */}
+                  <div className="flex-1 p-5 relative overflow-hidden bg-[#131413]">
+                    {!selectedNcr ? (
+                      <div className="h-full flex flex-col items-center justify-center text-[#2A2C2A] text-center px-4">
+                        <FileText size={32} className="mb-3 opacity-40" />
+                        <p className="text-xs text-[#8A8D8A]">Select a deviation to view AI insights and source citations.</p>
+                      </div>
+                    ) : (
+                      <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col">
+                        {/* Mocked PDF text showing highlight */}
+                        <div className="bg-[#181A19] rounded-lg shadow-sm p-4 text-[11px] leading-relaxed text-[#8A8D8A] font-serif relative overflow-hidden h-40 mb-4 border border-[#2A2C2A]">
+                          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                          <br/><br/>
+                          <span className="bg-[#3ECF8E]/20 text-white font-bold px-1 rounded relative inline-block border border-[#3ECF8E]/50">
+                            {selectedNcr.clause_number}: {selectedNcr.specified_value}
+                            <motion.span animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -inset-0.5 border border-[#3ECF8E] rounded pointer-events-none" />
+                          </span>
+                          <br/><br/>
+                          Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.
+                        </div>
+
+                        {/* AI Insights Panel */}
+                        <div className="flex-1 bg-[#181A19] border border-[#2A2C2A] rounded-xl p-4 text-white flex flex-col">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-2 h-2 rounded-full bg-[#3ECF8E] animate-pulse" />
+                            <h4 className="font-bold text-sm">AI Insights</h4>
+                          </div>
+                          
+                          <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar text-xs">
+                            <div>
+                              <span className="text-[#8A8D8A] text-[10px] font-bold uppercase tracking-wider block mb-1">Deviation Rationale</span>
+                              <p className="text-zinc-200 leading-relaxed">{selectedNcr.justification}</p>
+                            </div>
+                            
+                            <div className="bg-[#3ECF8E]/10 border border-[#3ECF8E]/30 p-3 rounded-lg">
+                              <span className="text-[#3ECF8E] text-[10px] font-bold uppercase tracking-wider block mb-1">Recommendation</span>
+                              <p className="text-white leading-relaxed">{selectedNcr.recommended_action}</p>
+                            </div>
+
+                            <div className="flex items-center justify-between bg-[#131413] p-3 rounded-lg border border-[#2A2C2A]">
+                              <span className="text-[#8A8D8A]">AI Confidence</span>
+                              <span className="font-bold text-[#3ECF8E]">{(selectedNcr.w_conform * 100).toFixed(1)}%</span>
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={() => navigate(`/ncr/${selectedNcr.ncr_id}`)}
+                            className="w-full mt-4 bg-white text-black hover:bg-zinc-200 text-sm font-semibold py-2 rounded-lg transition-colors shadow-sm"
+                          >
+                            Open Full NCR
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );

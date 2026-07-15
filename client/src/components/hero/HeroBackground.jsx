@@ -86,7 +86,7 @@ export default function HeroBackground() {
               cx={`${node.x}%`}
               cy={`${node.y}%`}
               r="2"
-              fill="#3B82F6"
+              fill="#0F3058"
               initial={{ opacity: 0, scale: 0 }}
               animate={{ 
                 opacity: [0.2, 0.8, 0.2], 

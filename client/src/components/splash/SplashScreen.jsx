@@ -124,7 +124,7 @@ function CornerMark({ pos }) {
     br: "M40 0 L40 40 L0 40",
   };
   const dots = { tl: [0, 0], tr: [40, 0], bl: [0, 40], br: [40, 40] };
-  const color = pos === "tl" || pos === "br" ? "#14B8A6" : "#3B82F6";
+  const color = pos === "tl" || pos === "br" ? "#14B8A6" : "#0F3058";
   const [cx, cy] = dots[pos];
 
   return (

@@ -37,16 +37,16 @@ function AuthInput({ label, type = "text", value, onChange, placeholder, icon })
   const [focused, setFocused] = useState(false);
   return (
     <div className="space-y-1.5">
-      <label className="block text-[10px] font-bold text-[#555] uppercase tracking-[0.12em]">
+      <label className="block text-[10px] font-bold text-[#8A8D8A] uppercase tracking-[0.12em]">
         {label}
       </label>
       <div className={`relative flex items-center rounded-xl border transition-all duration-200 ${
         focused
           ? "border-emerald-500/60 bg-[#0f1a14] shadow-[0_0_0_3px_rgba(16,185,129,0.08)]"
-          : "border-[#27272a] bg-[#0d0d0f]"
+          : "border-[#2A2C2A] bg-[#0d0d0f]"
       }`}>
         {icon && (
-          <span className={`pl-3.5 shrink-0 transition-colors ${focused ? "text-emerald-500" : "text-[#444]"}`}>
+          <span className={`pl-3.5 shrink-0 transition-colors ${focused ? "text-emerald-500" : "text-[#8A8D8A]"}`}>
             {icon}
           </span>
         )}
@@ -57,7 +57,7 @@ function AuthInput({ label, type = "text", value, onChange, placeholder, icon })
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder={placeholder}
-          className="w-full bg-transparent px-3.5 py-3 text-sm text-[#eaeaea] placeholder-[#333] focus:outline-none"
+          className="w-full bg-transparent px-3.5 py-3 text-sm text-[#EDEFEE] placeholder-[#2A2C2A] focus:outline-none"
         />
       </div>
     </div>
@@ -186,7 +186,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
   );
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center overflow-hidden bg-[#000000] font-sans">
+    <div className="min-h-screen relative flex items-center justify-center overflow-hidden bg-[#131413] font-sans">
       <BlueprintBackground />
 
       {/* ─── Home Button ────────────────────────────────────────── */}
@@ -195,7 +195,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.2 }}
         onClick={() => navigate("/")}
-        className="absolute top-6 left-6 z-30 flex items-center gap-2 bg-[#111111]/80 hover:bg-[#1a1a1a] border border-[#27272a] hover:border-[#3f3f46] px-4 py-2.5 rounded-xl text-xs font-bold text-[#888] hover:text-[#eaeaea] transition-all backdrop-blur-sm"
+        className="absolute top-6 left-6 z-30 flex items-center gap-2 bg-[#131413]/80 hover:bg-[#181A19] border border-[#2A2C2A] hover:border-[#2A2C2A] px-4 py-2.5 rounded-xl text-xs font-bold text-[#8A8D8A] hover:text-[#EDEFEE] transition-all backdrop-blur-sm"
       >
         {ArrowLeft}
         <span>Home</span>
@@ -215,7 +215,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
         </div>
         <div>
           <span className="font-extrabold text-white text-[15px] tracking-tight leading-none block">DataForge AI</span>
-          <span className="text-[9px] text-[#555] tracking-widest uppercase font-bold">Platform</span>
+          <span className="text-[9px] text-[#8A8D8A] tracking-widest uppercase font-bold">Platform</span>
         </div>
       </motion.div>
 
@@ -224,7 +224,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-[960px] mx-4 my-16 rounded-2xl overflow-hidden border border-[#1c1c1f]"
+        className="relative z-10 w-full max-w-[960px] mx-4 my-16 rounded-2xl overflow-hidden border border-[#181A19]"
         style={{ boxShadow: "0 40px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04)" }}
       >
         <div className={`grid md:grid-cols-2 min-h-[600px] transition-all duration-500`}>
@@ -237,14 +237,14 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: isRegister ? 20 : -20 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className={`flex flex-col justify-center p-8 md:p-12 bg-[#09090b] ${isRegister ? "order-1" : "order-1 md:order-2"}`}
+              className={`flex flex-col justify-center p-8 md:p-12 bg-[#181A19] ${isRegister ? "order-1" : "order-1 md:order-2"}`}
             >
               {/* Header */}
               <div className="mb-7">
-                <h2 className="text-2xl font-extrabold text-[#eaeaea] tracking-tight mb-1.5">
+                <h2 className="text-2xl font-extrabold text-[#EDEFEE] tracking-tight mb-1.5">
                   {isRegister ? "Create Account" : "Welcome Back"}
                 </h2>
-                <p className="text-xs text-[#555] font-medium leading-relaxed">
+                <p className="text-xs text-[#8A8D8A] font-medium leading-relaxed">
                   {isRegister
                     ? "Join DataForge AI — your AI-powered project intelligence platform"
                     : "Sign in to continue orchestrating your AI agents"}
@@ -252,7 +252,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               </div>
 
               {/* Role Switcher */}
-              <div className="flex bg-[#0d0d0f] p-1 rounded-xl border border-[#1c1c1f] mb-6 gap-1">
+              <div className="flex bg-[#0d0d0f] p-1 rounded-xl border border-[#181A19] mb-6 gap-1">
                 {[
                   { key: "team", label: "Project Team" },
                   { key: "vendor", label: "Vendor Portal" },
@@ -264,7 +264,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                     className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
                       role === key
                         ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "text-[#444] hover:text-[#888]"
+                        : "text-[#8A8D8A] hover:text-[#8A8D8A]"
                     }`}
                   >
                     {label}
@@ -349,7 +349,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
 
                 {!isRegister && (
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <label className="flex items-center gap-2 cursor-pointer text-[#555] hover:text-[#888] transition-colors">
+                    <label className="flex items-center gap-2 cursor-pointer text-[#8A8D8A] hover:text-[#8A8D8A] transition-colors">
                       <input
                         type="checkbox"
                         className="w-3.5 h-3.5 rounded accent-emerald-500"
@@ -363,7 +363,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                 )}
 
                 {isRegister && (
-                  <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[#555] pt-1">
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[#8A8D8A] pt-1">
                     <input
                       type="checkbox"
                       checked={agree}
@@ -406,7 +406,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               </form>
 
               {/* Mobile toggle */}
-              <p className="text-xs text-[#444] text-center mt-6 md:hidden">
+              <p className="text-xs text-[#8A8D8A] text-center mt-6 md:hidden">
                 {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
                 <button onClick={toggleMode} className="font-bold text-emerald-500 hover:text-emerald-400 transition-colors">
                   {isRegister ? "Sign In" : "Sign Up"}
@@ -423,7 +423,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
-              className={`hidden md:flex flex-col justify-between p-10 relative overflow-hidden bg-[#0a0a0a] border-l border-[#1c1c1f] ${isRegister ? "order-2" : "order-2 md:order-1"}`}
+              className={`hidden md:flex flex-col justify-between p-10 relative overflow-hidden bg-[#131413] border-l border-[#181A19] ${isRegister ? "order-2" : "order-2 md:order-1"}`}
             >
               {/* Ambient glow */}
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
@@ -453,14 +453,14 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
 
               {/* Main content */}
               <div className="relative z-10 space-y-6">
-                <h3 className="text-3xl font-extrabold text-[#eaeaea] tracking-tight leading-tight">
+                <h3 className="text-3xl font-extrabold text-[#EDEFEE] tracking-tight leading-tight">
                   {isRegister ? (
                     <>Welcome to<br /><span className="text-emerald-400">DataForge AI</span></>
                   ) : (
                     <>Good to have<br />you <span className="text-emerald-400">back.</span></>
                   )}
                 </h3>
-                <p className="text-sm text-[#555] leading-relaxed max-w-xs">
+                <p className="text-sm text-[#8A8D8A] leading-relaxed max-w-xs">
                   {isRegister
                     ? "Register to start orchestrating AI agents for your data centre project — from vendor bidding to compliance monitoring."
                     : "Access your project intelligence dashboard, manage your AI agents, and keep your projects running at peak performance."}
@@ -478,10 +478,10 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                      className="flex items-center gap-2.5 text-xs text-[#666]"
+                      className="flex items-center gap-2.5 text-xs text-[#8A8D8A]"
                     >
                       <span className="w-4 h-4 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </span>
@@ -492,13 +492,13 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
 
                 {/* Toggle CTA */}
                 <div className="pt-4">
-                  <p className="text-xs text-[#444] mb-3">
+                  <p className="text-xs text-[#8A8D8A] mb-3">
                     {isRegister ? "Already registered?" : "New to DataForge AI?"}
                   </p>
                   <button
                     type="button"
                     onClick={toggleMode}
-                    className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#27272a] hover:border-emerald-500/40 text-xs font-bold text-[#888] hover:text-emerald-400 transition-all duration-200"
+                    className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#2A2C2A] hover:border-emerald-500/40 text-xs font-bold text-[#8A8D8A] hover:text-emerald-400 transition-all duration-200"
                   >
                     {isRegister ? "Sign In Instead" : "Create an Account"}
                     <svg
@@ -521,10 +521,10 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                 ].map(({ label, value }) => (
                   <div
                     key={label}
-                    className="flex flex-col bg-[#0d0d0f] border border-[#1c1c1f] rounded-xl px-4 py-2.5"
+                    className="flex flex-col bg-[#0d0d0f] border border-[#181A19] rounded-xl px-4 py-2.5"
                   >
                     <span className="text-sm font-extrabold text-emerald-400">{value}</span>
-                    <span className="text-[10px] text-[#444] font-medium mt-0.5">{label}</span>
+                    <span className="text-[10px] text-[#8A8D8A] font-medium mt-0.5">{label}</span>
                   </div>
                 ))}
               </div>

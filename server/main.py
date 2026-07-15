@@ -127,7 +127,6 @@ def _validate_environment() -> None:
     
     # Optional checks
     optional_vars = {
-        "OLLAMA_BASE_URL": "Ollama fallback not configured.",
         "CHROMA_PATH": f"Using default ChromaDB path: {os.getenv('CHROMA_PATH', './chroma_db')}",
         "UPLOADS_PATH": f"Using default uploads path: {os.getenv('UPLOADS_PATH', './uploads')}",
     }
@@ -140,7 +139,6 @@ def _validate_environment() -> None:
     logger.info(f"📋 Active Configuration:")
     logger.info(f"   Groq Model: {os.getenv('GROQ_MODEL', 'Not set')}")
     logger.info(f"   API Keys: {len(os.getenv('GROQ_API_KEYS', '').split(','))} configured")
-    logger.info(f"   Ollama URL: {os.getenv('OLLAMA_BASE_URL', 'Not configured')}")
     logger.info(f"   Max Concurrent: {os.getenv('GROQ_MAX_CONCURRENT', 'Default')}")
 
 
@@ -242,6 +240,7 @@ _register_router("routers.commissioning", "/api/commissioning", ["Commissioning"
 _register_router("routers.supply_chain", "/api/supply-chain", ["Supply Chain"])
 _register_router("routers.webhooks", "/api/webhooks", ["Webhooks"])
 _register_router("routers.design", "/api/design", ["Design"])
+_register_router("routers.integrations", "/api/integrations", ["Integrations"])
 
 
 # ============================================================================
@@ -415,13 +414,6 @@ async def health_check() -> dict:
     health_status["groq_api"] = {
         "keys_configured": len(groq_keys.split(",")) if groq_keys else 0,
         "model": os.getenv("GROQ_MODEL", "Not set")
-    }
-    
-    # Check Ollama
-    ollama_url = os.getenv("OLLAMA_BASE_URL")
-    health_status["ollama"] = {
-        "configured": ollama_url is not None,
-        "url": ollama_url or "Not configured"
     }
     
     return health_status

@@ -10,7 +10,7 @@ function CompliancePanel() {
     { spec: "UPS Efficiency §8.1", status: "WARN", pct: 78 },
     { spec: "Cable Tray §5.7", status: "PASS", pct: 94 },
   ];
-  const colors = { PASS: "#22C55E", FAIL: "#EF4444", WARN: "#F59E0B" };
+  const colors = { PASS: "#22C55E", FAIL: "#E24B4A", WARN: "#F2AF48" };
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-premium overflow-hidden">
@@ -65,7 +65,7 @@ function SchedulePanel() {
     { label: "Cooling System Test",  start: 55, width: 30, risk: 0.3 },
     { label: "IT Infrastructure",    start: 65, width: 25, risk: 0.9 },
   ];
-  const riskColor = (r) => r >= 0.7 ? "#EF4444" : r >= 0.5 ? "#F59E0B" : "#22C55E";
+  const riskColor = (r) => r >= 0.7 ? "#E24B4A" : r >= 0.5 ? "#F2AF48" : "#22C55E";
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-premium overflow-hidden">

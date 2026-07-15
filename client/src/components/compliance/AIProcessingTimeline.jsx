@@ -23,7 +23,7 @@ export default function AIProcessingTimeline() {
   }, [currentStep]);
 
   return (
-    <div className="card p-8 bg-white/60 backdrop-blur-xl border border-white/50 relative overflow-hidden">
+    <div className="card p-8 bg-[#1e1e1e]/60 backdrop-blur-xl border border-white/50 relative overflow-hidden">
       {/* Animated processing glow */}
       <motion.div 
         animate={{ opacity: [0.3, 0.6, 0.3] }}
@@ -35,15 +35,15 @@ export default function AIProcessingTimeline() {
         <motion.div 
           animate={{ rotate: 360 }} 
           transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-          className="w-10 h-10 border-4 border-slate-100 border-t-teal-500 rounded-full"
+          className="w-10 h-10 border-4 border-zinc-800 border-t-teal-500 rounded-full"
         />
         <div>
-          <h3 className="text-xl font-bold text-slate-800">Intelligence Engine Running</h3>
-          <p className="text-sm text-slate-500">Cross-referencing documents via AI embeddings</p>
+          <h3 className="text-xl font-bold text-zinc-100">Intelligence Engine Running</h3>
+          <p className="text-sm text-zinc-400">Cross-referencing documents via AI embeddings</p>
         </div>
       </div>
 
-      <div className="relative pl-6 border-l-2 border-slate-100 space-y-6">
+      <div className="relative pl-6 border-l-2 border-zinc-800 space-y-6">
         {STEPS.map((step, idx) => {
           const isCompleted = currentStep > idx;
           const isActive = currentStep === idx;
@@ -52,8 +52,8 @@ export default function AIProcessingTimeline() {
             <div key={idx} className="relative">
               {/* Timeline dot */}
               <div 
-                className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 bg-white transition-colors duration-500 flex items-center justify-center ${
-                  isCompleted ? "border-teal-500 text-teal-500" : isActive ? "border-blue-500" : "border-slate-200"
+                className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 bg-[#1e1e1e] transition-colors duration-500 flex items-center justify-center ${
+                  isCompleted ? "border-teal-500 text-teal-500" : isActive ? "border-blue-500" : "border-zinc-700"
                 }`}
               >
                 {isCompleted && <CheckCircle size={10} strokeWidth={4} />}
@@ -61,7 +61,7 @@ export default function AIProcessingTimeline() {
                   <motion.div 
                     animate={{ scale: [1, 1.5, 1], opacity: [1, 0, 1] }} 
                     transition={{ duration: 1.5, repeat: Infinity }}
-                    className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                    className="w-1.5 h-1.5 bg-blue-950/400 rounded-full"
                   />
                 )}
               </div>
@@ -72,15 +72,15 @@ export default function AIProcessingTimeline() {
                 transition={{ duration: 0.5 }}
                 className="pl-2"
               >
-                <span className={`text-sm font-semibold ${isCompleted ? "text-slate-800" : isActive ? "text-blue-600" : "text-slate-400"}`}>
+                <span className={`text-sm font-semibold ${isCompleted ? "text-zinc-100" : isActive ? "text-blue-400" : "text-slate-400"}`}>
                   {step}
                 </span>
                 
                 {/* Active progress bar */}
                 {isActive && (
-                  <div className="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden max-w-xs">
+                  <div className="mt-2 h-1 w-full bg-zinc-800 rounded-full overflow-hidden max-w-xs">
                     <motion.div 
-                      className="h-full bg-blue-500 rounded-full"
+                      className="h-full bg-blue-950/400 rounded-full"
                       initial={{ width: "0%" }}
                       animate={{ width: "90%" }}
                       transition={{ duration: 1.5, ease: "easeOut" }}

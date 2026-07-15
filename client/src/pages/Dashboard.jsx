@@ -11,22 +11,22 @@ import api from "../api/client.js";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 // ─── Mini bar chart for activity ─────────────────────────────────────────────
-function MiniBarChart({ data = [], colorGood = "#10B981", colorBad = "#EF4444" }) {
+function MiniBarChart({ data = [], colorGood = "#3ECF8E", colorBad = "#E24B4A" }) {
   const max = Math.max(...data.map((d) => d.total || 1), 1);
   return (
-    <div className="flex items-end gap-0.5 h-12 w-full mt-2 bg-slate-50/50 p-1.5 rounded-lg border border-slate-100">
+    <div className="flex items-end gap-1 h-24 w-full mt-3 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
       {data.map((d, i) => (
         <div key={i} className="flex flex-col items-center gap-0.5 flex-1">
           {d.errors > 0 && (
             <div
-              className="w-full rounded-sm opacity-80"
-              style={{ height: `${(d.errors / max) * 24}px`, backgroundColor: colorBad, minHeight: "2px" }}
+              className="w-full rounded-sm opacity-80 transition-all duration-300"
+              style={{ height: `${(d.errors / max) * 64}px`, backgroundColor: colorBad, minHeight: "3px" }}
             />
           )}
           {d.good > 0 && (
             <div
-              className="w-full rounded-sm opacity-90"
-              style={{ height: `${(d.good / max) * 24}px`, backgroundColor: colorGood, minHeight: "2px" }}
+              className="w-full rounded-sm opacity-90 transition-all duration-300"
+              style={{ height: `${(d.good / max) * 64}px`, backgroundColor: colorGood, minHeight: "3px" }}
             />
           )}
         </div>
@@ -51,14 +51,14 @@ function StatusPill({ status }) {
 // ─── Info card (top grid) ──────────────────────────────────────────────────
 function InfoCard({ label, value, icon: Icon, iconColor = "text-slate-400", valueColor = "text-slate-900", sub }) {
   return (
-    <div className="flex items-start gap-3 py-4 px-5 border border-slate-200 rounded-xl bg-white hover:bg-slate-50/50 transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-      <div className={`mt-0.5 ${iconColor}`}>
-        <Icon size={16} />
+    <div className="flex items-start gap-4 p-6 border border-slate-200 rounded-2xl bg-white hover:bg-slate-50 transition-colors shadow-sm">
+      <div className={`mt-0.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100 ${iconColor}`}>
+        <Icon size={20} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</div>
-        <div className={`text-sm font-bold truncate ${valueColor}`}>{value}</div>
-        {sub && <div className="text-[10px] text-slate-500 mt-0.5 truncate">{sub}</div>}
+        <div className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{label}</div>
+        <div className={`text-2xl font-extrabold truncate mb-1.5 ${valueColor}`}>{value}</div>
+        {sub && <div className="text-xs text-slate-500 truncate">{sub}</div>}
       </div>
     </div>
   );
@@ -67,8 +67,8 @@ function InfoCard({ label, value, icon: Icon, iconColor = "text-slate-400", valu
 // ─── Service chart card ───────────────────────────────────────────────────────
 function ServiceCard({ label, total, warnings, errors, chartData }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 flex-1 min-w-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-      <div className="flex items-center gap-3 mb-1">
+    <div className="bg-white border border-slate-200 rounded-xl p-5 flex-1 min-w-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)] min-h-[160px] flex flex-col justify-between">
+      <div className="flex items-center gap-3 mb-2">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{label}</span>
         <div className="ml-auto flex items-center gap-3 text-[10px]">
           <span className="flex items-center gap-1 text-amber-600">
@@ -88,28 +88,46 @@ function ServiceCard({ label, total, warnings, errors, chartData }) {
 }
 
 // ─── Advisor issue card ───────────────────────────────────────────────────────
-function IssueCard({ severity, category, title, description }) {
+function IssueCard({ severity, category, title, description, onResolve }) {
   const sevColors = {
-    CRITICAL: "text-red-700 border-red-200 bg-red-50/30",
-    MAJOR: "text-amber-700 border-amber-255 bg-amber-50/30",
-    MINOR: "text-blue-750 border-blue-200 bg-blue-50/30",
+    CRITICAL: "border-red-500/30 bg-red-500/5",
+    MAJOR: "border-amber-500/30 bg-amber-500/5",
+    MINOR: "border-blue-500/30 bg-blue-500/5",
   };
   const pillColor = {
-    CRITICAL: "bg-red-100 text-red-700 border-red-200",
-    MAJOR: "bg-amber-100 text-amber-800 border-amber-250",
-    MINOR: "bg-blue-100 text-blue-700 border-blue-200",
+    CRITICAL: "bg-red-500/20 text-red-400 border-red-500/30",
+    MAJOR: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    MINOR: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   };
+  const iconColor = {
+    CRITICAL: "text-red-400",
+    MAJOR: "text-amber-400",
+    MINOR: "text-blue-400",
+  };
+
   return (
-    <div className={`border rounded-xl p-4 ${sevColors[severity] || sevColors.MINOR} shadow-[0_1px_2px_rgba(0,0,0,0.02)]`}>
-      <div className="flex items-center gap-2 mb-3">
-        <AlertTriangle size={14} className="opacity-80" />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{category}</span>
-        <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${pillColor[severity] || pillColor.MINOR}`}>
-          {severity}
-        </span>
+    <div className={`border rounded-xl p-5 ${sevColors[severity] || sevColors.MINOR} hover:border-opacity-100 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group shadow-sm`}>
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle size={15} className={iconColor[severity] || iconColor.MINOR} />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{category}</span>
+          <span className={`ml-auto text-[10px] font-bold px-2.5 py-0.5 rounded-full border uppercase ${pillColor[severity] || pillColor.MINOR}`}>
+            {severity}
+          </span>
+        </div>
+        <div className="font-bold text-base text-slate-200 mb-2">{title}</div>
+        <div className="text-xs text-slate-400 leading-relaxed mb-5">{description}</div>
       </div>
-      <div className="font-bold text-sm text-slate-900 mb-1">{title}</div>
-      <div className="text-[11px] text-slate-500 leading-relaxed">{description}</div>
+      <button 
+        onClick={onResolve}
+        className={`w-full py-2.5 rounded-lg text-xs font-bold border transition-colors flex items-center justify-center gap-2 ${
+        severity === 'CRITICAL' ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' :
+        severity === 'MAJOR' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20' :
+        'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20'
+      }`}>
+        <span>Review & Resolve</span>
+        <ArrowRight size={12} />
+      </button>
     </div>
   );
 }
@@ -120,10 +138,44 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [resolving, setResolving] = useState(false);
   const navigate = useNavigate();
   const { currentProject } = useWorkspace();
 
-  useEffect(() => { fetchSummary(); }, []);
+  useEffect(() => { 
+    fetchSummary(); 
+
+    // Deep Observation Loop: Polling for background changes
+    const observationLoop = setInterval(() => {
+      fetchSummary();
+    }, 15000); // 15 seconds
+
+    // Agent Automations: Auto-run on page visit (max once per day)
+    try {
+      const savedSettings = localStorage.getItem('agentSettings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.autoRunOnPageVisit) {
+          const lastRunStr = localStorage.getItem('lastAutoRunOnPageVisit');
+          const lastRun = lastRunStr ? new Date(lastRunStr) : null;
+          const now = new Date();
+          // Check if 24 hours have passed
+          if (!lastRun || (now - lastRun) > 24 * 60 * 60 * 1000) {
+             localStorage.setItem('lastAutoRunOnPageVisit', now.toISOString());
+             
+             // Run schedule risk agent in background
+             api.analyzeSchedule()
+               .then(() => fetchSummary()) // refresh dashboard data after
+               .catch(err => console.error("Auto-run failed:", err));
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Agent automation error:", e);
+    }
+
+    return () => clearInterval(observationLoop);
+  }, []);
 
   async function fetchSummary() {
     try {
@@ -142,6 +194,19 @@ export default function Dashboard() {
     setRefreshing(true);
     await fetchSummary();
     setRefreshing(false);
+  }
+
+  async function handleResolveIssues() {
+    setResolving(true);
+    try {
+      await api.resolveDashboardIssues();
+      await fetchSummary();
+    } catch (e) {
+      console.error(e);
+      setError("Failed to resolve issues.");
+    } finally {
+      setResolving(false);
+    }
   }
 
   if (loading) {
@@ -202,9 +267,9 @@ export default function Dashboard() {
 
   return (
     <div className="flex-1 bg-slate-50/50 text-slate-700 px-4 sm:px-6 py-6 lg:px-8">
-
-      {/* ── Top: Project Header ── */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+      <div className="flex flex-col mb-6">
+        {/* ── Top: Project Header ── */}
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
@@ -225,6 +290,13 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 mr-2" title="Deep Observation Loop Active">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+              </span>
+              <span className="text-xs font-bold text-purple-400">Observing...</span>
+            </div>
             <button
               onClick={handleRefresh}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold transition-colors shadow-sm"
@@ -250,22 +322,23 @@ export default function Dashboard() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6 mb-8"
       >
-        {/* Left: 3x3 info cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        {/* Left: Key Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           <InfoCard
-            label="Status"
-            value={health >= 70 ? "Healthy" : health >= 40 ? "Degraded" : "At Risk"}
-            icon={CheckCircle2}
-            iconColor={health >= 70 ? "text-emerald-500" : health >= 40 ? "text-amber-500" : "text-red-500"}
-            valueColor={health >= 70 ? "text-emerald-650" : health >= 40 ? "text-amber-600" : "text-red-655"}
-            sub={`Health score: ${health.toFixed(0)}%`}
+            label="Critical NCRs"
+            value={ncr.CRITICAL || 0}
+            icon={AlertCircle}
+            iconColor="text-red-500"
+            valueColor={ncr.CRITICAL > 0 ? "text-red-655" : "text-slate-900"}
+            sub={`${totalNcrs} total open non-conformances`}
           />
           <InfoCard
-            label="Compliance"
-            value={`${summary?.compliance_checks_run || 0} checks`}
-            icon={Shield}
-            iconColor="text-blue-500"
-            sub={`Accuracy: ${summary?.compliance_accuracy_pct?.toFixed(1) || 0}%`}
+            label="Tasks at Risk"
+            value={`${summary?.at_risk_tasks || 0}`}
+            icon={BarChart2}
+            iconColor="text-amber-500"
+            valueColor={summary?.at_risk_tasks > 0 ? "text-amber-600" : "text-slate-900"}
+            sub={`${summary?.critical_path_tasks || 0} on critical path`}
           />
           <InfoCard
             label="Open RFIs"
@@ -275,48 +348,28 @@ export default function Dashboard() {
             sub="Awaiting engineering response"
           />
           <InfoCard
-            label="Critical NCRs"
-            value={ncr.CRITICAL || 0}
-            icon={AlertCircle}
-            iconColor="text-red-500"
-            valueColor={ncr.CRITICAL > 0 ? "text-red-655" : "text-slate-900"}
-            sub={`${totalNcrs} total open NCRs`}
-          />
-          <InfoCard
-            label="Schedule Risk"
-            value={`${summary?.at_risk_tasks || 0} tasks`}
-            icon={BarChart2}
-            iconColor="text-amber-500"
-            valueColor={summary?.at_risk_tasks > 0 ? "text-amber-600" : "text-slate-950"}
-            sub={`${summary?.critical_path_tasks || 0} on critical path`}
-          />
-          <InfoCard
-            label="Last Agent Run"
-            value={lastRun ? lastRun.agent_name.replace("_", " ") : "No runs yet"}
+            label="AI Hours Saved"
+            value={`${summary?.manual_hours_saved_weekly || 0}h`}
             icon={Clock}
-            iconColor="text-slate-400"
-            sub={lastRun ? lastRun.started_ts?.slice(0, 16).replace("T", " ") : "Upload docs to start"}
+            iconColor="text-emerald-500"
+            valueColor="text-emerald-500"
+            sub="Estimated weekly time saved"
           />
           <InfoCard
-            label="Documents"
-            value={summary?.total_documents || 0}
-            icon={Archive}
-            iconColor="text-cyan-500"
-            sub="Specification & submittal files"
+            label="Risk Detection"
+            value={`${summary?.risks_flagged_avg_days_advance || 0}d`}
+            icon={TrendingUp}
+            iconColor="text-blue-500"
+            valueColor="text-blue-500"
+            sub="Avg advance warning for delays"
           />
           <InfoCard
-            label="Capacity"
-            value={currentProject?.size_mw ? `${currentProject.size_mw} MW` : "—"}
-            icon={Server}
+            label="Compliance Rate"
+            value={`${summary?.compliance_accuracy_pct?.toFixed(1) || 0}%`}
+            icon={Shield}
             iconColor="text-indigo-500"
-            sub={currentProject?.location || "No location set"}
-          />
-          <InfoCard
-            label="Target Deadline"
-            value={currentProject?.deadline || "—"}
-            icon={GitBranch}
-            iconColor="text-pink-500"
-            sub={currentProject?.budget ? `Budget: $${(currentProject.budget / 1e6).toFixed(1)}M` : "No budget set"}
+            valueColor="text-indigo-500"
+            sub={`From ${summary?.compliance_checks_total || 0} automated checks`}
           />
         </div>
 
@@ -339,10 +392,10 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <div className="relative w-16 h-16 flex-shrink-0">
               <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-                <circle cx="32" cy="32" r="26" fill="none" stroke="#f1f5f9" strokeWidth="6" />
+                <circle cx="32" cy="32" r="26" fill="none" stroke="#2A2C2A" strokeWidth="6" />
                 <circle
                   cx="32" cy="32" r="26" fill="none"
-                  stroke={health >= 70 ? "#10B981" : health >= 40 ? "#F59E0B" : "#EF4444"}
+                  stroke={health >= 70 ? "#3ECF8E" : health >= 40 ? "#F2AF48" : "#E24B4A"}
                   strokeWidth="6"
                   strokeDasharray={`${(health / 100) * 163} 163`}
                   strokeLinecap="round"
@@ -359,10 +412,10 @@ export default function Dashboard() {
 
           <div className="space-y-3">
             {[
-              { label: "Compliance", value: summary?.compliance_accuracy_pct || 0, max: 100, color: "#3B82F6", unit: "%" },
-              { label: "Docs processed", value: Math.min((summary?.total_documents || 0) * 10, 100), max: 100, color: "#8B5CF6", unit: "" },
-              { label: "Tasks healthy", value: Math.max(0, 100 - ((summary?.at_risk_tasks || 0) * 10)), max: 100, color: "#10B981", unit: "%" },
-              { label: "RFI backlog", value: Math.min((summary?.open_rfis || 0) * 5, 100), max: 100, color: "#F59E0B", unit: "" },
+              { label: "Compliance", value: summary?.compliance_accuracy_pct || 0, max: 100, color: "#1E1F9E", unit: "%" },
+              { label: "Docs processed", value: Math.min((summary?.total_documents || 0) * 10, 100), max: 100, color: "#03AC66", unit: "" },
+              { label: "Tasks healthy", value: Math.max(0, 100 - ((summary?.at_risk_tasks || 0) * 10)), max: 100, color: "#3ECF8E", unit: "%" },
+              { label: "RFI backlog", value: Math.min((summary?.open_rfis || 0) * 5, 100), max: 100, color: "#F2AF48", unit: "" },
             ].map(({ label, value, color, unit }) => (
               <div key={label}>
                 <div className="flex items-center justify-between text-[10px] mb-1">
@@ -391,6 +444,7 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
+      </div>
 
       {/* ── Activity Charts Section ── */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-8">
@@ -464,7 +518,7 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
             {advisorIssues.slice(0, 4).map((issue, i) => (
-              <IssueCard key={i} {...issue} />
+              <IssueCard key={i} {...issue} onResolve={handleResolveIssues} />
             ))}
           </div>
         </motion.div>

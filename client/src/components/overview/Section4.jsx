@@ -5,7 +5,7 @@ import { ShieldCheck, Zap, TrendingUp, Bot } from "lucide-react";
 const metrics = [
   { val: 98,  suf: "%", label: "Compliance Accuracy",     color: "#22C55E", icon: <ShieldCheck strokeWidth={1.75} size={28} /> },
   { val: 40,  suf: "%", label: "Reduced Manual Review",   color: "#14B8A6", icon: <Zap strokeWidth={1.75} size={28} /> },
-  { val: 3,   suf: "×", label: "Faster Decision Making",  color: "#3B82F6", icon: <TrendingUp strokeWidth={1.75} size={28} /> },
+  { val: 3,   suf: "×", label: "Faster Decision Making",  color: "#0F3058", icon: <TrendingUp strokeWidth={1.75} size={28} /> },
   { val: 24,  suf: "/7",label: "AI Knowledge Assistant",  color: "#8B5CF6", icon: <Bot strokeWidth={1.75} size={28} /> },
 ];
 

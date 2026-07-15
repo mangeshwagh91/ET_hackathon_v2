@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Database, 
   Cloud, 
@@ -12,164 +12,308 @@ import {
   Map,
   Activity,
   Building,
-  Globe
+  Globe,
+  Upload,
+  Search,
+  Code2,
+  Lock,
+  SearchCode
 } from "lucide-react";
+import api from "../api/client.js";
 
 const integrations = [
   {
     id: "sap",
     name: "SAP ERP",
     category: "Procurement & Cost",
-    icon: <Database size={24} className="text-blue-500" />,
+    icon: <Database size={20} className="text-blue-400" />,
     description: "Live synchronization of purchase orders, vendor invoices, and actualized costs.",
-    lastSync: "2 mins ago"
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
   },
   {
     id: "primavera",
     name: "Primavera P6",
     category: "Schedule & Critical Path",
-    icon: <Activity size={24} className="text-emerald-500" />,
+    icon: <Activity size={20} className="text-emerald-400" />,
     description: "Bi-directional sync of schedule logic, float calculations, and task dependencies.",
-    lastSync: "5 mins ago"
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
   },
   {
     id: "forge",
     name: "Autodesk Forge",
     category: "BIM & 3D Models",
-    icon: <Box size={24} className="text-rose-500" />,
+    icon: <Box size={20} className="text-rose-400" />,
     description: "Ingestion of 3D clash detection reports and spatial commissioning models.",
-    lastSync: "1 hour ago"
+    lastSync: "Not connected",
+    tags: ["ALPHA", "OFFICIAL"]
   },
   {
-    id: "aconex",
-    name: "Oracle Aconex",
-    category: "Document Control",
-    icon: <Cloud size={24} className="text-orange-500" />,
-    description: "Automated scraping of incoming vendor submittals and client RFIs.",
-    lastSync: "12 mins ago"
+    id: "uptime",
+    name: "Uptime Institute API",
+    category: "Engineering Standards",
+    icon: <Building size={20} className="text-purple-400" />,
+    description: "Secure integration of paid Tier Classification standards for automated QA checklists.",
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
+  },
+  {
+    id: "tia",
+    name: "TIA-942 Library",
+    category: "Engineering Standards",
+    icon: <Database size={20} className="text-amber-400" />,
+    description: "Direct sync with official Telecommunications Industry Association standards documents.",
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
+  },
+  {
+    id: "bicsi",
+    name: "BICSI 002",
+    category: "Engineering Standards",
+    icon: <Database size={20} className="text-yellow-400" />,
+    description: "Data Center Design and Implementation Best Practices rulebook integration.",
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
+  },
+  {
+    id: "ashrae",
+    name: "ASHRAE TC 9.9",
+    category: "Engineering Standards",
+    icon: <Database size={20} className="text-cyan-400" />,
+    description: "Thermal guidelines for Data Processing Environments and cooling optimization.",
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
+  },
+  {
+    id: "iso_en",
+    name: "ISO 50001 / EN 50600",
+    category: "Engineering Standards",
+    icon: <Database size={20} className="text-emerald-400" />,
+    description: "Energy management and data centre facilities infrastructures standards.",
+    lastSync: "Not connected",
+    tags: ["BETA", "OFFICIAL"]
+  },
+  {
+    id: "nfpa",
+    name: "NFPA 75 / 76",
+    category: "Engineering Standards",
+    icon: <Database size={20} className="text-red-400" />,
+    description: "Fire protection of information technology equipment and telecommunications facilities.",
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
   },
   {
     id: "iot",
     name: "Site IoT Sensors",
     category: "Live Conditions",
-    icon: <Wifi size={24} className="text-teal-500" />,
+    icon: <Wifi size={20} className="text-teal-400" />,
     description: "Real-time telemetry for temperature, humidity, and generator power loads.",
-    lastSync: "Just now"
-  },
-  {
-    id: "logistics",
-    name: "Global Logistics API",
-    category: "Supply Chain",
-    icon: <Globe size={24} className="text-indigo-500" />,
-    description: "Live maritime and air freight GPS tracking for critical path equipment.",
-    lastSync: "30 mins ago"
+    lastSync: "Not connected",
+    tags: ["OFFICIAL"]
   }
 ];
 
 export default function IntegrationsPage() {
   const [syncing, setSyncing] = useState({});
+  const [connectedIds, setConnectedIds] = useState([]);
+  const fileInputRef = useRef(null);
+  const [activeUpload, setActiveUpload] = useState({ id: null, name: null });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("All");
 
-  const toggleSync = (id) => {
-    setSyncing(prev => ({ ...prev, [id]: true }));
-    // Fake the sync time
-    setTimeout(() => {
-      setSyncing(prev => ({ ...prev, [id]: false }));
-    }, Math.random() * 2000 + 1500);
+  const handleConnectClick = (integration) => {
+    const isConnected = connectedIds.includes(integration.id) || integration.lastSync !== "Not connected";
+    if (!isConnected) {
+      setActiveUpload({ id: integration.id, name: integration.name });
+      fileInputRef.current.click();
+    } else {
+      setSyncing(prev => ({ ...prev, [integration.id]: true }));
+      setTimeout(() => {
+        setSyncing(prev => ({ ...prev, [integration.id]: false }));
+      }, Math.random() * 2000 + 1500);
+    }
   };
 
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !activeUpload.id) return;
+    
+    setSyncing(prev => ({ ...prev, [activeUpload.id]: true }));
+    try {
+      await api.uploadIntegrationDocument(file, activeUpload.name);
+      setConnectedIds(prev => [...prev, activeUpload.id]);
+    } catch (err) {
+      console.error("Upload failed", err);
+    } finally {
+      setSyncing(prev => ({ ...prev, [activeUpload.id]: false }));
+      setActiveUpload({ id: null, name: null });
+      e.target.value = null; // reset input
+    }
+  };
+
+  const filteredIntegrations = integrations.filter(int => {
+    const matchesSearch = int.name.toLowerCase().includes(searchQuery.toLowerCase()) || int.description.toLowerCase().includes(searchQuery.toLowerCase());
+    if (activeTab === "All") return matchesSearch;
+    if (activeTab === "Engineering Standards") return matchesSearch && int.category === "Engineering Standards";
+    if (activeTab === "Live Data") return matchesSearch && (int.category === "Live Conditions" || int.category === "Supply Chain");
+    return matchesSearch;
+  });
+
+  // Derived installed items
+  const installedItems = integrations.filter(int => connectedIds.includes(int.id) || int.lastSync !== "Not connected");
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Data Integrations Hub</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage your enterprise connections. The Master Orchestrator requires live data feeds to trigger autonomous events.
-          </p>
+    <div className="flex h-screen bg-[#131413] text-white overflow-hidden">
+      
+      {/* Hidden File Input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        accept="application/pdf" 
+        className="hidden" 
+      />
+
+      {/* ─── Left Sidebar (Supabase Style) ─── */}
+      <div className="w-[260px] flex-none bg-[#131413] border-r border-[#2A2C2A] overflow-y-auto z-10 flex flex-col custom-scrollbar pb-6 pt-6 px-4">
+        <h1 className="text-xl font-bold text-white mb-8 tracking-tight px-2">Integrations</h1>
+        
+        <div className="mb-8">
+          <div className="text-xs font-semibold text-[#8A8D8A] uppercase tracking-wider mb-2 px-2">Explore</div>
+          <div className="space-y-0.5">
+            <button 
+              onClick={() => setActiveTab("All")}
+              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "All" ? "bg-[#181A19] text-white font-medium" : "text-[#8A8D8A] hover:text-white"}`}
+            >
+              All
+            </button>
+            <button 
+              onClick={() => setActiveTab("Engineering Standards")}
+              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "Engineering Standards" ? "bg-[#181A19] text-white font-medium" : "text-[#8A8D8A] hover:text-white"}`}
+            >
+              Engineering Standards
+            </button>
+            <button 
+              onClick={() => setActiveTab("Live Data")}
+              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "Live Data" ? "bg-[#181A19] text-white font-medium" : "text-[#8A8D8A] hover:text-white"}`}
+            >
+              Live Data
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium shadow-sm">
-          <Server size={16} className="text-emerald-400" />
-          Event Bus Active
+
+        <div>
+          <div className="text-xs font-semibold text-[#8A8D8A] uppercase tracking-wider mb-2 px-2">Installed</div>
+          <div className="space-y-1">
+            {installedItems.length === 0 ? (
+              <div className="text-xs text-[#8A8D8A] px-2 py-1">No integrations installed</div>
+            ) : (
+              installedItems.map(item => (
+                <div key={item.id} className="flex items-center justify-between px-2 py-1.5 rounded-md group">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 bg-[#181A19] border border-[#2A2C2A] rounded">
+                      {item.icon}
+                    </div>
+                    <span className="text-sm text-[#d4d4d8] group-hover:text-white transition-colors">{item.name}</span>
+                  </div>
+                  {item.tags.includes("BETA") && (
+                    <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-full">BETA</span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {integrations.map((integration, idx) => (
-          <motion.div
-            key={integration.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
-          >
-            {/* Status indicator line at top */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
-            
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                {integration.icon}
-              </div>
-              <button 
-                onClick={() => toggleSync(integration.id)}
-                disabled={syncing[integration.id]}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  syncing[integration.id] 
-                    ? 'bg-amber-50 text-amber-700 border border-amber-200' 
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                }`}
-              >
-                {syncing[integration.id] ? (
-                  <>
-                    <RefreshCw size={12} className="animate-spin" />
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={12} />
-                    Connected
-                  </>
-                )}
-              </button>
-            </div>
-            
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
-                {integration.category}
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">{integration.name}</h3>
-              <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                {integration.description}
-              </p>
-            </div>
-            
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                <HardDrive size={12} />
-                Last Synced: {syncing[integration.id] ? "Updating..." : integration.lastSync}
-              </div>
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      
-      {/* Neo4j / Message Queue Callout for Judges */}
-      <div className="mt-8 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-xl flex items-center justify-between">
-        <div>
-          <h3 className="font-bold text-lg mb-1">Enterprise Data Pipeline Status</h3>
-          <p className="text-slate-400 text-sm">
-            All integrated feeds are published to <strong className="text-white">RabbitMQ</strong> and ingested into the <strong className="text-white">Neo4j Knowledge Graph</strong> for cross-agent contextual querying.
+      {/* ─── Main Content Area ─── */}
+      <div className="flex-1 flex flex-col bg-[#131413] overflow-y-auto custom-scrollbar">
+        
+        {/* Header section */}
+        <div className="px-10 pt-12 pb-8 max-w-7xl mx-auto w-full">
+          <h2 className="text-2xl font-semibold text-white mb-2">Extend your platform</h2>
+          <p className="text-[#8A8D8A] text-sm max-w-2xl mb-8">
+            Extensions and wrappers that add functionality to your database and connect to external services.
           </p>
-        </div>
-        <div className="hidden lg:flex items-center gap-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-emerald-400">14.2k</div>
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Events / Hr</div>
+
+          <div className="relative mb-8 w-full max-w-sm">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8D8A]" />
+            <input 
+              type="text" 
+              placeholder="Search integrations..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-[#181A19] border border-[#2A2C2A] text-sm text-white rounded-md pl-10 pr-3 py-2 w-full focus:outline-none focus:border-[#2A2C2A] transition-colors"
+            />
           </div>
-          <div className="h-10 w-px bg-slate-700" />
-          <div className="text-center">
-            <div className="text-3xl font-bold text-teal-400">2.1M</div>
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Graph Nodes</div>
+
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredIntegrations.map((integration) => {
+              const isConnected = connectedIds.includes(integration.id) || integration.lastSync !== "Not connected";
+              const isSyncing = syncing[integration.id];
+              const needsUpload = !isConnected;
+
+              return (
+                <div 
+                  key={integration.id}
+                  onClick={() => handleConnectClick(integration)}
+                  className="bg-[#181A19] border border-[#2A2C2A] rounded-xl p-5 hover:border-[#2A2C2A] transition-all cursor-pointer flex flex-col h-[200px] relative overflow-hidden group"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="p-2 bg-[#2A2C2A] rounded-lg border border-[#2A2C2A]">
+                      {integration.icon}
+                    </div>
+                    {isSyncing ? (
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>{needsUpload ? "Ingesting..." : "Syncing..."}</span>
+                      </div>
+                    ) : isConnected ? (
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                        <CheckCircle2 size={14} />
+                        <span>Installed</span>
+                      </div>
+                    ) : needsUpload ? (
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Upload size={14} />
+                        <span>Upload PDF</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Server size={14} />
+                        <span>Install</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 className="text-base font-semibold text-white mb-2">{integration.name}</h3>
+                  <p className="text-sm text-[#8A8D8A] line-clamp-3 mb-4 flex-1">
+                    {integration.description}
+                  </p>
+
+                  <div className="flex items-center gap-2 mt-auto">
+                    {integration.tags.map(tag => (
+                      <span 
+                        key={tag} 
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                          tag === "BETA" 
+                            ? "text-amber-500 bg-amber-500/10 border-amber-500/20" 
+                            : tag === "ALPHA"
+                              ? "text-rose-500 bg-rose-500/10 border-rose-500/20"
+                              : "text-[#8A8D8A] bg-[#2A2C2A] border-[#2A2C2A]"
+                        }`}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+
         </div>
       </div>
     </div>
