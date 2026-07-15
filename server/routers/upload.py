@@ -44,7 +44,8 @@ Common attributes to extract:
 - battery_autonomy_min: battery backup time in minutes as a number
 - ip_rating: ingress protection rating as a string (e.g. "IP31")
 
-Return ONLY valid JSON with extracted values. No preamble. No markdown."""
+Return ONLY valid JSON with extracted values. No preamble. No markdown.
+CRITICAL INSTRUCTION: Do NOT invent or hallucinate values. If the document is NOT a technical submittal (e.g. it is a delay notification, commercial letter, or RFI) or contains no technical attributes, return an empty JSON object: {}"""
 
 
 def _save_upload_sync(content: bytes, file_path: str) -> None:
@@ -138,6 +139,9 @@ async def upload_specification(
             filename=file.filename,
             coro_factory=lambda: _parse_spec_bg(doc_id, file_path)
         )
+
+        cache.invalidate_prefix("documents_list")
+
 
         return {
             "success": True,
@@ -251,6 +255,9 @@ async def upload_submittal(
             coro_factory=lambda: _parse_submittal_bg(doc_id, po_id, file_path, equipment_class)
         )
 
+        cache.invalidate_prefix("documents_list")
+
+
         return {
             "success": True,
             "po_id": po_id,
@@ -304,7 +311,7 @@ async def get_documents(project_id: str = None):
     try:
         if project_id:
             rows = db.execute(
-                "SELECT * FROM documents WHERE project_id = ? ORDER BY upload_ts DESC",
+                "SELECT * FROM documents WHERE project_id = ? OR project_id IS NULL ORDER BY upload_ts DESC",
                 (project_id,)
             ).fetchall()
         else:
@@ -545,6 +552,8 @@ async def upload_general(
             metadata = {"filename": file.filename, "upload_ts": datetime.utcnow().isoformat()}
             background_tasks.add_task(_process_general_upload_background, doc_id, file_path, doc_type, metadata)
             
+        cache.invalidate_prefix("documents_list")
+
         return {
             "success": True,
             "document_id": doc_id,

@@ -24,7 +24,7 @@ function Wall({ position, size, id, onClick }) {
     >
       <boxGeometry args={size} />
       <meshStandardMaterial 
-        color={hovered ? "#34d399" : "#1e293b"} 
+        color={hovered ? "#3ECF8E" : "#1e293b"} 
         transparent 
         opacity={hovered ? 0.9 : 0.8}
         metalness={0.2}
@@ -39,9 +39,9 @@ function InfrastructureObject({ position, size, type, id, onClick }) {
   const [hovered, setHovered] = useState(false);
   
   const getColor = () => {
-    if (type === "rack") return "#3b82f6"; // Blue
-    if (type === "pdu") return "#f59e0b"; // Yellow
-    if (type === "hvac") return "#10b981"; // Emerald
+    if (type === "rack") return "#0F3058"; // Blue
+    if (type === "pdu") return "#F2AF48"; // Yellow
+    if (type === "hvac") return "#3ECF8E"; // Primary Brand
     return "#64748b";
   };
 
@@ -57,13 +57,13 @@ function InfrastructureObject({ position, size, type, id, onClick }) {
     >
       <boxGeometry args={size} />
       <meshStandardMaterial 
-        color={hovered ? "#ffffff" : getColor()} 
+        color={hovered ? "#EDEFEE" : getColor()} 
         metalness={0.8} 
         roughness={0.2} 
       />
       {hovered && (
         <Html position={[0, size[1] / 2 + 0.5, 0]} center>
-          <div className="bg-[#000000]/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md border border-[#27272a] shadow-xl whitespace-nowrap">
+          <div className="bg-[#131413]/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md border border-[#2A2C2A] shadow-xl whitespace-nowrap">
             {type.toUpperCase()} - {id}
           </div>
         </Html>
@@ -75,8 +75,8 @@ function InfrastructureObject({ position, size, type, id, onClick }) {
 // ─── Sidebar Item Component ──────────────────────────────────────────────────
 function SidebarItem({ icon: Icon, label, active }) {
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 text-[13px] rounded-md cursor-pointer transition-colors ${active ? 'bg-[#27272a] text-white font-medium' : 'text-[#a1a1aa] hover:text-white hover:bg-[#27272a]/50'}`}>
-      <Icon size={14} className={active ? "text-emerald-400" : "text-[#71717a]"} />
+    <div className={`flex items-center gap-2 px-3 py-1.5 text-[13px] rounded-md cursor-pointer transition-colors ${active ? 'bg-[#2A2C2A] text-white font-medium' : 'text-[#8A8D8A] hover:text-white hover:bg-[#2A2C2A]/50'}`}>
+      <Icon size={14} className={active ? "text-emerald-400" : "text-[#8A8D8A]"} />
       <span>{label}</span>
     </div>
   );
@@ -85,7 +85,7 @@ function SidebarItem({ icon: Icon, label, active }) {
 function SidebarSection({ title, children }) {
   return (
     <div className="mb-6">
-      <div className="text-[10px] text-[#71717a] uppercase tracking-widest font-bold mb-2 px-3">
+      <div className="text-[10px] text-[#8A8D8A] uppercase tracking-widest font-bold mb-2 px-3">
         {title}
       </div>
       <div className="space-y-0.5">
@@ -140,28 +140,28 @@ export default function DesignPage() {
   };
 
   return (
-    <div className="flex-1 w-full h-full relative bg-[#0a0a0a] overflow-hidden flex flex-col">
+    <div className="flex-1 w-full h-full relative bg-[#131413] overflow-hidden flex flex-col">
       
       {/* ─── Top Header (Like Supabase Top Nav) ─── */}
-      <div className="flex-none h-12 border-b border-[#27272a] bg-[#0f0f11] flex items-center justify-between px-4 z-20">
+      <div className="flex-none h-12 border-b border-[#2A2C2A] bg-[#181A19] flex items-center justify-between px-4 z-20">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-[#a1a1aa]">
+          <div className="flex items-center gap-2 text-sm text-[#8A8D8A]">
             <MapIcon size={16} className="text-emerald-500" />
             <span className="text-white font-semibold">DC Project Org</span>
-            <span className="text-[#3f3f46]">/</span>
+            <span className="text-[#2A2C2A]">/</span>
             <span className="text-white">AI Digital Twin Engine</span>
-            <span className="text-[#3f3f46]">/</span>
+            <span className="text-[#2A2C2A]">/</span>
             <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">PRODUCTION</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#71717a]" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8A8D8A]" />
             <input 
               type="text" 
               placeholder="Search components..." 
-              className="bg-[#18181b] border border-[#27272a] text-sm text-white rounded-md pl-8 pr-3 py-1.5 focus:outline-none focus:border-[#3f3f46] w-48 transition-colors"
+              className="bg-[#181A19] border border-[#2A2C2A] text-sm text-white rounded-md pl-8 pr-3 py-1.5 focus:outline-none focus:border-[#2A2C2A] w-48 transition-colors"
             />
           </div>
           
@@ -191,7 +191,7 @@ export default function DesignPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ─── Left Sidebar (Editing Tools) ─── */}
-        <div className="w-[240px] flex-none bg-[#0a0a0a] border-r border-[#27272a] overflow-y-auto z-10 flex flex-col py-4 custom-scrollbar">
+        <div className="w-[240px] flex-none bg-[#131413] border-r border-[#2A2C2A] overflow-y-auto z-10 flex flex-col py-4 custom-scrollbar">
           <div className="px-4 mb-6">
             <h2 className="text-base font-semibold text-white">Design Tools</h2>
           </div>
@@ -224,7 +224,7 @@ export default function DesignPage() {
 
         {/* ─── Main Dotted Canvas Area ─── */}
         <div 
-          className="flex-1 relative bg-[#0a0a0a]"
+          className="flex-1 relative bg-[#131413]"
           style={{ 
             backgroundImage: 'radial-gradient(#27272a 1px, transparent 1px)', 
             backgroundSize: '24px 24px' 
@@ -239,16 +239,16 @@ export default function DesignPage() {
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 z-10 flex flex-col items-center justify-center"
               >
-                <div className="w-24 h-24 rounded-2xl bg-[#18181b] border border-[#27272a] flex items-center justify-center mb-6 shadow-2xl">
-                  <Box size={40} className="text-[#555]" />
+                <div className="w-24 h-24 rounded-2xl bg-[#181A19] border border-[#2A2C2A] flex items-center justify-center mb-6 shadow-2xl">
+                  <Box size={40} className="text-[#8A8D8A]" />
                 </div>
                 <h2 className="text-xl font-bold text-white mb-2">Initialize Digital Twin</h2>
-                <p className="text-sm text-[#71717a] max-w-sm text-center mb-6">
+                <p className="text-sm text-[#8A8D8A] max-w-sm text-center mb-6">
                   Upload a 2D floor plan or CAD file. The AI engine will automatically extract topology and generate an editable 3D environment.
                 </p>
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-[#18181b] hover:bg-[#27272a] border border-[#3f3f46] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
+                  className="bg-[#181A19] hover:bg-[#2A2C2A] border border-[#2A2C2A] text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
                 >
                   <Plus size={16} />
                   <span>New Layout</span>
@@ -264,16 +264,16 @@ export default function DesignPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0a0a0a]/80 backdrop-blur-sm"
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#131413]/80 backdrop-blur-sm"
               >
                 <div className="relative">
-                  <div className="w-16 h-16 border-4 border-[#27272a] border-t-emerald-500 rounded-full animate-spin" />
+                  <div className="w-16 h-16 border-4 border-[#2A2C2A] border-t-emerald-500 rounded-full animate-spin" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Cpu size={20} className="text-emerald-500 animate-pulse" />
                   </div>
                 </div>
                 <h2 className="text-sm font-bold text-emerald-400 mt-6 tracking-widest uppercase">Analyzing Topology</h2>
-                <p className="text-xs text-[#71717a] mt-2">Running computer vision segmentation...</p>
+                <p className="text-xs text-[#8A8D8A] mt-2">Running computer vision segmentation...</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -285,7 +285,7 @@ export default function DesignPage() {
                 {/* Background color is transparent so the dotted pattern shows through the Canvas */}
                 <ambientLight intensity={0.6} />
                 <directionalLight position={[10, 20, 10]} intensity={1.5} castShadow />
-                <directionalLight position={[-10, 10, -10]} intensity={0.5} color="#3b82f6" />
+                <directionalLight position={[-10, 10, -10]} intensity={0.5} color="#0F3058" />
                 
                 <Suspense fallback={null}>
                   <group position={[0, -1.5, 0]}>
@@ -301,7 +301,7 @@ export default function DesignPage() {
                       position={[0, 0, 0]} 
                       infiniteGrid 
                       fadeDistance={40} 
-                      cellColor="#3f3f46" 
+                      cellColor="#2A2C2A" 
                       sectionColor="#52525b" 
                     />
 
@@ -337,16 +337,16 @@ export default function DesignPage() {
 
           {/* Floating Canvas Controls (Bottom Right) */}
           {hasProcessed && sceneData && (
-            <div className="absolute bottom-6 right-6 z-20 flex bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl p-1">
-               <button className="p-2 text-[#a1a1aa] hover:text-white hover:bg-[#27272a] rounded-md transition-colors" title="Zoom In">
+            <div className="absolute bottom-6 right-6 z-20 flex bg-[#181A19] border border-[#2A2C2A] rounded-lg shadow-xl p-1">
+               <button className="p-2 text-[#8A8D8A] hover:text-white hover:bg-[#2A2C2A] rounded-md transition-colors" title="Zoom In">
                  <Plus size={16} />
                </button>
-               <div className="w-px bg-[#27272a] mx-1 my-1"></div>
-               <button className="p-2 text-[#a1a1aa] hover:text-white hover:bg-[#27272a] rounded-md transition-colors" title="Zoom Out">
+               <div className="w-px bg-[#2A2C2A] mx-1 my-1"></div>
+               <button className="p-2 text-[#8A8D8A] hover:text-white hover:bg-[#2A2C2A] rounded-md transition-colors" title="Zoom Out">
                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
                </button>
-               <div className="w-px bg-[#27272a] mx-1 my-1"></div>
-               <button className="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-[#27272a] rounded-md transition-colors" title="Auto Rotate">
+               <div className="w-px bg-[#2A2C2A] mx-1 my-1"></div>
+               <button className="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-[#2A2C2A] rounded-md transition-colors" title="Auto Rotate">
                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                </button>
             </div>
@@ -360,17 +360,17 @@ export default function DesignPage() {
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: 280 }}
               exit={{ opacity: 0, width: 0 }}
-              className="flex-none bg-[#0f0f11] border-l border-[#27272a] z-20 overflow-hidden shadow-[-8px_0_24px_rgba(0,0,0,0.5)]"
+              className="flex-none bg-[#181A19] border-l border-[#2A2C2A] z-20 overflow-hidden shadow-[-8px_0_24px_rgba(0,0,0,0.5)]"
             >
               <div className="w-[280px] h-full flex flex-col">
-                <div className="p-4 border-b border-[#27272a] flex items-center justify-between bg-[#18181b]">
+                <div className="p-4 border-b border-[#2A2C2A] flex items-center justify-between bg-[#181A19]">
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <Server size={14} className="text-emerald-500" />
                     Properties
                   </h3>
                   <button 
                     onClick={() => setSelectedItem(null)}
-                    className="text-[#71717a] hover:text-white transition-colors p-1 hover:bg-[#27272a] rounded"
+                    className="text-[#8A8D8A] hover:text-white transition-colors p-1 hover:bg-[#2A2C2A] rounded"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                   </button>
@@ -378,24 +378,24 @@ export default function DesignPage() {
                 
                 <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                   <div className="space-y-1">
-                    <span className="text-[10px] text-[#71717a] font-bold uppercase tracking-widest block">Object ID</span>
-                    <div className="bg-[#18181b] border border-[#27272a] rounded-md p-2 flex justify-between items-center group">
-                      <span className="text-sm text-[#e4e4e7] font-mono">{selectedItem.id}</span>
-                      <button className="text-[#71717a] opacity-0 group-hover:opacity-100 hover:text-white transition-all">
+                    <span className="text-[10px] text-[#8A8D8A] font-bold uppercase tracking-widest block">Object ID</span>
+                    <div className="bg-[#181A19] border border-[#2A2C2A] rounded-md p-2 flex justify-between items-center group">
+                      <span className="text-sm text-[#EDEFEE] font-mono">{selectedItem.id}</span>
+                      <button className="text-[#8A8D8A] opacity-0 group-hover:opacity-100 hover:text-white transition-all">
                          <Copy size={12} />
                       </button>
                     </div>
                   </div>
                   
                   <div className="space-y-1">
-                    <span className="text-[10px] text-[#71717a] font-bold uppercase tracking-widest block">Classification</span>
-                    <div className="bg-[#18181b] border border-[#27272a] rounded-md p-2">
+                    <span className="text-[10px] text-[#8A8D8A] font-bold uppercase tracking-widest block">Classification</span>
+                    <div className="bg-[#181A19] border border-[#2A2C2A] rounded-md p-2">
                       <span className="text-sm text-emerald-400 font-semibold capitalize">{selectedItem.type}</span>
                     </div>
                   </div>
                   
-                  <div className="pt-4 border-t border-[#27272a] space-y-2">
-                    <button className="w-full bg-[#18181b] hover:bg-[#27272a] border border-[#3f3f46] text-white py-2 rounded-md text-xs font-semibold transition-all">
+                  <div className="pt-4 border-t border-[#2A2C2A] space-y-2">
+                    <button className="w-full bg-[#181A19] hover:bg-[#2A2C2A] border border-[#2A2C2A] text-white py-2 rounded-md text-xs font-semibold transition-all">
                       Edit Dimensions
                     </button>
                     <button className="w-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 py-2 rounded-md text-xs font-semibold transition-all">

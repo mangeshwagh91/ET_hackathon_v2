@@ -66,14 +66,15 @@ RAG_SYSTEM = """You are a senior technical manager on a Tier IV hyperscale data 
 Answer questions from the project team using ONLY the information provided in the CONTEXT below.
 
 STRICT RULES:
-1. Answer ONLY from the provided context. Do not use general knowledge.
-2. Cite EVERY factual claim using [SOURCE N].
-3. If a precedent RFI resolved a similar issue, LEAD your answer with it.
-4. If the context does NOT contain sufficient information, explicitly state: "The project documents do not contain a definitive answer. Recommend raising a formal RFI."
-5. Be DIRECT and ACTIONABLE.
-6. Keep your answer under {max_words} words.
-7. Structure: If answering a complex technical RFI, use: (a) Precedent resolution if any, (b) Specification/Memory requirements, (c) Recommended action. For general project queries (like weather, bids, or status), answer naturally and directly in a few sentences.
-8. End with: [Confidence: HIGH/MEDIUM/LOW]"""
+1. CHIT-CHAT EXCEPTION: If the user says "hi", "hello", "hey", or casual greetings, ignore all other rules. Just reply naturally and warmly in 1-2 sentences. Do NOT include source citations, RFI mentions, or confidence tags.
+2. Answer ONLY from the provided context. Do not use general knowledge for technical queries.
+3. Cite EVERY factual claim using [SOURCE N].
+4. If a precedent RFI resolved a similar issue, LEAD your answer with it.
+5. If the context does NOT contain sufficient information for a technical query, explicitly state: "The project documents do not contain a definitive answer. Recommend raising a formal RFI."
+6. Be DIRECT and ACTIONABLE.
+7. Keep your answer under {max_words} words.
+8. Structure: If answering a complex technical RFI, use: (a) Precedent resolution if any, (b) Specification/Memory requirements, (c) Recommended action. For general project queries, answer naturally and directly.
+9. For technical queries, end with: [Confidence: HIGH/MEDIUM/LOW]"""
 
 
 def _chunk_text(text: str, chunk_size: int = 2000, overlap: int = 200) -> List[str]:
@@ -201,40 +202,44 @@ def answer_query(query: str) -> Dict[str, Any]:
         all_chunks = _build_source_list(spec_results, rfi_results, memory_chunks)
         precedent_rfis = _find_precedent_rfis(rfi_results)
 
-        if not all_chunks:
-            answer_text = "The project documents do not contain any relevant information to answer this query."
-            confidence = 0.0
-        else:
-            context_text = _build_context_text(all_chunks)
-            precedent_text = _build_precedent_text(precedent_rfis)
-            user_message = _build_user_message(context_text, precedent_text, query)
+        context_text = _build_context_text(all_chunks)
+        precedent_text = _build_precedent_text(precedent_rfis)
+        user_message = _build_user_message(context_text, precedent_text, query)
 
-            if not has_available_provider():
+        if not has_available_provider():
+            if not all_chunks:
+                answer_text = "The project documents do not contain any relevant information to answer this query."
+                confidence = 0.0
+            else:
                 answer_text = _fallback_answer(all_chunks, precedent_rfis)
                 confidence = _compute_confidence(all_chunks)
-            else:
-                try:
-                    answer_text = call_claude(
-                        RAG_SYSTEM.format(max_words=MAX_ANSWER_WORDS),
-                        user_message,
-                        max_tokens=1200
-                    )
-                    
-                    # Parse LLM confidence if available
-                    llm_confidence = None
-                    match = re.search(r"\[Confidence:\s*(HIGH|MEDIUM|LOW)\]", answer_text, re.IGNORECASE)
-                    if match:
-                        conf_str = match.group(1).upper()
-                        if conf_str == "HIGH": llm_confidence = 0.95
-                        elif conf_str == "MEDIUM": llm_confidence = 0.70
-                        elif conf_str == "LOW": llm_confidence = 0.40
-                    
-                        # Remove the confidence tag from the answer text so it doesn't show in the UI twice
-                        answer_text = re.sub(r"\n?\[Confidence:\s*(HIGH|MEDIUM|LOW)\]\n?", "", answer_text, flags=re.IGNORECASE).strip()
-                    
-                    confidence = llm_confidence if llm_confidence is not None else _compute_confidence(all_chunks)
-                except Exception as e:
-                    logger.error(f"LLM call failed for knowledge query: {e}")
+        else:
+            try:
+                answer_text = call_claude(
+                    RAG_SYSTEM.format(max_words=MAX_ANSWER_WORDS),
+                    user_message,
+                    max_tokens=1200
+                )
+                
+                # Parse LLM confidence if available
+                llm_confidence = None
+                match = re.search(r"\[Confidence:\s*(HIGH|MEDIUM|LOW)\]", answer_text, re.IGNORECASE)
+                if match:
+                    conf_str = match.group(1).upper()
+                    if conf_str == "HIGH": llm_confidence = 0.95
+                    elif conf_str == "MEDIUM": llm_confidence = 0.70
+                    elif conf_str == "LOW": llm_confidence = 0.40
+                
+                    # Remove the confidence tag from the answer text so it doesn't show in the UI twice
+                    answer_text = re.sub(r"\n?\[Confidence:\s*(HIGH|MEDIUM|LOW)\]\n?", "", answer_text, flags=re.IGNORECASE).strip()
+                
+                confidence = llm_confidence if llm_confidence is not None else _compute_confidence(all_chunks)
+            except Exception as e:
+                logger.error(f"LLM call failed for knowledge query: {e}")
+                if not all_chunks:
+                    answer_text = "The project documents do not contain any relevant information to answer this query."
+                    confidence = 0.0
+                else:
                     answer_text = _fallback_answer(all_chunks, precedent_rfis)
                     confidence = _compute_confidence(all_chunks)
 

@@ -1,9 +1,38 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Monitor, Bell, BrainCircuit, Layout, Info, User, Check, Zap, Server, Shield } from "lucide-react";
+import { Monitor, Bell, BrainCircuit, Layout, Info, User, Check, Zap, Server, Shield, Bot } from "lucide-react";
 import ComplianceBackground from "../components/compliance/ComplianceBackground.jsx";
 
 export default function SettingsPage() {
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('agentSettings');
+    if (saved) return JSON.parse(saved);
+    return {
+      autoRunOnUpload: true,
+      autoRunOnPageVisit: false,
+      compactLayout: false,
+      desktopNotifications: true,
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('agentSettings', JSON.stringify(settings));
+  }, [settings]);
+
+  const toggleSetting = (key) => {
+    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const settingsSections = [
+    {
+      id: "agentAutomations",
+      title: "Agent Automations",
+      icon: <Bot size={18} />,
+      items: [
+        { name: "Auto-run Agents on File Upload", type: "toggle", value: settings.autoRunOnUpload, key: "autoRunOnUpload" },
+        { name: "Auto-run Agents on Page Visit", type: "toggle", value: settings.autoRunOnPageVisit, key: "autoRunOnPageVisit" },
+      ]
+    },
     {
       id: "appearance",
       title: "Appearance",
@@ -11,7 +40,7 @@ export default function SettingsPage() {
       items: [
         { name: "Accent Color", type: "color", value: "#4F46E5" },
         { name: "Animation Level", type: "select", options: ["Reduced", "Standard", "Full"], value: "Full" },
-        { name: "Compact Layout", type: "toggle", value: false },
+        { name: "Compact Layout", type: "toggle", value: settings.compactLayout, key: "compactLayout" },
       ]
     },
     {
@@ -19,9 +48,9 @@ export default function SettingsPage() {
       title: "Notifications",
       icon: <Bell size={18} />,
       items: [
-        { name: "Desktop Notifications", type: "toggle", value: true },
-        { name: "Sound Effects", type: "toggle", value: false },
-        { name: "Badge Counter", type: "toggle", value: true },
+        { name: "Desktop Notifications", type: "toggle", value: settings.desktopNotifications, key: "desktopNotifications" },
+        { name: "Sound Effects", type: "toggle", value: false, disabled: true },
+        { name: "Badge Counter", type: "toggle", value: true, disabled: true },
         { name: "Email Alerts", type: "toggle", value: false, disabled: true },
       ]
     },
@@ -30,9 +59,9 @@ export default function SettingsPage() {
       title: "AI Preferences",
       icon: <BrainCircuit size={18} />,
       items: [
-        { name: "Streaming Responses", type: "toggle", value: true },
-        { name: "Show Confidence Scores", type: "toggle", value: true },
-        { name: "Auto-expand Citations", type: "toggle", value: false },
+        { name: "Streaming Responses", type: "toggle", value: true, disabled: true },
+        { name: "Show Confidence Scores", type: "toggle", value: true, disabled: true },
+        { name: "Auto-expand Citations", type: "toggle", value: false, disabled: true },
         { name: "Engine Speed vs Quality", type: "slider", value: 80 },
       ]
     },
@@ -83,7 +112,10 @@ export default function SettingsPage() {
                     
                     <div className="flex items-center gap-4">
                       {item.type === 'toggle' && (
-                        <button className={`w-11 h-6 rounded-full transition-colors relative ${item.value ? 'bg-teal-500' : 'bg-slate-300'} ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <button 
+                          onClick={() => item.key && toggleSetting(item.key)}
+                          disabled={item.disabled}
+                          className={`w-11 h-6 rounded-full transition-colors relative ${item.value ? 'bg-teal-500' : 'bg-slate-300'} ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                           <motion.div 
                             layout 
                             className="w-5 h-5 bg-white rounded-full shadow-sm absolute top-0.5" 

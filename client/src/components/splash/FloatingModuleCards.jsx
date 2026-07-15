@@ -16,7 +16,7 @@ const modules = [
     title: "Schedule Risk Intelligence",
     description:
       "Predicts delays, analyzes critical paths and generates AI-powered mitigation strategies.",
-    color: "#3B82F6",
+    color: "#0F3058",
     bg: "rgba(59,130,246,0.06)",
     border: "rgba(59,130,246,0.15)",
   },
@@ -34,7 +34,7 @@ const modules = [
     title: "AI RFI Intelligence",
     description:
       "Answers technical questions using project specifications, RFIs and engineering documentation.",
-    color: "#F59E0B",
+    color: "#F2AF48",
     bg: "rgba(245,158,11,0.06)",
     border: "rgba(245,158,11,0.15)",
   },

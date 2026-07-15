@@ -4,12 +4,12 @@ import { Reveal, SectionLabel } from "./overviewUtils";
 import { FileText, Package, Cpu, ShieldCheck, TrendingUp, MessageSquareText, LayoutDashboard } from "lucide-react";
 
 const pipeline = [
-  { icon: <FileText strokeWidth={1.75} size={24} />, label: "Specification Documents", color: "#3B82F6",  desc: "Uploaded & indexed" },
+  { icon: <FileText strokeWidth={1.75} size={24} />, label: "Specification Documents", color: "#0F3058",  desc: "Uploaded & indexed" },
   { icon: <Package strokeWidth={1.75} size={24} />, label: "Vendor Submittals",        color: "#8B5CF6",  desc: "Compared against specs" },
   { icon: <Cpu strokeWidth={1.75} size={32} />, label: "AI Intelligence Engine",   color: "#14B8A6",  desc: "Analyzes & reasons",  large: true },
   { icon: <ShieldCheck strokeWidth={1.75} size={24} />, label: "Compliance Analysis",       color: "#22C55E",  desc: "Deviations detected" },
-  { icon: <TrendingUp strokeWidth={1.75} size={24} />, label: "Schedule Risk Prediction",  color: "#F59E0B",  desc: "Delays forecasted"   },
-  { icon: <MessageSquareText strokeWidth={1.75} size={24} />, label: "RFI Knowledge Base",        color: "#EF4444",  desc: "Questions answered"  },
+  { icon: <TrendingUp strokeWidth={1.75} size={24} />, label: "Schedule Risk Prediction",  color: "#F2AF48",  desc: "Delays forecasted"   },
+  { icon: <MessageSquareText strokeWidth={1.75} size={24} />, label: "RFI Knowledge Base",        color: "#E24B4A",  desc: "Questions answered"  },
   { icon: <LayoutDashboard strokeWidth={1.75} size={24} />, label: "Executive Dashboard",        color: "#14B8A6",  desc: "Live intelligence"  },
 ];
 

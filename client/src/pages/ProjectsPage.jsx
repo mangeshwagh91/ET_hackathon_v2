@@ -50,21 +50,22 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="w-full text-white min-h-screen bg-[#0a0a0a] pt-4 px-2 lg:px-8 pb-16">
-      <h1 className="text-3xl font-semibold tracking-tight text-white mb-8">Projects</h1>
+    <div className="flex flex-col min-h-screen bg-[#131413] text-white">
+      <div className="flex-1 p-10 max-w-6xl mx-auto w-full pt-16">
+        <h1 className="text-[22px] font-bold tracking-tight mb-8">Projects</h1>
 
       {/* ─── Toolbar: Search, Filters & Views ─── */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-6">
         <div className="flex flex-1 w-full gap-3 items-center flex-wrap sm:flex-nowrap">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#888888]" size={15} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8D8A]" size={15} />
             <input
               type="text"
               placeholder="Search for a project"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#000000] border border-[#27272a] rounded-md pl-9 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-[#444] transition-all placeholder:text-[#888888]"
+              className="w-full bg-[#131413] border border-[#2A2C2A] rounded-md pl-9 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-[#8A8D8A] transition-all placeholder:text-[#8A8D8A]"
             />
           </div>
 
@@ -72,7 +73,7 @@ export default function ProjectsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-[#000000] border border-[#27272a] rounded-md px-3 py-1.5 text-sm font-medium text-[#888888] focus:outline-none focus:border-[#444] cursor-pointer"
+            className="bg-[#131413] border border-[#2A2C2A] rounded-md px-3 py-1.5 text-sm font-medium text-[#8A8D8A] focus:outline-none focus:border-[#8A8D8A] cursor-pointer"
           >
             <option value="all">Status</option>
             <option value="active">Active</option>
@@ -83,7 +84,7 @@ export default function ProjectsPage() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="bg-[#000000] border border-[#27272a] rounded-md px-3 py-1.5 text-sm font-medium text-[#888888] focus:outline-none focus:border-[#444] cursor-pointer"
+            className="bg-[#131413] border border-[#2A2C2A] rounded-md px-3 py-1.5 text-sm font-medium text-[#8A8D8A] focus:outline-none focus:border-[#8A8D8A] cursor-pointer"
           >
             <option value="name">Sorted by name</option>
             <option value="newest">Sorted by newest</option>
@@ -92,16 +93,16 @@ export default function ProjectsPage() {
 
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
           {/* View toggles */}
-          <div className="bg-[#000000] border border-[#27272a] p-0.5 rounded-md flex items-center shrink-0">
+          <div className="bg-[#131413] border border-[#2A2C2A] p-0.5 rounded-md flex items-center shrink-0">
             <button
               onClick={() => setIsGridView(true)}
-              className={`p-1.5 rounded-[4px] transition-colors ${isGridView ? "bg-[#222] text-white" : "text-[#888] hover:text-[#ccc]"}`}
+              className={`p-1.5 rounded-[4px] transition-colors ${isGridView ? "bg-[#2A2C2A] text-white" : "text-[#8A8D8A] hover:text-[#EDEFEE]"}`}
             >
               <LayoutGrid size={14} />
             </button>
             <button
               onClick={() => setIsGridView(false)}
-              className={`p-1.5 rounded-[4px] transition-colors ${!isGridView ? "bg-[#222] text-white" : "text-[#888] hover:text-[#ccc]"}`}
+              className={`p-1.5 rounded-[4px] transition-colors ${!isGridView ? "bg-[#2A2C2A] text-white" : "text-[#8A8D8A] hover:text-[#EDEFEE]"}`}
             >
               <List size={14} />
             </button>
@@ -119,12 +120,12 @@ export default function ProjectsPage() {
 
       {/* ─── Project Grid ─── */}
       {loadingProjects ? (
-        <div className="flex flex-col items-center justify-center py-20 text-[#888]">
+        <div className="flex flex-col items-center justify-center py-20 text-[#8A8D8A]">
           <div className="w-8 h-8 border-4 border-[#00e59b] border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="border border-[#27272a] rounded-xl p-12 text-center">
-          <p className="text-[#888] text-sm">No projects found.</p>
+        <div className="border border-[#2A2C2A] rounded-xl p-12 text-center">
+          <p className="text-[#8A8D8A] text-sm">No projects found.</p>
         </div>
       ) : isGridView ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -135,40 +136,40 @@ export default function ProjectsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 * idx }}
               onClick={() => handleProjectSelect(project)}
-              className="bg-[#111111] border border-[#222222] rounded-xl p-5 hover:border-[#444] transition-colors cursor-pointer flex flex-col justify-between h-[160px] group"
+              className="bg-[#131413] border border-[#2A2C2A] rounded-xl p-5 hover:border-[#8A8D8A] transition-colors cursor-pointer flex flex-col justify-between h-[160px] group"
             >
               <div className="flex justify-between items-start">
                 <div className="space-y-1">
                   <h3 className="font-semibold text-white text-base leading-tight">
                     {project.name}
                   </h3>
-                  <div className="text-[13px] text-[#888888] font-mono">
+                  <div className="text-[13px] text-[#8A8D8A] font-mono">
                     {project.location || "AWS | ap-southeast-1"}
                   </div>
                 </div>
                 
                 <button
                   onClick={(e) => { e.stopPropagation(); }}
-                  className="p-1 rounded-md text-[#666] hover:text-white transition-colors"
+                  className="p-1 rounded-md text-[#8A8D8A] hover:text-white transition-colors"
                 >
                   <MoreVertical size={16} />
                 </button>
               </div>
 
               <div className="mt-3">
-                 <span className="inline-flex items-center text-[10px] font-bold text-[#888888] bg-[#222] rounded px-1.5 py-0.5 uppercase tracking-wider">
+                 <span className="inline-flex items-center text-[10px] font-bold text-[#8A8D8A] bg-[#2A2C2A] rounded px-1.5 py-0.5 uppercase tracking-wider">
                     {project.size_mw ? `${project.size_mw} MW` : "NANO"}
                  </span>
               </div>
 
-              <div className="flex items-center justify-between mt-auto pt-4 border-t border-[#222222]">
+              <div className="flex items-center justify-between mt-auto pt-4 border-t border-[#2A2C2A]">
                 <div 
                   onClick={(e) => handleToggleStatus(e, project)}
-                  className="flex items-center gap-2 group/status text-[#888888] hover:text-white transition-colors"
+                  className="flex items-center gap-2 group/status text-[#8A8D8A] hover:text-white transition-colors"
                 >
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center border border-[#333] transition-colors ${
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center border border-[#2A2C2A] transition-colors ${
                     project.status === "paused" 
-                      ? "bg-transparent text-[#888]" 
+                      ? "bg-transparent text-[#8A8D8A]" 
                       : "bg-[#00e59b] text-black border-[#00e59b]"
                   }`}>
                     {project.status === "paused" ? <Pause size={8} className="fill-current" /> : <Play size={8} className="fill-current" />}
@@ -182,37 +183,37 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : (
-        <div className="border border-[#27272a] rounded-xl overflow-hidden">
+        <div className="border border-[#2A2C2A] rounded-xl overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#111] border-b border-[#27272a] text-[13px] text-[#888]">
+              <tr className="bg-[#131413] border-b border-[#2A2C2A] text-[13px] text-[#8A8D8A]">
                 <th className="px-6 py-3 font-normal">Project Name</th>
                 <th className="px-6 py-3 font-normal">Region</th>
                 <th className="px-6 py-3 font-normal">Status</th>
                 <th className="px-6 py-3 font-normal"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#27272a]">
+            <tbody className="divide-y divide-[#2A2C2A]">
               {filteredProjects.map((project) => (
                 <tr
                   key={project.id}
                   onClick={() => handleProjectSelect(project)}
-                  className="hover:bg-[#1a1a1a] cursor-pointer transition-colors group"
+                  className="hover:bg-[#181A19] cursor-pointer transition-colors group"
                 >
                   <td className="px-6 py-4">
                     <span className="font-semibold text-white">
                       {project.name}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-[13px] font-mono text-[#888]">
+                  <td className="px-6 py-4 text-[13px] font-mono text-[#8A8D8A]">
                     {project.location || "AWS | ap-southeast-1"}
                   </td>
                   <td className="px-6 py-4">
                     <button
                       onClick={(e) => handleToggleStatus(e, project)}
-                      className="inline-flex items-center gap-2 text-[13px] text-[#888] hover:text-white"
+                      className="inline-flex items-center gap-2 text-[13px] text-[#8A8D8A] hover:text-white"
                     >
-                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border border-[#333] ${
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center border border-[#2A2C2A] ${
                         project.status === "paused" ? "bg-transparent" : "bg-[#00e59b] text-black border-[#00e59b]"
                       }`}>
                          {project.status === "paused" ? <Pause size={8} /> : <Play size={8} />}
@@ -223,7 +224,7 @@ export default function ProjectsPage() {
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={(e) => { e.stopPropagation(); }}
-                      className="p-1 rounded-md text-[#666] hover:text-white transition-colors"
+                      className="p-1 rounded-md text-[#8A8D8A] hover:text-white transition-colors"
                     >
                       <MoreVertical size={16} />
                     </button>
@@ -234,6 +235,7 @@ export default function ProjectsPage() {
           </table>
         </div>
       )}
+      </div>
     </div>
   );
 }

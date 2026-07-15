@@ -601,6 +601,22 @@ def _batch_upsert(collection, items: List[Dict[str, Any]]) -> Dict[str, Any]:
     collection.upsert(ids=ids, documents=docs, embeddings=embeddings, metadatas=metadatas)
     return {"success": True, "count": len(ids)}
 
+def index_commissioning_checklist(chunk_id: str, text: str, metadata: Dict[str, Any]) -> None:
+    """Index a single commissioning checklist chunk into ChromaDB."""
+    try:
+        collection = get_or_create_collection("commissioning_checklists")
+        embedding = embed_text(text)
+        serialized_meta = _serialize_metadata(metadata)
+        collection.upsert(
+            ids=[chunk_id],
+            documents=[text],
+            embeddings=[embedding],
+            metadatas=[serialized_meta]
+        )
+    except Exception as e:
+        logger.error(f"Failed to index checklist chunk {chunk_id}: {e}")
+        raise IndexingError(f"Checklist indexing failed: {e}") from e
+
 def batch_index_rfis(rfis: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Batch index RFIs. Expected keys: 'id', 'text', 'is_resolved', 'metadata'."""
     try:

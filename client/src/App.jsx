@@ -11,6 +11,7 @@ import SettingsPage from "./pages/SettingsPage.jsx";
 import BidsAndContracts from "./pages/BidsAndContracts.jsx";
 import DocumentsPage from "./pages/DocumentsPage.jsx";
 import VendorDashboard from "./pages/VendorDashboard.jsx";
+import CommissioningPage from "./pages/CommissioningPage.jsx";
 import VendorBids from "./pages/VendorBids.jsx";
 import VendorProfile from "./pages/VendorProfile.jsx";
 import SplashScreen from "./components/splash/SplashScreen.jsx";
@@ -21,6 +22,7 @@ import LandingPage from "./pages/LandingPage.jsx";
 import ProjectsPage from "./pages/ProjectsPage.jsx";
 import SupplyChainPage from "./pages/SupplyChainPage.jsx";
 import IntegrationsPage from "./pages/IntegrationsPage.jsx";
+import TeamPage from "./pages/TeamPage.jsx";
 
 // Auth and Workspace Layout
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
@@ -61,11 +63,13 @@ function AnimatedRoutes() {
         <Route path="/ncr/:ncrId" element={<PageTransition><NCRDetail /></PageTransition>} />
         <Route path="/schedule" element={<PageTransition><Schedule /></PageTransition>} />
         <Route path="/rfi" element={<PageTransition><RFIChat /></PageTransition>} />
+        <Route path="/commissioning" element={<PageTransition><CommissioningPage /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><SettingsPage /></PageTransition>} />
         <Route path="/bids" element={<PageTransition><BidsAndContracts /></PageTransition>} />
         <Route path="/supply-chain" element={<PageTransition><SupplyChainPage /></PageTransition>} />
         <Route path="/documents" element={<PageTransition><DocumentsPage /></PageTransition>} />
         <Route path="/projects/new" element={<PageTransition><NewProject /></PageTransition>} />
+        <Route path="/team" element={<PageTransition><TeamPage /></PageTransition>} />
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </AnimatePresence>

@@ -1,7 +1,6 @@
 """
 LLM Client Service — DCPI.
 Primary: Groq API (fast cloud inference, concurrent multi-key).
-Fallback: Ollama (local model).
 All agents call call_claude() / call_claude_json() — provider is transparent.
 Batch variants call_claude_batch() / call_claude_json_batch() run multiple
 prompts concurrently against Groq for latency-sensitive multi-item workloads
@@ -27,10 +26,6 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 logger = logging.getLogger(__name__)
 
-PROVIDER_STATUS_TTL_SECONDS = int(os.getenv("LLM_PROVIDER_STATUS_TTL_SECONDS", "30"))
-
-_ollama_health_cache: Dict[str, Any] = {"checked_at": 0.0, "available": None}
-
 # ── Configuration ──────────────────────────────────────────────────────────────
 
 GROQ_API_KEY_RAW = os.getenv("GROQ_API_KEY", "").strip()
@@ -48,16 +43,6 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 GROQ_TIMEOUT = int(os.getenv("GROQ_TIMEOUT_SECONDS", "45"))
 MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "2"))
 GROQ_MAX_CONCURRENT = max(1, int(os.getenv("GROQ_MAX_CONCURRENT", "3")))
-
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b-instruct")
-# Accept either env var name — .env uses OLLAMA_TIMEOUT, some deployments use
-# OLLAMA_TIMEOUT_SECONDS. Previously only the _SECONDS variant was read, so the
-# .env value was silently ignored and the 120s code default always applied.
-OLLAMA_TIMEOUT = int(
-    os.getenv("OLLAMA_TIMEOUT_SECONDS", os.getenv("OLLAMA_TIMEOUT", "60"))
-)
-
 FALLBACK_GROQ_MODELS = [
     "llama-3.1-8b-instant",
     "llama-3.2-3b-preview",
@@ -68,10 +53,10 @@ USE_GROQ = bool(GROQ_API_KEYS)
 if USE_GROQ:
     logger.info(
         f"LLM client: Groq primary ({GROQ_MODEL}, {len(GROQ_API_KEYS)} keys, "
-        f"max_concurrent={GROQ_MAX_CONCURRENT}), Ollama fallback ({OLLAMA_MODEL})"
+        f"max_concurrent={GROQ_MAX_CONCURRENT})"
     )
 else:
-    logger.info(f"LLM client: Ollama only ({OLLAMA_MODEL}) — no Groq API key configured")
+    logger.info(f"LLM client: No Groq API key configured")
 
 
 # ── JSON Parser ────────────────────────────────────────────────────────────────
@@ -253,57 +238,6 @@ async def _call_groq_async(
         raise RuntimeError(f"Groq failed: {e}") from e
 
 
-# ── Ollama sync implementation ─────────────────────────────────────────────────
-
-def _call_ollama(
-    system_prompt: str,
-    user_message: str,
-    max_tokens: int = 2000,
-    json_mode: bool = False
-) -> str:
-    url = f"{OLLAMA_BASE_URL}/api/chat"
-    payload: Dict[str, Any] = {
-        "model": OLLAMA_MODEL,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message}
-        ],
-        "stream": False,
-        "options": {
-            "num_predict": max_tokens,
-            "temperature": 0.1 if json_mode else 0.2
-        }
-    }
-    if json_mode:
-        payload["format"] = "json"
-
-    try:
-        response = requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()
-        content = data.get("message", {}).get("content", "")
-        if not content:
-            raise ValueError("Empty response from Ollama")
-        tokens_in = data.get("prompt_eval_count", 0)
-        tokens_out = data.get("eval_count", 0)
-        logger.info(
-            f"Ollama success | model={OLLAMA_MODEL} | "
-            f"tokens={tokens_in}+{tokens_out}"
-        )
-        return content
-    except requests.exceptions.ConnectionError as e:
-        logger.error(
-            f"Cannot connect to Ollama at {OLLAMA_BASE_URL}. Run: ollama serve"
-        )
-        raise RuntimeError("Ollama connection failed") from e
-    except requests.exceptions.Timeout as e:
-        logger.warning("Ollama request timed out")
-        raise RuntimeError("Ollama request timed out") from e
-    except Exception as e:
-        logger.error(f"Ollama error: {e}")
-        raise RuntimeError(f"Ollama failed: {e}") from e
-
-
 # ── Public synchronous single-call API ──────────────────────────────────────────
 
 def call_claude(
@@ -312,18 +246,14 @@ def call_claude(
     max_tokens: int = 2000
 ) -> str:
     """
-    Call LLM and return text response.
-    Tries Groq first if API key configured, falls back to Ollama.
+    Call LLM and return text response using Groq.
     """
-    if USE_GROQ:
-        try:
-            return _run_async(
-                _call_groq_async(system_prompt, user_message, max_tokens, json_mode=False)
-            )
-        except Exception as e:
-            logger.warning(f"Groq failed, falling back to Ollama: {e}")
-
-    return _call_ollama(system_prompt, user_message, max_tokens, json_mode=False)
+    if not USE_GROQ:
+        raise RuntimeError("No Groq API key configured")
+        
+    return _run_async(
+        _call_groq_async(system_prompt, user_message, max_tokens, json_mode=False)
+    )
 
 
 def call_claude_json(
@@ -332,27 +262,15 @@ def call_claude_json(
     max_tokens: int = 2000
 ) -> dict:
     """
-    Call LLM and return parsed JSON dict.
-    Tries Groq with json_mode first, falls back to Ollama, falls back to
-    manual JSON extraction from plain text response.
+    Call LLM and return parsed JSON dict using Groq.
     """
-    if USE_GROQ:
-        try:
-            text = _run_async(
-                _call_groq_async(system_prompt, user_message, max_tokens, json_mode=True)
-            )
-            return _parse_json_robust(text)
-        except Exception as e:
-            logger.warning(f"Groq JSON failed, falling back to Ollama: {e}")
-
-    # Ollama with format=json
-    try:
-        text = _call_ollama(system_prompt, user_message, max_tokens, json_mode=True)
-        return _parse_json_robust(text)
-    except ValueError as parse_err:
-        raise ValueError(f"Could not parse JSON from LLM response: {parse_err}") from parse_err
-    except Exception as e:
-        raise RuntimeError(f"All LLM providers failed for JSON call: {e}") from e
+    if not USE_GROQ:
+        raise RuntimeError("No Groq API key configured")
+        
+    text = _run_async(
+        _call_groq_async(system_prompt, user_message, max_tokens, json_mode=True)
+    )
+    return _parse_json_robust(text)
 
 
 # ── Public concurrent batch API ─────────────────────────────────────────────────
@@ -370,14 +288,8 @@ async def _call_groq_text_batch_async(
                     system_prompt, user_message, max_tokens, json_mode=False
                 )
             except Exception as e:
-                logger.warning(f"Groq batch item failed, trying Ollama: {e}")
-                try:
-                    return await asyncio.to_thread(
-                        _call_ollama, system_prompt, user_message, max_tokens, False
-                    )
-                except Exception as e2:
-                    logger.error(f"Ollama fallback for batch item failed: {e2}")
-                    return None
+                logger.error(f"Groq batch item failed: {e}")
+                return None
 
     tasks = [_one(sp, um) for sp, um in items]
     return await asyncio.gather(*tasks)
@@ -397,15 +309,8 @@ async def _call_groq_json_batch_async(
                 )
                 return _parse_json_robust(text)
             except Exception as e:
-                logger.warning(f"Groq JSON batch item failed, trying Ollama: {e}")
-                try:
-                    text = await asyncio.to_thread(
-                        _call_ollama, system_prompt, user_message, max_tokens, True
-                    )
-                    return _parse_json_robust(text)
-                except Exception as e2:
-                    logger.error(f"Ollama fallback for batch item failed: {e2}")
-                    return None
+                logger.error(f"Groq JSON batch item failed: {e}")
+                return None
 
     tasks = [_one(sp, um) for sp, um in items]
     return await asyncio.gather(*tasks)
@@ -418,31 +323,18 @@ def call_claude_batch(
     """
     Run multiple (system_prompt, user_message) calls concurrently.
     Returns text responses in the same order as `items`; a failed item is None.
-
-    When Groq is configured, calls run concurrently bounded by
-    GROQ_MAX_CONCURRENT, each with its own per-item Ollama fallback.
-    When Groq is not configured, falls back to sequential Ollama calls.
     """
     if not items:
         return []
 
-    if USE_GROQ:
-        try:
-            return _run_async(
-                _call_groq_text_batch_async(items, max_tokens),
-                timeout=_estimate_batch_timeout(len(items))
-            )
-        except Exception as e:
-            logger.warning(f"Groq batch entirely failed, falling back to sequential Ollama: {e}")
-
-    results: List[Optional[str]] = []
-    for system_prompt, user_message in items:
-        try:
-            results.append(_call_ollama(system_prompt, user_message, max_tokens, json_mode=False))
-        except Exception as e:
-            logger.error(f"Sequential Ollama batch item failed: {e}")
-            results.append(None)
-    return results
+    if not USE_GROQ:
+        logger.error("No Groq API key configured for batch call")
+        return [None] * len(items)
+        
+    return _run_async(
+        _call_groq_text_batch_async(items, max_tokens),
+        timeout=_estimate_batch_timeout(len(items))
+    )
 
 
 def call_claude_json_batch(
@@ -457,70 +349,20 @@ def call_claude_json_batch(
     if not items:
         return []
 
-    if USE_GROQ:
-        try:
-            return _run_async(
-                _call_groq_json_batch_async(items, max_tokens),
-                timeout=_estimate_batch_timeout(len(items))
-            )
-        except Exception as e:
-            logger.warning(f"Groq JSON batch entirely failed, falling back to sequential Ollama: {e}")
+    if not USE_GROQ:
+        logger.error("No Groq API key configured for JSON batch call")
+        return [None] * len(items)
 
-    results: List[Optional[dict]] = []
-    for system_prompt, user_message in items:
-        try:
-            text = _call_ollama(system_prompt, user_message, max_tokens, json_mode=True)
-            results.append(_parse_json_robust(text))
-        except Exception as e:
-            logger.error(f"Sequential Ollama JSON batch item failed: {e}")
-            results.append(None)
-    return results
+    return _run_async(
+        _call_groq_json_batch_async(items, max_tokens),
+        timeout=_estimate_batch_timeout(len(items))
+    )
 
 
 # ── Health checks ──────────────────────────────────────────────────────────────
 
-def check_ollama_health() -> dict:
-    """
-    Check if Ollama is running and the configured model is available.
-    """
-    try:
-        response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
-        response.raise_for_status()
-        models = [m["name"] for m in response.json().get("models", [])]
-        model_pulled = any(OLLAMA_MODEL in m for m in models)
-        return {
-            "ollama_running": True,
-            "configured_model": OLLAMA_MODEL,
-            "model_pulled": model_pulled,
-            "available_models": models
-        }
-    except Exception as e:
-        return {
-            "ollama_running": False,
-            "configured_model": OLLAMA_MODEL,
-            "model_pulled": False,
-            "available_models": [],
-            "error": str(e)
-        }
-
-
-def _cached_ollama_health() -> bool:
-    now = time.monotonic()
-    checked_at = float(_ollama_health_cache.get("checked_at", 0.0) or 0.0)
-    cached_value = _ollama_health_cache.get("available")
-
-    if cached_value is not None and (now - checked_at) < PROVIDER_STATUS_TTL_SECONDS:
-        return bool(cached_value)
-
-    available = bool(check_ollama_health().get("ollama_running"))
-    _ollama_health_cache["checked_at"] = now
-    _ollama_health_cache["available"] = available
-    return available
-
-
 def check_health() -> dict:
     """Full health status for both providers."""
-    ollama = check_ollama_health()
     groq_status = {
         "available": USE_GROQ,
         "key_count": len(GROQ_API_KEYS),
@@ -544,9 +386,8 @@ def check_health() -> dict:
         except Exception:
             groq_status["reachable"] = False
     return {
-        "primary_provider": "groq" if USE_GROQ else "ollama",
-        "groq": groq_status,
-        "ollama": ollama
+        "primary_provider": "groq",
+        "groq": groq_status
     }
 
 
@@ -557,11 +398,6 @@ def get_status() -> dict:
 
 def has_available_provider() -> bool:
     """Return True when at least one LLM provider is reachable enough to try."""
-    if USE_GROQ:
-        return True
-    try:
-        return _cached_ollama_health()
-    except Exception:
-        return False
+    return USE_GROQ
     
 

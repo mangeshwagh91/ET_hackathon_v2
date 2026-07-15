@@ -96,15 +96,18 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
                    d.attribute_name, d.specified_value, d.submitted_value
             FROM ncrs n
             LEFT JOIN deviations d ON n.deviation_id = d.id
-            WHERE n.status = 'open' AND n.equipment_item_id IS NOT NULL
+            WHERE n.status = 'open'
         """).fetchall()
 
         equipment_ncr_map: Dict[str, List[Dict]] = defaultdict(list)
+        unassigned_ncrs: List[Dict] = []
         for row in ncr_rows:
             row = dict(row)
             eq_id = row.get("equipment_item_id")
             if eq_id:
                 equipment_ncr_map[eq_id].append(row)
+            else:
+                unassigned_ncrs.append(row)
 
         # Step 3: Build dependency graph
         dependency_graph = _build_dependency_graph(tasks)
@@ -122,7 +125,7 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
         for task in sorted_tasks:
             task_id = task["id"]
             eq_id = task.get("equipment_item_id")
-            ncr_list = equipment_ncr_map.get(eq_id, []) if eq_id else []
+            ncr_list = list(equipment_ncr_map.get(eq_id, [])) if eq_id else list(unassigned_ncrs)
             procurement_delay = _get_procurement_delay(ncr_list)
 
             pred_ids = _parse_json_list(task.get("predecessor_ids_json"))
@@ -146,7 +149,7 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
                 is_critical = 1 if task_id in critical_path else 0
                 delay_prob = compute_delay_probability(risk_score)
                 eq_id = task.get("equipment_item_id")
-                ncr_list = equipment_ncr_map.get(eq_id, []) if eq_id else []
+                ncr_list = list(equipment_ncr_map.get(eq_id, [])) if eq_id else list(unassigned_ncrs)
                 procurement_delay = _get_procurement_delay(ncr_list)
                 procurement_context = _build_procurement_context(
                     eq_id, ncr_list, procurement_delay
@@ -179,7 +182,7 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
             mitigation_text = mitigation_by_task_id.get(task_id)
             
             eq_id = task.get("equipment_item_id")
-            ncr_list = equipment_ncr_map.get(eq_id, []) if eq_id else []
+            ncr_list = list(equipment_ncr_map.get(eq_id, [])) if eq_id else list(unassigned_ncrs)
             procurement_delay = _get_procurement_delay(ncr_list)
             predicted_delay = _compute_predicted_delay(task, procurement_delay)
             historical_avg = _compute_historical_avg_delay(task)

@@ -405,10 +405,6 @@ def _extract_clauses_concurrent(
 ) -> List[Dict[str, Any]]:
     """
     Concurrent clause extraction using call_claude_json_batch.
-    Replaces the old ThreadPoolExecutor-of-sequential-calls approach —
-    that pattern only helped once Groq was actually reachable, since a
-    single local Ollama instance serializes generation regardless of how
-    many app-level threads are waiting on it.
     """
     if not LLM_AVAILABLE:
         logger.error("LLM client not available — cannot extract requirements")
@@ -418,52 +414,19 @@ def _extract_clauses_concurrent(
         logger.warning("No LLM provider available — returning stubs for all clauses")
         return [_llm_unavailable_stub(c, document_id) for c in clauses]
 
-    extracted = []
-    batch_size = 3
-    
-    from services.llm_client import _call_ollama
-    
-    import concurrent.futures
-    
-    def process_batch(batch):
-        batch_extracted = []
-        user_message = "Extract requirements for the following clauses:\n\n"
-        for c in batch:
-            user_message += f"--- CLAUSE {c.get('clause_number', '?')} ---\n{c.get('text', '')[:3000]}\n\n"
-            
-        try:
-            logger.info(f"Local-first extraction: Trying Ollama for batch of {len(batch)} clauses...")
-            raw_text = _call_ollama(CLAUSE_BATCH_EXTRACTION_SYSTEM, user_message, max_tokens=3000, json_mode=True)
-            import json
-            result = json.loads(raw_text)
-            parsed_clauses = result.get("extracted_clauses", [])
-            
-            if len(parsed_clauses) < len(batch):
-                raise ValueError("Ollama returned fewer clauses than expected.")
-                
-            for c_in, c_out in zip(batch, parsed_clauses):
-                if c_out.get("confidence_score", 0.0) >= 0.6:
-                    processed = _postprocess_extraction(c_out, c_in, document_id)
-                    if processed: batch_extracted.append(processed)
-                else:
-                    raise ValueError(f"Low confidence ({c_out.get('confidence_score')}) from Ollama")
-                    
-        except Exception as e:
-            logger.warning(f"Ollama batch failed or low confidence, falling back to Groq: {e}")
-            for c in batch:
-                processed = extract_clause_requirements(c, document_id)
-                if processed:
-                    batch_extracted.append(processed)
-        return batch_extracted
+    items = []
+    for c in clauses:
+        user_message = _build_extraction_user_message(c)
+        items.append((CLAUSE_BATCH_EXTRACTION_SYSTEM, user_message))
 
-    batches = [clauses[i:i + batch_size] for i in range(0, len(clauses), batch_size)]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_PARALLEL_EXTRACTIONS) as executor:
-        futures = [executor.submit(process_batch, batch) for batch in batches]
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                extracted.extend(future.result())
-            except Exception as e:
-                logger.error(f"Batch extraction failed: {e}")
+    logger.info(f"Submitting {len(items)} clauses to LLM batch processor...")
+    batch_results = call_claude_json_batch(items, max_tokens=1500)
+
+    extracted = []
+    for clause_data, result in zip(clauses, batch_results):
+        processed = _postprocess_extraction(result, clause_data, document_id)
+        if processed:
+            extracted.append(processed)
 
     def _parse_num(s: str) -> tuple:
         try:

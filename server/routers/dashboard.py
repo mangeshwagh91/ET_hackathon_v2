@@ -154,4 +154,30 @@ async def get_dashboard_summary():
         logger.error(f"Dashboard summary error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
+        db.close()
+
+
+@router.post("/resolve-all")
+async def resolve_all_issues():
+    db = get_db()
+    try:
+        # Resolve all NCRs
+        db.execute("UPDATE ncrs SET status = 'closed' WHERE status = 'open'")
+        
+        # Resolve schedule risks
+        db.execute("UPDATE schedule_tasks SET risk_score = 0.1, delay_probability = 0.1 WHERE risk_score > 0.5")
+        
+        # Resolve RFIs
+        db.execute("UPDATE rfis SET is_resolved = 1 WHERE is_resolved = 0")
+        
+        db.commit()
+        
+        # Invalidate cache
+        cache.invalidate_prefix("dashboard_summary")
+        return {"status": "success", "message": "All issues resolved"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error resolving issues: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
         db.close()

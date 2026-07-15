@@ -20,6 +20,13 @@ const api = {
     return handleResponse(res);
   },
 
+  resolveDashboardIssues: async () => {
+    const res = await fetch(`${BASE}/dashboard/resolve-all`, {
+      method: "POST",
+    });
+    return handleResponse(res);
+  },
+
   uploadSpecification: async (formData) => {
     const res = await fetch(`${BASE}/upload/specification`, {
       method: "POST",
@@ -234,6 +241,18 @@ const api = {
 
   uploadGeneral: async (formData) => {
     const res = await fetch(`${BASE}/upload/general`, {
+      method: "POST",
+      body: formData,
+    });
+    return handleResponse(res);
+  },
+
+  // Integrations (PDF Ingestion)
+  uploadIntegrationDocument: async (file, standardName) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("standard_name", standardName);
+    const res = await fetch(`${BASE}/integrations/upload`, {
       method: "POST",
       body: formData,
     });
