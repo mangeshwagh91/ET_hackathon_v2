@@ -2,11 +2,12 @@ import os
 import fitz  # PyMuPDF
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import sys
+import time
 
 # Ensure server path is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from services.vector_store import index_standard
+from services.vector_store import batch_index_standards
 
 DOCS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
 
@@ -25,6 +26,7 @@ def process_pdfs():
         if filename.lower().endswith(".pdf"):
             filepath = os.path.join(DOCS_DIR, filename)
             print(f"Processing {filename}...")
+            start = time.time()
             
             try:
                 doc = fitz.open(filepath)
@@ -36,24 +38,34 @@ def process_pdfs():
                 chunks = text_splitter.split_text(full_text)
                 print(f"  -> Extracted {len(chunks)} chunks.")
                 
-                success_count = 0
+                # Build batch items
+                items = []
                 for i, chunk in enumerate(chunks):
                     chunk = chunk.strip()
                     if not chunk:
                         continue
+                    items.append({
+                        "id": f"{filename}_chunk_{i}",
+                        "text": chunk,
+                        "metadata": {
+                            "source": filename,
+                            "chunk_index": str(i),
+                            "type": "standard_doc"
+                        }
+                    })
+                
+                # Batch index all chunks at once
+                if items:
+                    result = batch_index_standards(items)
+                    elapsed = time.time() - start
+                    print(f"  -> Batch-indexed {result.get('count', 0)}/{len(items)} chunks "
+                          f"into ChromaDB in {elapsed:.1f}s")
+                else:
+                    print(f"  -> No non-empty chunks to index.")
                     
-                    standard_id = f"{filename}_chunk_{i}"
-                    metadata = {
-                        "source": filename,
-                        "chunk_index": i,
-                        "type": "standard_doc"
-                    }
-                    if index_standard(standard_id, chunk, metadata):
-                        success_count += 1
-                        
-                print(f"  -> Indexed {success_count}/{len(chunks)} chunks into ChromaDB.")
             except Exception as e:
                 print(f"Error processing {filename}: {e}")
 
 if __name__ == "__main__":
     process_pdfs()
+

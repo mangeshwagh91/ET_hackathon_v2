@@ -20,7 +20,7 @@ from typing import Any, Callable, Coroutine, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-MAX_CONCURRENT_JOBS = int(__import__("os").getenv("INGEST_MAX_CONCURRENT", "2"))
+MAX_CONCURRENT_JOBS = int(__import__("os").getenv("INGEST_MAX_CONCURRENT", "5"))
 
 
 class JobStatus(str, Enum):

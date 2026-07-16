@@ -15,6 +15,7 @@ import logging
 import math
 import os
 import re
+import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -42,7 +43,7 @@ if _combined_raw:
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 GROQ_TIMEOUT = int(os.getenv("GROQ_TIMEOUT_SECONDS", "45"))
 MAX_RETRIES = int(os.getenv("GROQ_MAX_RETRIES", "2"))
-GROQ_MAX_CONCURRENT = max(1, int(os.getenv("GROQ_MAX_CONCURRENT", "3")))
+GROQ_MAX_CONCURRENT = max(1, int(os.getenv("GROQ_MAX_CONCURRENT", "10")))
 FALLBACK_GROQ_MODELS = [
     "llama-3.1-8b-instant",
     "llama-3.2-3b-preview",
@@ -162,6 +163,12 @@ def _next_groq_key() -> Optional[str]:
     return key
 
 
+# ── Shared aiohttp session for connection pooling ─────────────────────────────
+# Removed: Global shared session causes event loop errors when called from
+# multiple sync-to-async contexts (like FastAPI threadpools).
+# We now use per-batch sessions instead.
+
+
 # ── Groq async implementation ──────────────────────────────────────────────────
 
 async def _call_groq_async(
@@ -169,7 +176,8 @@ async def _call_groq_async(
     user_message: str,
     max_tokens: int = 2000,
     json_mode: bool = False,
-    model: str = None
+    model: str = None,
+    session: Any = None
 ) -> str:
     import aiohttp
 
@@ -200,30 +208,42 @@ async def _call_groq_async(
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
 
+    # Use provided session or create a temporary one
+    if session is None:
+        async with aiohttp.ClientSession() as temp_session:
+            return await _do_groq_request(
+                temp_session, url, headers, payload, api_key, model
+            )
+    else:
+        return await _do_groq_request(
+            session, url, headers, payload, api_key, model
+        )
+
+async def _do_groq_request(session, url, headers, payload, api_key, model):
+    import aiohttp
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url, headers=headers, json=payload,
-                timeout=aiohttp.ClientTimeout(total=GROQ_TIMEOUT)
-            ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    _key_errors[api_key] = _key_errors.get(api_key, 0) + 1
-                    raise RuntimeError(f"Groq HTTP {resp.status}: {body[:200]}")
+        async with session.post(
+            url, headers=headers, json=payload,
+            timeout=aiohttp.ClientTimeout(total=GROQ_TIMEOUT)
+        ) as resp:
+            if resp.status != 200:
+                body = await resp.text()
+                _key_errors[api_key] = _key_errors.get(api_key, 0) + 1
+                raise RuntimeError(f"Groq HTTP {resp.status}: {body[:200]}")
 
-                data = await resp.json()
-                choices = data.get("choices", [])
-                if not choices:
-                    raise RuntimeError("Groq response missing choices")
+            data = await resp.json()
+            choices = data.get("choices", [])
+            if not choices:
+                raise RuntimeError("Groq response missing choices")
 
-                message = choices[0].get("message", {})
-                content = message.get("content", "")
-                if not isinstance(content, str) or not content.strip():
-                    raise RuntimeError("Groq response missing content")
+            message = choices[0].get("message", {})
+            content = message.get("content", "")
+            if not isinstance(content, str) or not content.strip():
+                raise RuntimeError("Groq response missing content")
 
-                tokens = data.get("usage", {}).get("total_tokens", 0)
-                logger.info(f"Groq success | model={model} | tokens={tokens}")
-                return content
+            tokens = data.get("usage", {}).get("total_tokens", 0)
+            logger.info(f"Groq success | model={model} | tokens={tokens}")
+            return content
 
     except asyncio.TimeoutError:
         _key_errors[api_key] = _key_errors.get(api_key, 0) + 1
@@ -279,41 +299,49 @@ async def _call_groq_text_batch_async(
     items: List[Tuple[str, str]],
     max_tokens: int
 ) -> List[Optional[str]]:
+    import aiohttp
     semaphore = asyncio.Semaphore(GROQ_MAX_CONCURRENT)
 
-    async def _one(system_prompt: str, user_message: str) -> Optional[str]:
+    async def _one(system_prompt: str, user_message: str, session: Any) -> Optional[str]:
         async with semaphore:
             try:
                 return await _call_groq_async(
-                    system_prompt, user_message, max_tokens, json_mode=False
+                    system_prompt, user_message, max_tokens,
+                    json_mode=False, session=session
                 )
             except Exception as e:
                 logger.error(f"Groq batch item failed: {e}")
                 return None
 
-    tasks = [_one(sp, um) for sp, um in items]
-    return await asyncio.gather(*tasks)
+    connector = aiohttp.TCPConnector(limit=GROQ_MAX_CONCURRENT * 2)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        tasks = [_one(sp, um, session) for sp, um in items]
+        return await asyncio.gather(*tasks)
 
 
 async def _call_groq_json_batch_async(
     items: List[Tuple[str, str]],
     max_tokens: int
 ) -> List[Optional[dict]]:
+    import aiohttp
     semaphore = asyncio.Semaphore(GROQ_MAX_CONCURRENT)
 
-    async def _one(system_prompt: str, user_message: str) -> Optional[dict]:
+    async def _one(system_prompt: str, user_message: str, session: Any) -> Optional[dict]:
         async with semaphore:
             try:
                 text = await _call_groq_async(
-                    system_prompt, user_message, max_tokens, json_mode=True
+                    system_prompt, user_message, max_tokens,
+                    json_mode=True, session=session
                 )
                 return _parse_json_robust(text)
             except Exception as e:
                 logger.error(f"Groq JSON batch item failed: {e}")
                 return None
 
-    tasks = [_one(sp, um) for sp, um in items]
-    return await asyncio.gather(*tasks)
+    connector = aiohttp.TCPConnector(limit=GROQ_MAX_CONCURRENT * 2)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        tasks = [_one(sp, um, session) for sp, um in items]
+        return await asyncio.gather(*tasks)
 
 
 def call_claude_batch(
