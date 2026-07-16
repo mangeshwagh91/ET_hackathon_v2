@@ -18,9 +18,25 @@ OCR_DPI = int(os.getenv("PDF_OCR_DPI", "300"))
 OCR_LANGUAGES = os.getenv("PDF_OCR_LANGUAGES", "eng")
 OCR_CONFIG = os.getenv("PDF_OCR_CONFIG", "--oem 3 --psm 6")
 MAX_OCR_PAGES = int(os.getenv("PDF_MAX_OCR_PAGES", "100"))
-PARALLEL_PAGE_THRESHOLD = int(os.getenv("PDF_PARALLEL_THRESHOLD", "20"))
+PARALLEL_PAGE_THRESHOLD = int(os.getenv("PDF_PARALLEL_THRESHOLD", "5"))
 OCR_MAX_WORKERS = int(os.getenv("PDF_OCR_MAX_WORKERS", str(min(32, (os.cpu_count() or 4) * 2))))
 NATIVE_MAX_WORKERS = int(os.getenv("PDF_NATIVE_MAX_WORKERS", str(min(32, (os.cpu_count() or 4) * 2))))
+
+# Shared thread pool to avoid per-call overhead
+_shared_executor: Optional[ThreadPoolExecutor] = None
+_executor_lock = __import__('threading').Lock()
+
+
+def _get_shared_executor(max_workers: int = None) -> ThreadPoolExecutor:
+    """Get or create a shared ThreadPoolExecutor singleton."""
+    global _shared_executor
+    if _shared_executor is None:
+        with _executor_lock:
+            if _shared_executor is None:
+                workers = max_workers or NATIVE_MAX_WORKERS
+                _shared_executor = ThreadPoolExecutor(max_workers=workers)
+                logger.info(f"Created shared PDF ThreadPoolExecutor (workers={workers})")
+    return _shared_executor
 
 
 # ── Custom Exceptions ──────────────────────────────────────────────────────────
@@ -238,40 +254,67 @@ def _extract_pages_sequential(
 def _extract_pages_parallel(
     fitz, doc, num_pages: int, max_workers: int = 8
 ) -> List[Dict[str, Any]]:
+    """Extract pages in parallel using page-range batching.
+    Instead of re-opening the doc per thread (expensive), we split
+    pages into ranges and give each thread a range to extract from
+    its own doc handle.
+    """
     doc_path = doc.name  # Get file path for thread-local re-open
+    effective_workers = min(max_workers, num_pages)
+    
+    # Split pages into roughly equal ranges
+    pages_per_worker = max(1, num_pages // effective_workers)
+    ranges = []
+    for i in range(0, num_pages, pages_per_worker):
+        ranges.append((i, min(i + pages_per_worker, num_pages)))
 
-    def extract_single(page_num: int) -> Dict[str, Any]:
+    def extract_range(page_range: tuple) -> List[Dict[str, Any]]:
+        start, end = page_range
         thread_doc = None
+        results = []
         try:
             thread_doc = fitz.open(doc_path)
-            page = thread_doc[page_num]
-            text = page.get_text("text")
-            if not text or len(text.strip()) < 50:
-                text = page.get_text(
-                    "text",
-                    flags=fitz.TEXT_PRESERVE_LIGATURES | fitz.TEXT_PRESERVE_WHITESPACE
-                )
-            word_count = len(text.split()) if text else 0
-            return {
-                "page_num": page_num + 1,
-                "text": text or "",
-                "word_count": word_count,
-                "char_count": len(text) if text else 0
-            }
+            for page_num in range(start, end):
+                try:
+                    page = thread_doc[page_num]
+                    text = page.get_text("text")
+                    if not text or len(text.strip()) < 50:
+                        text = page.get_text(
+                            "text",
+                            flags=fitz.TEXT_PRESERVE_LIGATURES | fitz.TEXT_PRESERVE_WHITESPACE
+                        )
+                    word_count = len(text.split()) if text else 0
+                    results.append({
+                        "page_num": page_num + 1,
+                        "text": text or "",
+                        "word_count": word_count,
+                        "char_count": len(text) if text else 0
+                    })
+                except Exception:
+                    results.append({
+                        "page_num": page_num + 1, "text": "",
+                        "word_count": 0, "char_count": 0
+                    })
         except Exception:
-            return {"page_num": page_num + 1, "text": "", "word_count": 0, "char_count": 0}
+            # If doc open fails, return empty results for the range
+            for page_num in range(start, end):
+                results.append({
+                    "page_num": page_num + 1, "text": "",
+                    "word_count": 0, "char_count": 0
+                })
         finally:
             if thread_doc:
                 try:
                     thread_doc.close()
                 except Exception:
                     pass
+        return results
 
+    executor = _get_shared_executor(max_workers)
     pages_dict = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(extract_single, i): i for i in range(num_pages)}
-        for future in as_completed(futures):
-            result = future.result()
+    futures = {executor.submit(extract_range, r): r for r in ranges}
+    for future in as_completed(futures):
+        for result in future.result():
             pages_dict[result["page_num"]] = result
 
     return [pages_dict[i] for i in sorted(pages_dict.keys())]

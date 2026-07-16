@@ -14,6 +14,24 @@ def init_db():
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA temp_store=MEMORY")
         db.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                size_mw REAL,
+                deadline TEXT,
+                budget REAL,
+                status TEXT DEFAULT 'active',
+                created_at TEXT NOT NULL,
+                location TEXT,
+                capacity_unit TEXT,
+                equipment_budget REAL,
+                tier TEXT,
+                description TEXT,
+                pm TEXT
+            )
+        """)
+
+        db.execute("""
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
                 project_id TEXT REFERENCES projects(id),
@@ -202,23 +220,7 @@ def init_db():
             )
         """)
 
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS projects (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                size_mw REAL,
-                deadline TEXT,
-                budget REAL,
-                status TEXT DEFAULT 'active',
-                created_at TEXT NOT NULL,
-                location TEXT,
-                capacity_unit TEXT,
-                equipment_budget REAL,
-                tier TEXT,
-                description TEXT,
-                pm TEXT
-            )
-        """)
+
 
         db.execute("""
             CREATE TABLE IF NOT EXISTS vendors (
