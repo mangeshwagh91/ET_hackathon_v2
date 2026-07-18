@@ -1,17 +1,44 @@
 import { useRef, useEffect, useState } from "react";
-import { motion, AnimatePresence, useScroll, useTransform, animate } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useScroll,
+  useTransform,
+  useSpring,
+  useInView,
+  animate,
+} from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowRight, Zap, ShieldCheck, Clock, FileText, Check,
-  Mail, Truck, AlertTriangle, Search, LayoutGrid, Terminal,
-  Send, User, BarChart3, HelpCircle, ChevronRight, Settings,
-  Eye, RefreshCw, Layers
+  ArrowRight, ShieldCheck, FileText,
+  Mail, Truck, AlertTriangle, LayoutGrid, Layers,
 } from "lucide-react";
 
-// ─── Animated counter ──────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+   ═══════════════════════════════════════════════════════════════════ */
+const C = {
+  bg:      "#1a1a1a",
+  surface: "#222222",
+  elevated:"#2a2a2a",
+  bronze:  "#b08d6e",
+  ivory:   "#f0ece4",
+  muted:   "#8a847b",
+  dim:     "#4a4640",
+  border:  "#333330",
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   REUSABLE COMPONENTS
+   ═══════════════════════════════════════════════════════════════════ */
+
+// Animated counter
 function Counter({ to, suffix = "", delay = 0, duration = 1.8 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true });
   const [val, setVal] = useState(0);
   useEffect(() => {
+    if (!inView) return;
     const t = setTimeout(() => {
       const controls = animate(0, to, {
         duration,
@@ -21,36 +48,131 @@ function Counter({ to, suffix = "", delay = 0, duration = 1.8 }) {
       return () => controls.stop();
     }, delay * 1000);
     return () => clearTimeout(t);
-  }, [to, delay, duration]);
-  return <>{val}{suffix}</>;
+  }, [inView, to, delay, duration]);
+  return <span ref={ref}>{val}{suffix}</span>;
 }
 
-// ─── Reusable Mockup Container (looks like a clean macOS window) ────────────────
-function MacWindow({ children, title = "dcpi-workspace" }) {
+// MacOS-style window chrome
+function MacWindow({ children, title = "dataforge-workspace" }) {
   return (
-    <div className="w-full rounded-xl bg-[#131413] border border-[#232326] shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden">
-      {/* Window Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#0d0d0f] border-b border-[#232326] select-none">
+    <div className="w-full rounded-xl overflow-hidden" style={{ backgroundColor: C.bg, border: `1px solid ${C.border}`, boxShadow: "0 25px 60px rgba(0,0,0,0.7)" }}>
+      <div className="flex items-center justify-between px-4 py-3 select-none" style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.border}` }}>
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
           <div className="w-2.5 h-2.5 rounded-full bg-[#F2AF48]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: C.bronze }} />
         </div>
-        <span className="text-[11px] font-mono text-[#8A8D8A] tracking-wider font-semibold">{title}</span>
-        <div className="w-12" /> {/* spacer to center title */}
+        <span className="text-[11px] font-mono font-semibold tracking-wider" style={{ color: C.muted }}>{title}</span>
+        <div className="w-12" />
       </div>
-      {/* Window Body */}
-      <div className="p-6 relative bg-[#181A19]">
+      <div className="p-6 relative" style={{ backgroundColor: C.surface }}>
         {children}
       </div>
     </div>
   );
 }
 
-// ─── Main Landing Page ───────────────────────────────────────────────────────
+// Scroll-drawing vertical timeline
+function ScrollTimeline({ steps }) {
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start 0.7", "end 0.3"],
+  });
+  const lineHeight = useSpring(useTransform(scrollYProgress, [0, 1], ["0%", "100%"]), {
+    stiffness: 60, damping: 20,
+  });
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", padding: "0 24px" }}>
+      {/* Track */}
+      <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, backgroundColor: C.border, transform: "translateX(-50%)", opacity: 0.4 }} />
+      {/* Animated bronze fill */}
+      <motion.div style={{ position: "absolute", left: "50%", top: 0, width: 2, backgroundColor: C.bronze, transform: "translateX(-50%)", height: lineHeight, boxShadow: `0 0 12px ${C.bronze}44` }} />
+      {/* Nodes */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 80, position: "relative" }}>
+        {steps.map((step, i) => (
+          <TimelineNode key={i} step={step} index={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TimelineNode({ step, index }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-80px" });
+  const isLeft = index % 2 === 0;
+
+  return (
+    <div ref={ref} style={{ display: "flex", alignItems: "center", gap: 32, flexDirection: isLeft ? "row" : "row-reverse", maxWidth: 800, margin: "0 auto", width: "100%" }}>
+      <motion.div
+        initial={{ opacity: 0, x: isLeft ? -50 : 50, filter: "blur(6px)" }}
+        animate={inView ? { opacity: 1, x: 0, filter: "blur(0px)" } : {}}
+        transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
+        style={{ flex: 1, textAlign: isLeft ? "right" : "left", padding: "20px 24px", backgroundColor: `${C.surface}cc`, borderRadius: 8, border: `1px solid ${C.border}44`, backdropFilter: "blur(8px)" }}
+      >
+        <p style={{ color: C.ivory, fontSize: 15, fontWeight: 500, lineHeight: 1.5, margin: 0 }}>{step.label}</p>
+        <p style={{ color: C.muted, fontSize: 12, lineHeight: 1.5, margin: "6px 0 0 0" }}>{step.detail}</p>
+      </motion.div>
+
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={inView ? { scale: 1 } : {}}
+        transition={{ duration: 0.4, delay: 0.2, type: "spring", stiffness: 200 }}
+        style={{ width: 14, height: 14, borderRadius: "50%", border: `2px solid ${C.bronze}`, backgroundColor: C.bg, flexShrink: 0, boxShadow: inView ? `0 0 14px ${C.bronze}44` : "none" }}
+      />
+
+      <motion.div
+        initial={{ opacity: 0, x: isLeft ? 30 : -30 }}
+        animate={inView ? { opacity: 1, x: 0 } : {}}
+        transition={{ duration: 0.6, delay: 0.3 }}
+        style={{ flex: 1, textAlign: isLeft ? "left" : "right" }}
+      >
+        {step.agent && (
+          <span style={{ display: "inline-block", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: C.bronze, padding: "5px 12px", border: `1px solid ${C.bronze}44`, borderRadius: 16 }}>
+            {step.agent}
+          </span>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+// Differentiator statement with drawing underline
+function Statement({ text, index = 0 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 40 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.8, delay: index * 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+      style={{ maxWidth: 600, margin: "0 auto", padding: "40px 0" }}
+    >
+      <p style={{ color: C.ivory, fontSize: "clamp(17px, 2.5vw, 20px)", fontWeight: 400, lineHeight: 1.6, letterSpacing: "0.01em", margin: 0 }}>
+        {text}
+      </p>
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={inView ? { scaleX: 1 } : {}}
+        transition={{ duration: 0.8, delay: index * 0.15 + 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+        style={{ height: 1, backgroundColor: C.bronze, marginTop: 24, transformOrigin: "left" }}
+      />
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN LANDING PAGE
+   ═══════════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("bidding");
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 80, damping: 25 });
 
   // Interactive Simulation States
   const [selectedBid, setSelectedBid] = useState("Delta");
@@ -64,496 +186,383 @@ export default function LandingPage() {
     { id: "bidding", label: "Vendor Bidding", icon: <Layers size={14} /> },
     { id: "compliance", label: "Compliance Scan", icon: <ShieldCheck size={14} /> },
     { id: "email", label: "Email Ingestion", icon: <Mail size={14} /> },
-    { id: "logistics", label: "GPS Telemetry", icon: <Truck size={14} /> }
+    { id: "logistics", label: "GPS Telemetry", icon: <Truck size={14} /> },
+  ];
+
+  const timelineSteps = [
+    { label: "Vendors submit tenders to the platform", detail: "AI scores across price, compliance, lead time, and quality — recommends the best vendor.", agent: "Procurement Agent" },
+    { label: "Engineers upload 1000+ page specifications", detail: "AI extracts every clause, vectorizes it, and builds a searchable knowledge graph.", agent: "Orchestrator Agent" },
+    { label: "Vendor submittals checked against specs", detail: "Catches deviations instantly. Auto-generates full NCRs with clause references.", agent: "Compliance Agent" },
+    { label: "Schedule risks predicted across 500+ tasks", detail: "Cross-references float erosion, NCR severity, and procurement delays.", agent: "Schedule Agent" },
+    { label: "GPS tracks equipment shipments in real-time", detail: "Detects delays, links them to the critical path, suggests alternatives with cost impact.", agent: "Supply Chain Agent" },
+    { label: "Field engineers ask questions on-site", detail: "Instant answers with exact page citations. No more 2-4 week wait.", agent: "Knowledge Agent" },
+    { label: "Commissioning tests validated against specs", detail: "AI generates equipment-specific checklists from actual project specs.", agent: "Commissioning Agent" },
   ];
 
   return (
-    <div className="min-h-screen bg-[#131413] text-[#EDEFEE] font-sans overflow-x-hidden selection:bg-[#2A2C2A]">
+    <div style={{ backgroundColor: C.bg, color: C.ivory, fontFamily: "'Inter', 'Helvetica Neue', sans-serif", overflowX: "hidden", position: "relative" }}>
 
-      {/* ─── Minimal Navigation ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-5 bg-[#131413]/80 backdrop-blur-md border-b border-[#2A2C2A]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-            <LayoutGrid size={15} className="text-black stroke-[2.5px]" />
+      {/* ─── Scroll progress bar ─── */}
+      <motion.div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 2, backgroundColor: C.bronze, scaleX, transformOrigin: "left", zIndex: 100 }} />
+
+      {/* Grain texture */}
+      <div style={{ position: "fixed", inset: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`, pointerEvents: "none", zIndex: 1 }} />
+
+      {/* ─── Sticky Nav ─── */}
+      <nav style={{ position: "fixed", top: 2, left: 0, right: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 32px", backgroundColor: `${C.bg}dd`, backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.border}66` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 6, backgroundColor: C.bronze, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <LayoutGrid size={14} color={C.bg} strokeWidth={2.5} />
           </div>
           <div>
-            <span className="font-extrabold text-white text-[15px] tracking-tight leading-none block">DataForge AI</span>
-            <span className="text-[9px] text-[#8A8D8A] tracking-widest uppercase font-bold mt-0.5">Platform</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: C.ivory, letterSpacing: "-0.02em", display: "block", lineHeight: 1 }}>DataForge</span>
+            <span style={{ fontSize: 9, color: C.muted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>AI Platform</span>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <button onClick={() => navigate("/login")} className="text-xs font-semibold text-[#8A8D8A] hover:text-white transition-colors">
-            Sign In
-          </button>
-          <button
-            onClick={() => navigate("/login")}
-            className="landing-btn-white px-4 py-2 rounded-lg text-xs font-bold transition-all"
-          >
-            Start Free
-          </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <button onClick={() => navigate("/login")} style={{ fontSize: 12, fontWeight: 600, color: C.muted, background: "none", border: "none", cursor: "pointer" }}>Sign In</button>
+          <button onClick={() => navigate("/login")} style={{ fontSize: 12, fontWeight: 700, color: C.bg, background: C.bronze, border: "none", padding: "8px 18px", borderRadius: 6, cursor: "pointer" }}>Start Free</button>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-6 pt-36 pb-24 z-10 relative">
 
-        {/* ─── Hero Section ─── */}
-        <div className="flex flex-col lg:flex-row items-center gap-16 min-h-[75vh] mb-20">
-          {/* Left Text */}
-          <div className="flex-1 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#181A19] border border-[#232323] text-[#8A8D8A] text-[11px] font-bold tracking-wider uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#249361]" />
-              Data Centre Engine
-            </div>
+      {/* ════════════════ HERO ════════════════ */}
+      <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", position: "relative", zIndex: 2 }}>
 
-            <h1 className="text-4xl lg:text-[64px] font-extrabold tracking-tight text-white leading-[1.05]">
-              The AI Engine <br />
-              for Infrastructure <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#EDEFEE] to-[#8A8D8A]">
-                Project Intelligence
+        {/* Subtle blueprint grid behind everything */}
+        <div style={{ position: "absolute", inset: 0, backgroundImage: `linear-gradient(to right, ${C.border}08 1px, transparent 1px), linear-gradient(to bottom, ${C.border}08 1px, transparent 1px)`, backgroundSize: "64px 64px", pointerEvents: "none" }} />
+
+        <div style={{ textAlign: "center", position: "relative" }}>
+
+          {/* ── Title with animated gradient sweep ── */}
+          <div style={{ overflow: "hidden", position: "relative" }}>
+            <motion.h1
+              initial={{ y: "100%" }}
+              animate={{ y: "0%" }}
+              transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              style={{ fontSize: "clamp(60px, 13vw, 160px)", fontWeight: 200, letterSpacing: "-0.05em", margin: 0, paddingBottom: "0.15em", marginBottom: "-0.15em", lineHeight: 0.9, position: "relative", color: "transparent" }}
+            >
+              {/* Base text layer (dim) */}
+              <span style={{ backgroundImage: `linear-gradient(180deg, ${C.ivory}33 0%, ${C.ivory}15 100%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                DataForge
               </span>
-            </h1>
 
-            <p className="text-base text-[#8A8D8A] max-w-lg leading-relaxed">
-              Enforce specifications, run TIA-942 audits, ingest site emails, and track equipment delivery paths instantly in a unified, modern interface.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
-              <button
-                onClick={() => navigate("/login")}
-                className="w-full sm:w-auto landing-btn-white px-6 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+              {/* Sweeping highlight layer */}
+              <motion.span
+                animate={{ backgroundPosition: ["-200% center", "200% center"] }}
+                transition={{ repeat: Infinity, duration: 6, ease: "linear" }}
+                style={{
+                  position: "absolute", inset: 0,
+                  backgroundImage: `linear-gradient(90deg, transparent 0%, ${C.ivory} 45%, ${C.bronze} 50%, ${C.ivory} 55%, transparent 100%)`,
+                  backgroundSize: "200% 100%",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  fontSize: "inherit", fontWeight: "inherit", letterSpacing: "inherit", lineHeight: "inherit",
+                }}
               >
-                Launch Workspace
-                <ArrowRight size={16} />
-              </button>
-              <a
-                href="#playground"
-                className="w-full sm:w-auto bg-[#131413] border border-[#2A2C2A] hover:border-[#8A8D8A] text-[#EDEFEE] px-6 py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center"
-              >
-                Try Sandbox
-              </a>
-            </div>
+                DataForge
+              </motion.span>
+            </motion.h1>
           </div>
 
-          {/* Right Showcase: High-Fidelity Mock Interface (Replaces floating cards for cleanliness) */}
-          <div className="flex-1 w-full max-w-[520px]">
-            <MacWindow title="dcpi-dashboard">
-              <div className="space-y-5">
-                {/* Simulated Header */}
-                <div className="flex justify-between items-center pb-3 border-b border-[#2A2C2A]">
-                  <div>
-                    <div className="text-[10px] text-[#8A8D8A] font-bold uppercase tracking-wider">Project</div>
-                    <div className="text-white text-xs font-bold">DataForge AI West Coast build</div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded bg-[#3ECF8E]/10 text-[#3ECF8E] border border-[#3ECF8E]/20 text-[10px] font-bold">98% Match</span>
-                </div>
-
-                {/* Simulated Grid Rows */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-3 bg-[#181A19] border border-[#232323] rounded-lg">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#3ECF8E]" />
-                      <span className="text-xs font-semibold text-white">Delta UPS Installation</span>
-                    </div>
-                    <span className="text-[10px] text-[#8A8D8A] font-mono">Compliant</span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-[#181A19] border border-[#232323] rounded-lg">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      <span className="text-xs font-semibold text-white">Carrier Telemetry Trk-99</span>
-                    </div>
-                    <span className="text-[10px] text-amber-500 font-bold">Delay Risk</span>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-[#181A19] border border-[#232323] rounded-lg">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                      <span className="text-xs font-semibold text-white">Clearance scan</span>
-                    </div>
-                    <span className="text-[10px] text-red-500 font-bold">1 Deviation</span>
-                  </div>
-                </div>
-
-                {/* Progress Mini Bar */}
-                <div className="pt-2">
-                  <div className="flex justify-between text-[10px] text-[#8A8D8A] font-bold mb-1">
-                    <span>TIA-942 Compliance</span>
-                    <span className="text-white">92% audit completion</span>
-                  </div>
-                  <div className="h-1 bg-[#1a1a1f] rounded-full overflow-hidden">
-                    <div className="h-full bg-white w-[92%]" />
-                  </div>
-                </div>
-              </div>
-            </MacWindow>
-          </div>
-        </div>
-
-        {/* ─── Flat Minimal Stats Bar ─── */}
-        <div className="border-t border-[#2A2C2A] py-10 mb-20 grid grid-cols-2 md:grid-cols-4 gap-8">
-          <div>
-            <div className="text-2xl font-bold text-white mb-1"><Counter to={147} suffix="+" /></div>
-            <div className="text-[10px] font-bold text-[#8A8D8A] uppercase tracking-wider">Compliance Runs</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-white mb-1"><Counter to={12} delay={0.2} /></div>
-            <div className="text-[10px] font-bold text-[#8A8D8A] uppercase tracking-wider">Active Workspace</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-white mb-1"><Counter to={98} suffix=".2%" delay={0.4} /></div>
-            <div className="text-[10px] font-bold text-[#8A8D8A] uppercase tracking-wider">Accuracy Score</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-white mb-1"><Counter to={4} suffix="h Alert" delay={0.6} /></div>
-            <div className="text-[10px] font-bold text-[#8A8D8A] uppercase tracking-wider">Average Lead Time</div>
-          </div>
-        </div>
-
-        {/* ─── INTERACTIVE SANDBOX PLAYGROUND ─── */}
-        <section id="playground" className="scroll-mt-24 py-12 mb-20">
-          <div className="max-w-2xl mb-12 space-y-3">
-            <h2 className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
-              Interactive sandbox demo
-            </h2>
-            <p className="text-[#8A8D8A] text-sm">
-              Use the tab controls below to simulate core platform workflows. Toggle options and see parsed specifications and compliance reports update dynamically.
-            </p>
+          {/* ── Forge line — a horizontal line that heats up ── */}
+          <div style={{ position: "relative", width: 200, margin: "24px auto", height: 1 }}>
+            <div style={{ position: "absolute", inset: 0, backgroundColor: `${C.border}44` }} />
+            <motion.div
+              animate={{ left: ["-30%", "100%"] }}
+              transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+              style={{ position: "absolute", top: -1, width: "30%", height: 3, borderRadius: 2, background: `linear-gradient(90deg, transparent, ${C.bronze}, transparent)` }}
+            />
           </div>
 
-          <div className="bg-[#181A19] border border-[#2A2C2A] rounded-2xl p-6 lg:p-8 relative">
-            {/* Minimal Segment Control Tab Bar */}
-            <div className="flex flex-wrap items-center gap-1.5 border-b border-[#2A2C2A] pb-6 mb-8">
-              {tabs.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTab(t.id)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === t.id
-                      ? "bg-white text-black font-extrabold"
-                      : "bg-[#181A19] border border-[#232323] text-[#8A8D8A] hover:text-white"
-                    }`}
-                >
-                  {t.icon}
-                  {t.label}
-                </button>
-              ))}
-            </div>
+          {/* ── Subtitle ── */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.2, delay: 1 }}
+            style={{ fontSize: "clamp(14px, 2vw, 17px)", color: C.muted, fontWeight: 400, margin: 0, lineHeight: 1.6, letterSpacing: "0.01em" }}
+          >
+            AI-Powered EPC Intelligence for Data Centres
+          </motion.p>
 
-            <div className="flex flex-col lg:flex-row gap-10 items-stretch">
-
-              {/* Left Column: Sandbox Controls */}
-              <div className="flex-1 flex flex-col justify-between py-2">
-                <AnimatePresence mode="wait">
-
-                  {activeTab === "bidding" && (
-                    <motion.div
-                      key="bid-controls"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="space-y-4"
-                    >
-                      <h3 className="text-lg font-bold text-white">Select and analyze bid sheets</h3>
-                      <p className="text-xs text-[#8A8D8A] leading-relaxed">
-                        Vendors submit machinery specs. The engine extracts constraints and lists matches based on clearances.
-                      </p>
-                      <div className="flex gap-2 pt-2">
-                        {["Delta", "Schneider", "Eaton"].map(brand => (
-                          <button
-                            key={brand}
-                            onClick={() => setSelectedBid(brand)}
-                            className={`flex-1 py-2.5 rounded-lg text-xs border text-center transition-all ${selectedBid === brand
-                                ? "bg-white/5 border-white text-white font-bold"
-                                : "bg-[#131413] border-[#2A2C2A] text-[#8A8D8A] hover:text-white"
-                              }`}
-                          >
-                            {brand}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {activeTab === "compliance" && (
-                    <motion.div
-                      key="compliance-controls"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="space-y-4"
-                    >
-                      <h3 className="text-lg font-bold text-white">Scan TIA-942 Guidelines</h3>
-                      <p className="text-xs text-[#8A8D8A] leading-relaxed">
-                        Cross-reference floorplan clearances against Data Center Tier regulations to isolate violations.
-                      </p>
-                      <button
-                        onClick={() => {
-                          setNcrLoading(true);
-                          setTimeout(() => {
-                            setNcrResult({
-                              details: "Aisle containment space is 1.05m. Annex G regulations require min 1.2m clearance."
-                            });
-                            setNcrLoading(false);
-                          }, 1000);
-                        }}
-                        disabled={ncrLoading}
-                        className="w-full bg-[#3ECF8E] hover:bg-[#249361] text-black py-2.5 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
-                      >
-                        {ncrLoading ? "Running Sweep..." : "Initiate Audit Run"}
-                      </button>
-                    </motion.div>
-                  )}
-
-                  {activeTab === "email" && (
-                    <motion.div
-                      key="email-controls"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="space-y-4"
-                    >
-                      <h3 className="text-lg font-bold text-white">Ingest FWD blueprints</h3>
-                      <p className="text-xs text-[#8A8D8A] leading-relaxed">
-                        Forward technical specs straight from site email attachments into the parsing workspace.
-                      </p>
-                      <div className="space-y-2 pt-1">
-                        <input
-                          type="text"
-                          value={emailSubject}
-                          onChange={(e) => setEmailSubject(e.target.value)}
-                          placeholder="e.g., Delta UPS specification logs"
-                          className="w-full bg-[#131413] border border-[#2A2C2A] rounded-lg px-4 py-2.5 text-xs text-white placeholder:text-[#8A8D8A] outline-none"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!emailSubject) return;
-                            setEmailStatus("sending");
-                            setTimeout(() => {
-                              setEmailStatus("parsed");
-                            }, 1200);
-                          }}
-                          disabled={emailStatus === "sending" || !emailSubject}
-                          className="w-full landing-btn-white font-bold py-2.5 rounded-lg text-xs transition-all disabled:opacity-50"
-                        >
-                          {emailStatus === "sending" ? "Processing..." : "Send FWD email"}
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {activeTab === "logistics" && (
-                    <motion.div
-                      key="logistics-controls"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="space-y-4"
-                    >
-                      <h3 className="text-lg font-bold text-white">Logistics Delay Flagging</h3>
-                      <p className="text-xs text-[#8A8D8A] leading-relaxed">
-                        Simulate route bottlenecks to verify dynamic recalculations of machine arrival.
-                      </p>
-                      <div className="flex gap-2 pt-2">
-                        <button
-                          onClick={() => setTruckDelay(false)}
-                          className={`flex-1 py-2.5 rounded-lg text-xs border text-center transition-all ${!truckDelay
-                              ? "bg-white/5 border-white text-white font-bold"
-                              : "bg-[#131413] border-[#2A2C2A] text-[#8A8D8A]"
-                            }`}
-                        >
-                          Clear Route
-                        </button>
-                        <button
-                          onClick={() => setTruckDelay(true)}
-                          className={`flex-1 py-2.5 rounded-lg text-xs border text-center transition-all ${truckDelay
-                              ? "bg-red-500/10 border-red-500 text-red-500 font-bold"
-                              : "bg-[#131413] border-[#2A2C2A] text-[#8A8D8A]"
-                            }`}
-                        >
-                          Trigger Traffic
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-
-                </AnimatePresence>
-              </div>
-
-              {/* Right Column: Console Mockup Panel */}
-              <div className="flex-1 w-full">
-                <MacWindow title="dcpi-terminal">
-                  <div className="min-h-[220px] flex flex-col justify-center">
-                    <AnimatePresence mode="wait">
-
-                      {activeTab === "bidding" && (
-                        <motion.div
-                          key={`bid-card-${selectedBid}`}
-                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                          className="space-y-4 font-mono text-xs"
-                        >
-                          <div className="flex justify-between items-center px-4 py-2 bg-[#181A19] border-b border-[#2A2C2A]">
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#A1A1A1]">RFI Impact Analysis</div>
-                            <div className="flex gap-2">
-                              <span className={`text-[10px] font-bold ${selectedBid === "Delta" ? "text-[#3ECF8E]" : "text-[#8A8D8A]"}`}>Delta Systems</span>
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="text-white font-bold">{selectedBid === "Delta" ? "Delta MOD-500" : selectedBid === "Schneider" ? "Galaxy PX" : "Eaton Power-9"}</div>
-                              <span className="text-[#8A8D8A] text-[10px]">Category: UPS Module</span>
-                            </div>
-                            <span className={`text-[10px] font-bold ${selectedBid === "Delta" ? "text-[#3ECF8E]" : "text-[#8A8D8A]"
-                              }`}>
-                              {selectedBid === "Delta" ? "98% Match" : selectedBid === "Schneider" ? "84% Match" : "79% Match"}
-                            </span>
-                          </div>
-
-                          <div className="space-y-1.5 p-3 bg-[#181A19] border border-[#2A2C2A] rounded-lg">
-                            <div className="flex justify-between text-[#8A8D8A]"><span className="text-[#8A8D8A]">Efficiency</span><span>{selectedBid === "Delta" ? "96.5%" : "94.8%"}</span></div>
-                            <div className="flex justify-between text-[#8A8D8A]"><span className="text-[#8A8D8A]">Lead Time</span><span>{selectedBid === "Delta" ? "4 Weeks" : "8 Weeks"}</span></div>
-                          </div>
-
-                          <div className="text-[#8A8D8A] text-[11px]">
-                            {selectedBid === "Delta" ? "✓ Verified compliance parameters." : "⚠ Width exceeds clearance space."}
-                          </div>
-                        </motion.div>
-                      )}
-
-                      {activeTab === "compliance" && (
-                        <motion.div
-                          key="compliance-status"
-                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                          className="space-y-4 font-mono text-xs"
-                        >
-                          {!ncrResult && !ncrLoading && (
-                            <div className="text-center text-[#8A8D8A] py-8">&lt; Sweep Idle &gt;</div>
-                          )}
-
-                          {ncrLoading && (
-                            <div className="space-y-2">
-                              <div className="text-white">Analyzing clearances...</div>
-                              <div className="h-0.5 bg-[#181A19] rounded overflow-hidden">
-                                <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 1 }} className="h-full bg-white" />
-                              </div>
-                            </div>
-                          )}
-
-                          {ncrResult && !ncrLoading && (
-                            <div className="space-y-3">
-                              <div className="text-red-500 font-bold flex items-center gap-1.5">
-                                <AlertTriangle size={14} /> Deviation isolated
-                              </div>
-                              <div className="p-3 bg-[#170e0e] border border-red-900/20 text-red-400 rounded-lg">
-                                {ncrResult.details}
-                              </div>
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-
-                      {activeTab === "email" && (
-                        <motion.div
-                          key="email-status"
-                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                          className="space-y-4 font-mono text-xs"
-                        >
-                          {emailStatus === "idle" && (
-                            <div className="text-center text-[#8A8D8A] py-8">&lt; Awaiting forwarding trigger &gt;</div>
-                          )}
-
-                          {emailStatus === "sending" && (
-                            <div className="text-white">Connecting SMTP & parsing attachment payload...</div>
-                          )}
-
-                          {emailStatus === "parsed" && (
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-3 p-3 bg-[#181A19] border border-[#2A2C2A] rounded-lg">
-                                <FileText size={16} className="text-[#8A8D8A]" />
-                                <div>
-                                  <div className="text-white font-bold text-[11px] truncate">{emailSubject}</div>
-                                  <div className="text-[10px] text-[#8A8D8A]">Payload: spec_sheet.pdf</div>
-                                </div>
-                              </div>
-                              <div className="text-[#3ECF8E] font-bold">✓ PDF processed. Specs added to workspace.</div>
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-
-                      {activeTab === "logistics" && (
-                        <motion.div
-                          key={`logistics-status-${truckDelay}`}
-                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                          className="space-y-4 font-mono text-xs"
-                        >
-                          <div className="h-16 bg-[#181A19] border border-[#2A2C2A] rounded-lg relative overflow-hidden flex items-center justify-center">
-                            <div className="absolute w-[80%] h-0.5 bg-[#232326] rounded-full overflow-hidden">
-                              <div className={`h-full ${truckDelay ? 'bg-red-500' : 'bg-white'} w-[60%]`} />
-                            </div>
-                            <div className={`absolute left-[60%] -ml-3 w-6 h-6 rounded-full border bg-black flex items-center justify-center ${truckDelay ? 'border-red-500' : 'border-white'
-                              }`}>
-                              <Truck size={10} className={truckDelay ? 'text-red-500' : 'text-white'} />
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between items-center text-[11px]">
-                            <span className="text-[#8A8D8A]">UPS Carrier: Trk-9912</span>
-                            <span className={truckDelay ? 'text-red-500 font-bold' : 'text-[#3ECF8E] font-bold'}>
-                              {truckDelay ? 'Incident Detected' : 'Clear Route'}
-                            </span>
-                          </div>
-
-                          {truckDelay && (
-                            <div className="p-2.5 bg-[#170e0e] border border-red-900/20 text-red-400 rounded-lg">
-                              Alert: weather issue on Route 40. Arrival time: +4h.
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-
-                    </AnimatePresence>
-                  </div>
-                </MacWindow>
-              </div>
-
-            </div>
-          </div>
-        </section>
-
-        {/* ─── Premium Accordion FAQ ─── */}
-        <section className="py-12 mb-20 max-w-3xl mx-auto border-t border-[#2A2C2A]">
-          <div className="text-center mb-10">
-            <h2 className="text-xl font-bold text-white">Frequently Asked Questions</h2>
-          </div>
-          <div className="space-y-3">
+          {/* ── Live agent status strip ── */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 1.6 }}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "clamp(12px, 2.5vw, 24px)", marginTop: 32, flexWrap: "wrap" }}
+          >
             {[
-              { q: "How does compliance verification work?", a: "The engine parses specs on upload, checking dimensions and performance bounds against rules defined by Data Center Standards (BICSI / TIA-942)." },
-              { q: "Can we interface with logistics carriers?", a: "Yes, DataForge AI connects with freight telemetry nodes, using transit weather models to dynamically forecast delays." },
-              { q: "How is the project email configured?", a: "Each workspace configures a dedicated ingestion alias (e.g., project@dcpi.ai) that scans, checks, and loads emailed attachments." }
-            ].map((faq, i) => (
-              <div key={i} className="bg-[#181A19] border border-[#2A2C2A] rounded-xl p-5">
-                <h4 className="text-sm font-bold text-white mb-1.5">{faq.q}</h4>
-                <p className="text-xs text-[#8A8D8A] leading-relaxed">{faq.a}</p>
+              { name: "Procurement", delay: 0 },
+              { name: "Compliance", delay: 0.8 },
+              { name: "Schedule", delay: 1.6 },
+              { name: "Supply Chain", delay: 2.4 },
+              { name: "Knowledge", delay: 0.4 },
+              { name: "Commissioning", delay: 1.2 },
+              { name: "Report", delay: 2.0 },
+            ].map((agent) => (
+              <div key={agent.name} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <motion.div
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ repeat: Infinity, duration: 3, delay: agent.delay, ease: "easeInOut" }}
+                  style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: C.bronze }}
+                />
+                <span style={{ fontSize: 10, fontWeight: 500, color: C.dim, letterSpacing: "0.04em", textTransform: "uppercase" }}>{agent.name}</span>
               </div>
             ))}
-          </div>
-        </section>
+          </motion.div>
 
-        {/* ─── CTA Call to Action ─── */}
-        <section className="border border-[#2A2C2A] rounded-2xl p-10 text-center space-y-5 bg-[#181A19] relative overflow-hidden">
-          <h2 className="text-2xl lg:text-3xl font-extrabold text-white">
-            Ready to Optimize Your Infrastructure?
-          </h2>
-          <p className="text-[#8A8D8A] max-w-md mx-auto text-xs leading-relaxed">
-            Get instant vendor match rankings, continuous compliance monitoring, and telemetry warnings on one unified workspace.
-          </p>
-          <div className="pt-2">
+          {/* ── CTA Buttons ── */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 2.2 }}
+            style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginTop: 44 }}
+          >
             <button
               onClick={() => navigate("/login")}
-              className="landing-btn-white font-bold px-6 py-3 rounded-lg text-xs transition-all inline-flex items-center gap-1.5"
+              style={{ padding: "13px 32px", backgroundColor: C.bronze, color: C.bg, border: "none", borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: "0.03em", transition: "opacity 0.3s" }}
+              onMouseEnter={e => e.target.style.opacity = "0.85"}
+              onMouseLeave={e => e.target.style.opacity = "1"}
             >
-              Start Your Project Free
-              <ArrowRight size={14} />
+              Enter Platform
             </button>
+            <a
+              href="#playground"
+              style={{ padding: "13px 32px", backgroundColor: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 13, fontWeight: 500, textDecoration: "none", letterSpacing: "0.03em", transition: "border-color 0.3s, color 0.3s" }}
+              onMouseEnter={e => { e.target.style.borderColor = C.bronze; e.target.style.color = C.ivory; }}
+              onMouseLeave={e => { e.target.style.borderColor = C.border; e.target.style.color = C.muted; }}
+            >
+              Try Sandbox
+            </a>
+          </motion.div>
+        </div>
+
+      </section>
+
+
+      {/* ════════════════ STATS BAR ════════════════ */}
+      <section style={{ padding: "48px 24px", borderTop: `1px solid ${C.border}33`, borderBottom: `1px solid ${C.border}33`, position: "relative", zIndex: 2 }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: "clamp(32px, 6vw, 72px)", flexWrap: "wrap", maxWidth: 800, margin: "0 auto" }}>
+          {[
+            { value: 7, suffix: "", label: "AI Agents" },
+            { value: 120, suffix: "+", label: "Hours Saved / Week" },
+            { value: 14, suffix: "", label: "Days Risk Flagged Early" },
+            { value: 98, suffix: "%", label: "Compliance Accuracy" },
+          ].map((stat, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: i * 0.1 }} style={{ textAlign: "center" }}>
+              <p style={{ fontSize: "clamp(26px, 4vw, 38px)", fontWeight: 300, color: C.bronze, margin: 0, letterSpacing: "-0.02em" }}>
+                <Counter to={stat.value} suffix={stat.suffix} delay={i * 0.1} />
+              </p>
+              <p style={{ fontSize: 10, color: C.muted, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, marginTop: 6 }}>{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+
+      {/* ════════════════ SCENE 2: THE FLOW (SCROLL TIMELINE) ════════════════ */}
+      <section style={{ padding: "100px 24px", maxWidth: 900, margin: "0 auto", position: "relative", zIndex: 2 }}>
+        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.8 }} style={{ textAlign: "center", marginBottom: 72 }}>
+          <p style={{ fontSize: 11, color: C.bronze, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>How it works</p>
+          <h2 style={{ fontSize: "clamp(24px, 4vw, 36px)", fontWeight: 300, color: C.ivory, letterSpacing: "-0.02em", margin: 0 }}>
+            One continuous flow, zero manual handoffs.
+          </h2>
+        </motion.div>
+        <ScrollTimeline steps={timelineSteps} />
+      </section>
+
+
+      {/* ════════════════ INTERACTIVE SANDBOX ════════════════ */}
+      <section id="playground" style={{ scrollMarginTop: 80, padding: "80px 24px", maxWidth: 1100, margin: "0 auto", position: "relative", zIndex: 2 }}>
+        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }} style={{ marginBottom: 40 }}>
+          <p style={{ fontSize: 11, color: C.bronze, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Try it yourself</p>
+          <h2 style={{ fontSize: "clamp(22px, 3vw, 30px)", fontWeight: 800, color: C.ivory, letterSpacing: "-0.02em", margin: 0 }}>Interactive Sandbox Demo</h2>
+          <p style={{ fontSize: 13, color: C.muted, marginTop: 8, maxWidth: 500 }}>Toggle controls below to simulate core platform workflows.</p>
+        </motion.div>
+
+        <div style={{ backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: "clamp(20px, 3vw, 32px)", position: "relative" }}>
+          {/* Tab bar */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingBottom: 20, marginBottom: 28, borderBottom: `1px solid ${C.border}` }}>
+            {tabs.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "9px 18px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none",
+                  backgroundColor: activeTab === t.id ? C.bronze : "transparent",
+                  color: activeTab === t.id ? C.bg : C.muted,
+                  transition: "all 0.2s",
+                }}
+              >
+                {t.icon}{t.label}
+              </button>
+            ))}
           </div>
-        </section>
 
-      </main>
+          <div style={{ display: "flex", gap: 32, flexWrap: "wrap", alignItems: "stretch" }}>
+            {/* Left: Controls */}
+            <div style={{ flex: "1 1 300px", minWidth: 260, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <AnimatePresence mode="wait">
+                {activeTab === "bidding" && (
+                  <motion.div key="bid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: C.ivory, margin: 0 }}>Analyze vendor tenders</h3>
+                    <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>Select a vendor to see AI-scored match against project specifications.</p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {["Delta", "Schneider", "Eaton"].map(brand => (
+                        <button key={brand} onClick={() => setSelectedBid(brand)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: selectedBid === brand ? 700 : 500, border: `1px solid ${selectedBid === brand ? C.bronze : C.border}`, backgroundColor: selectedBid === brand ? `${C.bronze}15` : "transparent", color: selectedBid === brand ? C.ivory : C.muted, transition: "all 0.2s" }}>
+                          {brand}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
 
-      {/* Footer */}
-      <footer className="border-t border-[#2A2C2A] py-8 text-center text-[10px] text-[#8A8D8A] font-semibold uppercase tracking-widest bg-[#131413]">
-        <p>© 2026 DataForge AI. Crafted for optimal performance.</p>
+                {activeTab === "compliance" && (
+                  <motion.div key="comp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: C.ivory, margin: 0 }}>Scan TIA-942 Guidelines</h3>
+                    <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>Cross-reference clearances against Tier regulations to isolate violations.</p>
+                    <button onClick={() => { setNcrLoading(true); setTimeout(() => { setNcrResult({ details: "Aisle containment space is 1.05m. Annex G requires min 1.2m clearance." }); setNcrLoading(false); }, 1000); }} disabled={ncrLoading} style={{ padding: "10px 20px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none", backgroundColor: C.bronze, color: C.bg, opacity: ncrLoading ? 0.5 : 1, transition: "opacity 0.2s" }}>
+                      {ncrLoading ? "Running Sweep..." : "Initiate Audit Run"}
+                    </button>
+                  </motion.div>
+                )}
+
+                {activeTab === "email" && (
+                  <motion.div key="email" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: C.ivory, margin: 0 }}>Ingest FWD blueprints</h3>
+                    <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>Forward specs from site email attachments into the parsing workspace.</p>
+                    <input type="text" value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} placeholder="e.g., Delta UPS specification logs" style={{ padding: "10px 14px", borderRadius: 8, fontSize: 12, border: `1px solid ${C.border}`, backgroundColor: C.bg, color: C.ivory, outline: "none" }} />
+                    <button onClick={() => { if (!emailSubject) return; setEmailStatus("sending"); setTimeout(() => setEmailStatus("parsed"), 1200); }} disabled={emailStatus === "sending" || !emailSubject} style={{ padding: "10px 20px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none", backgroundColor: C.bronze, color: C.bg, opacity: (emailStatus === "sending" || !emailSubject) ? 0.5 : 1 }}>
+                      {emailStatus === "sending" ? "Processing..." : "Send FWD email"}
+                    </button>
+                  </motion.div>
+                )}
+
+                {activeTab === "logistics" && (
+                  <motion.div key="log" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <h3 style={{ fontSize: 17, fontWeight: 700, color: C.ivory, margin: 0 }}>Logistics Delay Flagging</h3>
+                    <p style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>Simulate route bottlenecks to verify dynamic recalculations.</p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => setTruckDelay(false)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 12, cursor: "pointer", border: `1px solid ${!truckDelay ? C.bronze : C.border}`, backgroundColor: !truckDelay ? `${C.bronze}15` : "transparent", color: !truckDelay ? C.ivory : C.muted, fontWeight: !truckDelay ? 700 : 500 }}>Clear Route</button>
+                      <button onClick={() => setTruckDelay(true)} style={{ flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 12, cursor: "pointer", border: `1px solid ${truckDelay ? "#c4655a" : C.border}`, backgroundColor: truckDelay ? "#c4655a15" : "transparent", color: truckDelay ? "#c4655a" : C.muted, fontWeight: truckDelay ? 700 : 500 }}>Trigger Traffic</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Right: Console */}
+            <div style={{ flex: "1 1 380px", minWidth: 300 }}>
+              <MacWindow title="dataforge-terminal">
+                <div style={{ minHeight: 200, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <AnimatePresence mode="wait">
+                    {activeTab === "bidding" && (
+                      <motion.div key={`bid-${selectedBid}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ fontFamily: "monospace", fontSize: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>Tender Analysis</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: selectedBid === "Delta" ? C.bronze : C.muted }}>{selectedBid} Systems</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div>
+                            <div style={{ color: C.ivory, fontWeight: 700 }}>{selectedBid === "Delta" ? "Delta MOD-500" : selectedBid === "Schneider" ? "Galaxy PX" : "Eaton Power-9"}</div>
+                            <span style={{ color: C.muted, fontSize: 10 }}>Category: UPS Module</span>
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: selectedBid === "Delta" ? C.bronze : C.muted }}>{selectedBid === "Delta" ? "98% Match" : selectedBid === "Schneider" ? "84% Match" : "79% Match"}</span>
+                        </div>
+                        <div style={{ padding: 12, backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", color: C.muted, marginBottom: 4 }}><span>Efficiency</span><span>{selectedBid === "Delta" ? "96.5%" : "94.8%"}</span></div>
+                          <div style={{ display: "flex", justifyContent: "space-between", color: C.muted }}><span>Lead Time</span><span>{selectedBid === "Delta" ? "4 Weeks" : "8 Weeks"}</span></div>
+                        </div>
+                        <div style={{ color: C.muted, fontSize: 11 }}>{selectedBid === "Delta" ? "✓ Verified compliance parameters." : "⚠ Width exceeds clearance space."}</div>
+                      </motion.div>
+                    )}
+
+                    {activeTab === "compliance" && (
+                      <motion.div key="comp-r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ fontFamily: "monospace", fontSize: 12 }}>
+                        {!ncrResult && !ncrLoading && <div style={{ textAlign: "center", color: C.muted, padding: "32px 0" }}>&lt; Sweep Idle &gt;</div>}
+                        {ncrLoading && (
+                          <div>
+                            <div style={{ color: C.ivory, marginBottom: 8 }}>Analyzing clearances...</div>
+                            <div style={{ height: 2, backgroundColor: C.bg, borderRadius: 4, overflow: "hidden" }}>
+                              <motion.div initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 1 }} style={{ height: "100%", backgroundColor: C.bronze }} />
+                            </div>
+                          </div>
+                        )}
+                        {ncrResult && !ncrLoading && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                            <div style={{ color: "#c4655a", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                              <AlertTriangle size={14} /> Deviation isolated
+                            </div>
+                            <div style={{ padding: 12, backgroundColor: "#2a201e", border: "1px solid #c4655a33", color: "#c4655a", borderRadius: 8, fontSize: 11 }}>{ncrResult.details}</div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {activeTab === "email" && (
+                      <motion.div key="email-r" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ fontFamily: "monospace", fontSize: 12 }}>
+                        {emailStatus === "idle" && <div style={{ textAlign: "center", color: C.muted, padding: "32px 0" }}>&lt; Awaiting forwarding trigger &gt;</div>}
+                        {emailStatus === "sending" && <div style={{ color: C.ivory }}>Connecting SMTP & parsing attachment payload...</div>}
+                        {emailStatus === "parsed" && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+                              <FileText size={16} color={C.muted} />
+                              <div>
+                                <div style={{ color: C.ivory, fontWeight: 700, fontSize: 11 }}>{emailSubject}</div>
+                                <div style={{ fontSize: 10, color: C.muted }}>Payload: spec_sheet.pdf</div>
+                              </div>
+                            </div>
+                            <div style={{ color: C.bronze, fontWeight: 700 }}>✓ PDF processed. Specs added to workspace.</div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {activeTab === "logistics" && (
+                      <motion.div key={`log-${truckDelay}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ fontFamily: "monospace", fontSize: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ height: 56, backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ position: "absolute", width: "80%", height: 2, backgroundColor: C.border, borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: "60%", backgroundColor: truckDelay ? "#c4655a" : C.bronze }} />
+                          </div>
+                          <div style={{ position: "absolute", left: "60%", marginLeft: -10, width: 20, height: 20, borderRadius: "50%", border: `1.5px solid ${truckDelay ? "#c4655a" : C.bronze}`, backgroundColor: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Truck size={9} color={truckDelay ? "#c4655a" : C.bronze} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11 }}>
+                          <span style={{ color: C.muted }}>UPS Carrier: Trk-9912</span>
+                          <span style={{ fontWeight: 700, color: truckDelay ? "#c4655a" : C.bronze }}>{truckDelay ? "Incident Detected" : "Clear Route"}</span>
+                        </div>
+                        {truckDelay && <div style={{ padding: 10, backgroundColor: "#2a201e", border: "1px solid #c4655a33", color: "#c4655a", borderRadius: 8, fontSize: 11 }}>Alert: weather issue on Route 40. Arrival time: +4h.</div>}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </MacWindow>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      {/* ════════════════ SCENE 3: THE DIFFERENTIATOR ════════════════ */}
+      <section style={{ padding: "100px 24px", maxWidth: 700, margin: "0 auto", position: "relative", zIndex: 2 }}>
+        <motion.p initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.8 }} style={{ textAlign: "center", fontSize: 11, color: C.bronze, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 48 }}>
+          What makes this different
+        </motion.p>
+        <Statement text="NCRs auto-generated with exact spec clause references — not flagged, written." index={0} />
+        <Statement text="RFIs answered in seconds with page citations — not weeks." index={1} />
+        <Statement text="Shipping delays linked directly to the critical path — not siloed." index={2} />
+      </section>
+
+
+
+
+
+      {/* ─── Footer ─── */}
+      <footer style={{ borderTop: `1px solid ${C.border}33`, padding: "28px 24px", textAlign: "center" }}>
+        <p style={{ fontSize: 10, color: C.dim, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>© 2026 DataForge AI — All rights reserved.</p>
       </footer>
     </div>
   );

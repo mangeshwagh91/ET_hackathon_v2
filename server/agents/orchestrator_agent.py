@@ -27,9 +27,9 @@ AGENT_VERSION = "3.0.0"
 
 ORCHESTRATOR_SYSTEM = """You are the Main Orchestrator Agent for the DCPI platform.
 Classify the user's intent into one of the 7 components:
-1. KNOWLEDGE: RFI queries, document memory, delay precedents, specs, weather (e.g., "tell me about the weather").
+1. KNOWLEDGE: Answering questions about past RFIs, document memory, delay precedents, specs, or weather. If the user asks a question (e.g. "Has this been raised...", "What is the..."), route here.
 2. PROCUREMENT: Bidding, purchase orders, supply chain, lead times.
-3. QUALITY: Spec compliance, NCRs, deviations.
+3. QUALITY: Running compliance checks, generating NCR reports. (Do NOT route general questions about deviations here, route them to KNOWLEDGE).
 4. SCHEDULE: Schedule risk, critical path, float, workforce (DO NOT route weather queries here).
 5. COMMISSIONING: Testing, startup, functional tests, checklists, commissioning.
 6. REPORT: Dashboard, project health, summaries, metrics aggregation.
@@ -41,7 +41,7 @@ Return ONLY valid JSON:
   "confidence": 0.95,
   "extracted_parameters": {
     "po_id": "extract if present",
-    "bids": "extract if present",
+    "tenders": "extract if present",
     "event_details": "extract if present",
     "task_id": "extract if present",
     "project_id": "extract if present"
@@ -68,7 +68,7 @@ def classify_node(state: OrchestratorState) -> Dict:
     
     if not has_available_provider():
         q = query.lower()
-        if "bid" in q or "vendor" in q: intent = "PROCUREMENT"
+        if "tender" in q or "vendor" in q: intent = "PROCUREMENT"
         elif "schedule" in q or "risk" in q: intent = "SCHEDULE"
         elif "compliance" in q or "po" in q: intent = "QUALITY"
         elif "commission" in q or "test" in q: intent = "COMMISSIONING"
@@ -111,13 +111,13 @@ def knowledge_node(state: OrchestratorState) -> Dict:
 
 
 def procurement_node(state: OrchestratorState) -> Dict:
-    bids = state.get("extracted_parameters", {}).get("bids", [])
+    tenders = state.get("extracted_parameters", {}).get("tenders", [])
     po_id = state.get("extracted_parameters", {}).get("po_id")
     
     if po_id:
         res_data = get_mock_shipment_tracking(po_id)
     else:
-        res_data = analyze_bids(bids) if bids else {"message": "No bids or PO ID provided"}
+        res_data = analyze_bids(tenders) if tenders else {"message": "No tenders or PO ID provided"}
         
     res = {
         "agent": "Procurement & Supply Chain Agent",
@@ -128,13 +128,15 @@ def procurement_node(state: OrchestratorState) -> Dict:
 
 def quality_node(state: OrchestratorState) -> Dict:
     po_id = state.get("extracted_parameters", {}).get("po_id")
-    # For testing, we mock po_id if not present
-    if not po_id: po_id = "PO-001"
     
-    try:
-        check = run_compliance_check(po_id)
-    except ValueError as e:
-        check = {"error": str(e)}
+    if not po_id:
+        # Instead of failing or defaulting to PO-001, return a clear error
+        check = {"error": "Please provide a valid Purchase Order ID (e.g. 'PO-PS1500-001') to run a compliance check."}
+    else:
+        try:
+            check = run_compliance_check(po_id)
+        except ValueError as e:
+            check = {"error": str(e)}
 
     res = {
         "agent": "Compliance & Quality Agent",

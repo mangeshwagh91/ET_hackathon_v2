@@ -183,7 +183,7 @@ class OrchestratorResponse(BaseModel):
     agent_run_id: str
 
 
-class BidRecommendation(BaseModel):
+class TenderRecommendation(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     vendor_name: str
     price_score: float
@@ -249,7 +249,7 @@ class VendorResponse(BaseModel):
     registered_at: str
 
 
-class BidCreate(BaseModel):
+class TenderCreate(BaseModel):
     project_id: str
     vendor_id: str
     price: float
@@ -257,7 +257,7 @@ class BidCreate(BaseModel):
     equipment_catalog_json: str
 
 
-class BidResponse(BaseModel):
+class TenderResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     project_id: str

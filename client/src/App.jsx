@@ -8,13 +8,12 @@ import NCRDetail from "./pages/NCRDetail.jsx";
 import Schedule from "./pages/Schedule.jsx";
 import RFIChat from "./pages/RFIChat.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
-import BidsAndContracts from "./pages/BidsAndContracts.jsx";
+import BidsAndContracts from "./pages/TendersAndContracts.jsx";
 import DocumentsPage from "./pages/DocumentsPage.jsx";
 import VendorDashboard from "./pages/VendorDashboard.jsx";
 import CommissioningPage from "./pages/CommissioningPage.jsx";
-import VendorBids from "./pages/VendorBids.jsx";
+import VendorBids from "./pages/VendorTenders.jsx";
 import VendorProfile from "./pages/VendorProfile.jsx";
-import SplashScreen from "./components/splash/SplashScreen.jsx";
 import PageTransition from "./components/PageTransition.jsx";
 import DesignPage from "./pages/DesignPage.jsx";
 import NewProject from "./pages/NewProject.jsx";
@@ -28,10 +27,6 @@ import TeamPage from "./pages/TeamPage.jsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { WorkspaceProvider } from "./context/WorkspaceContext.jsx";
 import LoginScreen from "./components/auth/LoginScreen.jsx";
-import LogoutAnimation from "./components/auth/LogoutAnimation.jsx";
-
-const SPLASH_DURATION_MS = 3000;
-const SPLASH_SEEN_KEY = "dcpi_splash_seen";
 
 // Animated routes — must be inside BrowserRouter
 function AnimatedRoutes() {
@@ -43,7 +38,7 @@ function AnimatedRoutes() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageTransition><VendorDashboard /></PageTransition>} />
-          <Route path="/vendor/bids" element={<PageTransition><VendorBids /></PageTransition>} />
+          <Route path="/vendor/tenders" element={<PageTransition><VendorBids /></PageTransition>} />
           <Route path="/vendor/profile" element={<PageTransition><VendorProfile /></PageTransition>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -65,7 +60,7 @@ function AnimatedRoutes() {
         <Route path="/rfi" element={<PageTransition><RFIChat /></PageTransition>} />
         <Route path="/commissioning" element={<PageTransition><CommissioningPage /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><SettingsPage /></PageTransition>} />
-        <Route path="/bids" element={<PageTransition><BidsAndContracts /></PageTransition>} />
+        <Route path="/tenders" element={<PageTransition><BidsAndContracts /></PageTransition>} />
         <Route path="/supply-chain" element={<PageTransition><SupplyChainPage /></PageTransition>} />
         <Route path="/documents" element={<PageTransition><DocumentsPage /></PageTransition>} />
         <Route path="/projects/new" element={<PageTransition><NewProject /></PageTransition>} />
@@ -78,29 +73,8 @@ function AnimatedRoutes() {
 
 // Inner Application (Handles Auth Routing)
 function ApplicationCore() {
-  const { isAuthenticated, isLoggingOut } = useAuth();
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
-  
-  const [showSplash, setShowSplash] = useState(
-    () => !sessionStorage.getItem(SPLASH_SEEN_KEY)
-  );
-
-  useEffect(() => {
-    if (!showSplash) return;
-    const timer = setTimeout(() => {
-      sessionStorage.setItem(SPLASH_SEEN_KEY, "1");
-      setShowSplash(false);
-    }, SPLASH_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [showSplash]);
-
-  if (showSplash) {
-    return (
-      <AnimatePresence mode="sync">
-        <SplashScreen key="splash" />
-      </AnimatePresence>
-    );
-  }
 
   if (!isAuthenticated) {
     return (
@@ -131,7 +105,6 @@ function ApplicationCore() {
       transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1] }}
       className="h-screen w-full overflow-hidden"
     >
-      {isLoggingOut && <LogoutAnimation />}
       <AppLayout hideSidebar={isFullscreen}>
         <AnimatedRoutes />
       </AppLayout>

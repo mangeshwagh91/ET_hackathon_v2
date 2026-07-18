@@ -76,7 +76,7 @@ export default function NewProject() {
             className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm"
           >
             <h2 className="text-lg font-bold text-slate-800 mb-4">Project Image</h2>
-            <div className="relative border-2 border-dashed border-slate-300 hover:border-emerald-500/50 rounded-2xl bg-slate-50/50 transition-colors group h-48 overflow-hidden flex flex-col items-center justify-center">
+            <div className="relative border-2 border-dashed border-slate-300 hover:border-[#b08d6e]/50 rounded-2xl bg-slate-50/50 transition-colors group h-48 overflow-hidden flex flex-col items-center justify-center">
               {imagePreview ? (
                 <>
                   <img src={imagePreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-80" />
@@ -91,7 +91,7 @@ export default function NewProject() {
               ) : (
                 <div className="flex flex-col items-center pointer-events-none">
                   <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Upload size={20} className="text-emerald-500" />
+                    <Upload size={20} className="text-[#b08d6e]" />
                   </div>
                   <span className="text-sm font-semibold text-slate-650">Upload Data Centre Rendering</span>
                   <span className="text-xs text-slate-400 mt-1">PNG, JPG up to 10MB</span>
@@ -127,7 +127,7 @@ export default function NewProject() {
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   placeholder="e.g. London Hyperscale Phase 2"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e]"
                 />
               </div>
 
@@ -142,13 +142,13 @@ export default function NewProject() {
                       value={formData.capacity}
                       onChange={(e) => setFormData({...formData, capacity: e.target.value})}
                       placeholder="Capacity"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e]"
                     />
                   </div>
                   <select 
                     value={formData.capacityUnit}
                     onChange={(e) => setFormData({...formData, capacityUnit: e.target.value})}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-850 focus:outline-none focus:border-emerald-500 w-24"
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-850 focus:outline-none focus:border-[#b08d6e] w-24"
                   >
                     <option value="MW">MW</option>
                     <option value="kW">kW</option>
@@ -165,7 +165,7 @@ export default function NewProject() {
                     type="date" 
                     value={formData.goLiveDate}
                     onChange={(e) => setFormData({...formData, goLiveDate: e.target.value})}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 [color-scheme:light]"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e] [color-scheme:light]"
                   />
                 </div>
               </div>
@@ -180,7 +180,7 @@ export default function NewProject() {
                     value={formData.totalBudget}
                     onChange={(e) => setFormData({...formData, totalBudget: e.target.value})}
                     placeholder="Total Budget"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e]"
                   />
                 </div>
               </div>
@@ -195,7 +195,7 @@ export default function NewProject() {
                     value={formData.equipmentBudget}
                     onChange={(e) => setFormData({...formData, equipmentBudget: e.target.value})}
                     placeholder="Equipment Budget"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e]"
                   />
                 </div>
               </div>
@@ -224,7 +224,7 @@ export default function NewProject() {
                     value={formData.location}
                     onChange={(e) => setFormData({...formData, location: e.target.value})}
                     placeholder="City, Country"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e]"
                   />
                 </div>
               </div>
@@ -234,7 +234,7 @@ export default function NewProject() {
                 <select 
                   value={formData.tier}
                   onChange={(e) => setFormData({...formData, tier: e.target.value})}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-850 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-850 focus:outline-none focus:border-[#b08d6e]"
                 >
                   <option value="Tier I">Tier I</option>
                   <option value="Tier II">Tier II</option>
@@ -252,7 +252,7 @@ export default function NewProject() {
                     value={formData.pm}
                     onChange={(e) => setFormData({...formData, pm: e.target.value})}
                     placeholder="Project Manager Name"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e]"
                   />
                 </div>
               </div>
@@ -264,7 +264,7 @@ export default function NewProject() {
                   onChange={(e) => setFormData({...formData, description: e.target.value})}
                   placeholder="Brief scope of the project..."
                   rows={4}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-[#b08d6e] resize-none"
                 />
               </div>
             </div>
@@ -281,7 +281,7 @@ export default function NewProject() {
             <button 
               type="submit"
               disabled={loading}
-              className="px-8 py-3 rounded-xl font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors flex items-center gap-2 shadow-sm"
+              className="px-8 py-3 rounded-xl font-bold text-white bg-[#b08d6e] hover:bg-[#8c6f55] transition-colors flex items-center gap-2 shadow-sm"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

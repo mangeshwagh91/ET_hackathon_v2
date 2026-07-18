@@ -56,7 +56,7 @@ export default function HeroBackground() {
           y: [0, 40, 0],
         }}
         transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-        className="absolute top-[40%] -right-[10%] w-[60%] h-[60%] rounded-full bg-teal-400/5 blur-3xl"
+        className="absolute top-[40%] -right-[10%] w-[60%] h-[60%] rounded-full bg-[#b08d6e]/5 blur-3xl"
       />
 
       {/* Neural Network SVG Overlay */}

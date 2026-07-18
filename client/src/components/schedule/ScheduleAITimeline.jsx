@@ -23,7 +23,7 @@ export default function ScheduleAITimeline() {
   }, [currentStep]);
 
   return (
-    <div className="card p-10 bg-[#1e1e1e]/60 backdrop-blur-xl border border-white/50 relative overflow-hidden">
+    <div className="card p-10 bg-[#2a2a2a]/60 backdrop-blur-xl border border-white/50 relative overflow-hidden">
       {/* Animated processing glow */}
       <motion.div 
         animate={{ opacity: [0.2, 0.5, 0.2] }}
@@ -52,7 +52,7 @@ export default function ScheduleAITimeline() {
             <div key={idx} className="relative">
               {/* Timeline dot */}
               <div 
-                className={`absolute -left-[33px] w-5 h-5 rounded-full border-2 bg-[#1e1e1e] transition-colors duration-500 flex items-center justify-center ${
+                className={`absolute -left-[33px] w-5 h-5 rounded-full border-2 bg-[#2a2a2a] transition-colors duration-500 flex items-center justify-center ${
                   isCompleted ? "border-amber-500 text-amber-500" : isActive ? "border-blue-500" : "border-zinc-700"
                 }`}
               >

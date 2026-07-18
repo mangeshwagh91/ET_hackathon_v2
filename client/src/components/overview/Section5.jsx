@@ -27,7 +27,7 @@ export default function Section5() {
             <motion.div
               animate={{ opacity: [1, 0.4, 1] }}
               transition={{ duration: 2.5, repeat: Infinity }}
-              className="w-2.5 h-2.5 rounded-full bg-teal-500 mx-auto mb-3"
+              className="w-2.5 h-2.5 rounded-full bg-[#b08d6e] mx-auto mb-3"
               style={{ boxShadow: "0 0 12px rgba(20,184,166,0.6)" }}
             />
             <div className="text-xs font-bold tracking-widest uppercase text-slate-400">Live Intelligence</div>

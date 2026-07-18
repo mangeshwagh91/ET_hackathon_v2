@@ -133,13 +133,13 @@ function RFIPanel() {
             className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
           >
             {m.role === "user" ? (
-              <div className="bg-teal-600 text-white rounded-2xl rounded-tr-sm px-3 py-2 max-w-[80%] text-xs">
+              <div className="bg-[#8c6f55] text-white rounded-2xl rounded-tr-sm px-3 py-2 max-w-[80%] text-xs">
                 {m.text}
               </div>
             ) : (
               <div className="bg-slate-50 border-l-2 border-teal-400 rounded-r-xl px-3 py-2 max-w-[85%]">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-semibold text-teal-700">DCPI Intelligence</span>
+                  <span className="text-[10px] font-semibold text-[#6b5340]">DCPI Intelligence</span>
                   <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">{m.conf}% confident</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">{m.text}</p>

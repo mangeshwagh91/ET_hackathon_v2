@@ -23,12 +23,12 @@ export default function AIProcessingTimeline() {
   }, [currentStep]);
 
   return (
-    <div className="card p-8 bg-[#1e1e1e]/60 backdrop-blur-xl border border-white/50 relative overflow-hidden">
+    <div className="card p-8 bg-[#2a2a2a]/60 backdrop-blur-xl border border-white/50 relative overflow-hidden">
       {/* Animated processing glow */}
       <motion.div 
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-24 -right-24 w-48 h-48 bg-teal-400/20 rounded-full blur-3xl"
+        className="absolute -top-24 -right-24 w-48 h-48 bg-[#b08d6e]/20 rounded-full blur-3xl"
       />
       
       <div className="flex items-center gap-4 mb-8">
@@ -52,8 +52,8 @@ export default function AIProcessingTimeline() {
             <div key={idx} className="relative">
               {/* Timeline dot */}
               <div 
-                className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 bg-[#1e1e1e] transition-colors duration-500 flex items-center justify-center ${
-                  isCompleted ? "border-teal-500 text-teal-500" : isActive ? "border-blue-500" : "border-zinc-700"
+                className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 bg-[#2a2a2a] transition-colors duration-500 flex items-center justify-center ${
+                  isCompleted ? "border-[#b08d6e] text-[#b08d6e]" : isActive ? "border-blue-500" : "border-zinc-700"
                 }`}
               >
                 {isCompleted && <CheckCircle size={10} strokeWidth={4} />}

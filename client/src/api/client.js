@@ -210,9 +210,9 @@ const api = {
     return handleResponse(res);
   },
 
-  // Bids Endpoints
+  // Tenders Endpoints
   createBid: async (bidData) => {
-    const res = await fetch(`${BASE}/bids/create`, {
+    const res = await fetch(`${BASE}/tenders/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bidData),
@@ -221,19 +221,19 @@ const api = {
   },
 
   getBids: async (projectId) => {
-    const res = await fetch(`${BASE}/bids/${projectId}`);
+    const res = await fetch(`${BASE}/tenders/${projectId}`);
     return handleResponse(res);
   },
 
   updateBidStatus: async (bidId, status) => {
-    const res = await fetch(`${BASE}/bids/update_status/${bidId}?status=${status}`, {
+    const res = await fetch(`${BASE}/tenders/update_status/${bidId}?status=${status}`, {
       method: "PATCH",
     });
     return handleResponse(res);
   },
 
   getBidRecommendations: async (projectId) => {
-    const res = await fetch(`${BASE}/bids/recommend?project_id=${projectId}`, {
+    const res = await fetch(`${BASE}/tenders/recommend?project_id=${projectId}`, {
       method: "POST",
     });
     return handleResponse(res);

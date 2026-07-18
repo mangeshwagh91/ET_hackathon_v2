@@ -156,7 +156,7 @@ export default function NCRDetail() {
               <div
                 className={`h-2 rounded-full ${
                   wConformPct >= 70
-                    ? "bg-green-500"
+                    ? "bg-[#b08d6e]"
                     : wConformPct >= 40
                       ? "bg-amber-400"
                       : "bg-red-500"
@@ -202,7 +202,7 @@ export default function NCRDetail() {
           <ol className="space-y-3">
             {actions.map((action, i) => (
               <li key={i} className="flex gap-3 text-sm">
-                <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold text-xs">
+                <span className="w-6 h-6 bg-[#222222] text-[#6b5340] rounded-full flex items-center justify-center font-bold text-xs">
                   {i + 1}
                 </span>
                 <span className="text-slate-700">{action}</span>

@@ -233,7 +233,7 @@ def init_db():
         """)
 
         db.execute("""
-            CREATE TABLE IF NOT EXISTS bids (
+            CREATE TABLE IF NOT EXISTS tenders (
                 id TEXT PRIMARY KEY,
                 project_id TEXT NOT NULL REFERENCES projects(id),
                 vendor_id TEXT NOT NULL REFERENCES vendors(id),
@@ -274,8 +274,8 @@ def init_db():
                 overall_score REAL DEFAULT 1.0,
                 ncr_count INTEGER DEFAULT 0,
                 critical_ncr_count INTEGER DEFAULT 0,
-                bids_submitted INTEGER DEFAULT 0,
-                bids_won INTEGER DEFAULT 0,
+                tenders_submitted INTEGER DEFAULT 0,
+                tenders_won INTEGER DEFAULT 0,
                 narrative TEXT,
                 calculated_ts TEXT NOT NULL
             )
@@ -321,8 +321,8 @@ def init_db():
         db.execute("CREATE INDEX IF NOT EXISTS idx_rfis_resolved ON rfis(is_resolved)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_po_equipment ON purchase_orders(equipment_item_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_agent_runs_name ON agent_runs(agent_name)")
-        db.execute("CREATE INDEX IF NOT EXISTS idx_bids_project ON bids(project_id)")
-        db.execute("CREATE INDEX IF NOT EXISTS idx_bids_vendor ON bids(vendor_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_tenders_project ON tenders(project_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_tenders_vendor ON tenders(vendor_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_commissioning_task ON commissioning_records(task_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_commissioning_status ON commissioning_records(status)")
         
@@ -332,7 +332,7 @@ def init_db():
         # Migrate existing tables to add new columns if missing
         _migrate_schedule_tasks(db)
         _migrate_projects(db)
-        _migrate_bids(db)
+        _migrate_tenders(db)
         _migrate_new_tables(db)
         _migrate_project_ids(db)
         _seed_mock_shipments(db)
@@ -442,20 +442,20 @@ def _migrate_schedule_tasks(db) -> None:
     db.commit()
 
 
-def _migrate_bids(db) -> None:
-    """Add ai_recommendation and ai_scores_json columns to bids if missing."""
+def _migrate_tenders(db) -> None:
+    """Add ai_recommendation and ai_scores_json columns to tenders if missing."""
     new_cols = [
         ("ai_recommendation", "TEXT"),
         ("ai_scores_json", "TEXT DEFAULT '{}'"),
     ]
-    existing = {row[1] for row in db.execute("PRAGMA table_info(bids)").fetchall()}
+    existing = {row[1] for row in db.execute("PRAGMA table_info(tenders)").fetchall()}
     for col_name, col_type in new_cols:
         if col_name not in existing:
             try:
-                db.execute(f"ALTER TABLE bids ADD COLUMN {col_name} {col_type}")
-                logger.info(f"Migrated bids: added column {col_name}")
+                db.execute(f"ALTER TABLE tenders ADD COLUMN {col_name} {col_type}")
+                logger.info(f"Migrated tenders: added column {col_name}")
             except Exception as e:
-                logger.warning(f"Could not add column {col_name} to bids: {e}")
+                logger.warning(f"Could not add column {col_name} to tenders: {e}")
     db.commit()
 
 
