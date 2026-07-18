@@ -29,7 +29,7 @@ export default function VendorProfile() {
       {/* Header */}
       <div className="mb-8 border-b border-slate-200 pb-6">
         <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-3 text-slate-900">
-          <Building className="text-emerald-500" />
+          <Building className="text-[#b08d6e]" />
           Company Profile
         </h1>
         <p className="text-slate-500 text-sm mt-1">Configure company credentials, specifications, and catalog classifications.</p>
@@ -38,7 +38,7 @@ export default function VendorProfile() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Left Card: Summary */}
         <div className="bg-white border border-slate-200 p-6 rounded-3xl text-center space-y-4 h-fit shadow-sm">
-          <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-md shadow-emerald-500/10">
+          <div className="w-20 h-20 bg-gradient-to-br from-[#b08d6e] to-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-md shadow-emerald-500/10">
             <span className="text-white font-extrabold text-2xl">
               {(user?.name || "V").charAt(0).toUpperCase()}
             </span>
@@ -47,7 +47,7 @@ export default function VendorProfile() {
             <h2 className="text-lg font-bold text-slate-850 truncate">{user?.name || "Vendor Corp"}</h2>
             <p className="text-xs text-slate-400 mt-1 uppercase font-semibold tracking-wider">Verified Manufacturer</p>
           </div>
-          <div className="flex items-center justify-center gap-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200 text-[10px] text-emerald-600 font-bold">
+          <div className="flex items-center justify-center gap-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200 text-[10px] text-[#8c6f55] font-bold">
             <Shield size={12} />
             Tier IV Compliant
           </div>
@@ -57,7 +57,7 @@ export default function VendorProfile() {
         <div className="md:col-span-2 space-y-6">
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl space-y-6 shadow-sm">
             <h3 className="text-base font-bold text-slate-850 border-b border-slate-200 pb-3 flex items-center gap-2">
-              <User size={16} className="text-emerald-500" />
+              <User size={16} className="text-[#b08d6e]" />
               Corporate Identity
             </h3>
 
@@ -75,7 +75,7 @@ export default function VendorProfile() {
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#b08d6e] transition-colors"
                 />
               </div>
             </div>
@@ -86,7 +86,7 @@ export default function VendorProfile() {
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 transition-colors"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-800 focus:outline-none focus:border-[#b08d6e] transition-colors"
               />
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function VendorProfile() {
           {/* Equipment Classifications */}
           <div className="bg-white border border-slate-200 p-6 md:p-8 rounded-3xl space-y-6 shadow-sm">
             <h3 className="text-base font-bold text-slate-850 border-b border-slate-200 pb-3 flex items-center gap-2">
-              <Briefcase size={16} className="text-emerald-500" />
+              <Briefcase size={16} className="text-[#b08d6e]" />
               Equipment Classifications
             </h3>
 
@@ -104,11 +104,11 @@ export default function VendorProfile() {
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
                 placeholder="e.g. In-Row Cooling Units"
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-850 focus:outline-none focus:border-emerald-500 transition-colors placeholder-slate-400"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-850 focus:outline-none focus:border-[#b08d6e] transition-colors placeholder-slate-400"
               />
               <button
                 type="submit"
-                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 rounded-xl text-xs flex items-center gap-1 transition-colors shadow-sm"
+                className="bg-[#b08d6e] hover:bg-[#8c6f55] text-white font-bold px-4 rounded-xl text-xs flex items-center gap-1 transition-colors shadow-sm"
               >
                 <Plus size={14} /> Add
               </button>

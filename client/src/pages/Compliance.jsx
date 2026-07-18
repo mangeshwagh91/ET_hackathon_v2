@@ -14,13 +14,13 @@ function AnimatedCounter({ value, suffix = "" }) {
 function DocSelect({ label, stepNumber, color, docs, value, onChange, placeholder, docsLoading }) {
   return (
     <div className="mb-6">
-      <label className="flex items-center gap-2 text-[10px] font-bold text-[#8A8D8A] uppercase tracking-wider mb-2">
+      <label className="flex items-center gap-2 text-[10px] font-bold text-[#8a847b] uppercase tracking-wider mb-2">
         <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px]" style={{ backgroundColor: color }}>{stepNumber}</span>
         {label}
       </label>
 
       {docsLoading ? (
-        <div className="h-9 bg-[#2A2C2A] rounded-md animate-pulse" />
+        <div className="h-9 bg-[#333330] rounded-md animate-pulse" />
       ) : docs.length === 0 ? (
         <div className="flex items-start gap-2 p-3 bg-amber-950/20 border border-amber-900/50 rounded-md text-amber-500 text-xs">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
@@ -31,7 +31,7 @@ function DocSelect({ label, stepNumber, color, docs, value, onChange, placeholde
           <select
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full appearance-none bg-[#181A19] border border-[#2A2C2A] rounded-md px-3 py-2 text-sm text-[#EDEFEE] focus:outline-none focus:border-[#3ECF8E] transition-colors pr-8"
+            className="w-full appearance-none bg-[#222222] border border-[#333330] rounded-md px-3 py-2 text-sm text-[#f0ece4] focus:outline-none focus:border-[#b08d6e] transition-colors pr-8"
           >
             <option value="">{placeholder}</option>
             {docs.map((d) => (
@@ -40,12 +40,12 @@ function DocSelect({ label, stepNumber, color, docs, value, onChange, placeholde
               </option>
             ))}
           </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A8D8A] pointer-events-none" />
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8a847b] pointer-events-none" />
         </div>
       )}
 
       {value && (
-        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#3ECF8E] font-medium">
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#b08d6e] font-medium">
           <CheckCircle size={12} /> Selected
         </div>
       )}
@@ -147,13 +147,13 @@ export default function Compliance() {
   const step3Active = !!selectedSpecId && !!currentPoId;
 
   return (
-    <div className="flex-1 w-full h-full relative bg-[#131413] overflow-hidden flex flex-col text-white">
+    <div className="flex-1 w-full h-full relative bg-[#1a1a1a] overflow-hidden flex flex-col text-white">
       <div className="flex-1 flex overflow-hidden relative z-10 w-full">
         
         {/* ─── Left Sidebar: Pickers ────────────────────────────────────────────── */}
-        <div className="w-[280px] flex-none bg-[#131413] border-r border-[#2A2C2A] flex flex-col overflow-hidden hidden lg:flex">
+        <div className="w-[280px] flex-none bg-[#1a1a1a] border-r border-[#333330] flex flex-col overflow-hidden hidden lg:flex">
           {/* Sidebar Header */}
-          <div className="h-12 border-b border-[#2A2C2A] bg-[#181A19] flex items-center px-4 flex-shrink-0">
+          <div className="h-12 border-b border-[#333330] bg-[#222222] flex items-center px-4 flex-shrink-0">
             <h1 className="text-[13px] font-bold text-white tracking-wide uppercase">Compliance Intel</h1>
           </div>
 
@@ -191,7 +191,7 @@ export default function Compliance() {
                 <button
                   onClick={handleRunCheck}
                   disabled={runningCheck || !step3Active}
-                  className="w-full bg-[#3ECF8E] hover:bg-[#3ECF8E]/90 text-white rounded-lg p-4 shadow-sm transition-all flex flex-col items-center justify-center gap-2 relative overflow-hidden group"
+                  className="w-full bg-[#b08d6e] hover:bg-[#b08d6e]/90 text-white rounded-lg p-4 shadow-sm transition-all flex flex-col items-center justify-center gap-2 relative overflow-hidden group"
                 >
                   <div className="w-8 h-8 bg-black/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Play fill="currentColor" size={14} className="ml-0.5" />
@@ -206,13 +206,13 @@ export default function Compliance() {
         </div>
 
         {/* ─── Main Canvas ────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 relative flex flex-col bg-[#131413]">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 relative flex flex-col bg-[#1a1a1a]">
           
           <div className="max-w-6xl mx-auto w-full">
             {/* Header / KPIs */}
             <div className="mb-8">
               <h2 className="text-[22px] font-bold tracking-tight mb-2">Compliance Intelligence</h2>
-              <p className="text-[#8A8D8A] text-sm max-w-2xl mb-8">
+              <p className="text-[#8a847b] text-sm max-w-2xl mb-8">
                 Compare project specifications with vendor submissions using AI to instantly identify deviations, ensure compliance and generate intelligent recommendations.
               </p>
 
@@ -228,11 +228,11 @@ export default function Compliance() {
                     initial={{ opacity: 0, y: 10 }} 
                     animate={{ opacity: 1, y: 0 }} 
                     transition={{ delay: 0.05 * i }}
-                    className="bg-[#181A19] border border-[#2A2C2A] p-4 rounded-xl shadow-sm"
+                    className="bg-[#222222] border border-[#333330] p-4 rounded-xl shadow-sm"
                   >
-                    <div className="text-[#3ECF8E] mb-2">{kpi.icon}</div>
+                    <div className="text-[#b08d6e] mb-2">{kpi.icon}</div>
                     <div className="text-2xl font-bold text-white"><AnimatedCounter value={kpi.val} suffix={kpi.suffix} /></div>
-                    <div className="text-[10px] font-bold text-[#8A8D8A] uppercase tracking-widest mt-1">{kpi.label}</div>
+                    <div className="text-[10px] font-bold text-[#8a847b] uppercase tracking-widest mt-1">{kpi.label}</div>
                   </motion.div>
                 ))}
               </div>
@@ -246,7 +246,7 @@ export default function Compliance() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   className={`mb-6 p-3 rounded-md border text-sm font-medium ${
-                    error ? "bg-red-950/20 border-red-900/50 text-red-400" : "bg-[#3ECF8E]/10 border-[#3ECF8E]/30 text-[#3ECF8E]"
+                    error ? "bg-red-950/20 border-red-900/50 text-red-400" : "bg-[#b08d6e]/10 border-[#b08d6e]/30 text-[#b08d6e]"
                   }`}
                 >
                   {error || status}
@@ -267,32 +267,32 @@ export default function Compliance() {
                     <motion.div key="results" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                       
                       {/* Results Header Card */}
-                      <div className="bg-[#181A19] border border-[#2A2C2A] rounded-xl p-5 shadow-sm">
+                      <div className="bg-[#222222] border border-[#333330] rounded-xl p-5 shadow-sm">
                         <div className="flex items-center justify-between mb-6">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-[#131413] border border-[#2A2C2A] text-[#3ECF8E] flex items-center justify-center font-bold text-lg">
+                            <div className="w-10 h-10 rounded-full bg-[#1a1a1a] border border-[#333330] text-[#b08d6e] flex items-center justify-center font-bold text-lg">
                               {results.compliance_status === "COMPLIANT" ? "A+" : "C"}
                             </div>
                             <div>
                               <h2 className="text-base font-bold text-white">Compliance Report</h2>
-                              <p className="text-xs text-[#8A8D8A]">PO: {results.po_number}</p>
+                              <p className="text-xs text-[#8a847b]">PO: {results.po_number}</p>
                             </div>
                           </div>
                           <SeverityBadge severity={results.compliance_status === "COMPLIANT" ? "PASS" : "CRITICAL"} />
                         </div>
 
                         <div className="grid grid-cols-3 gap-3">
-                          <div className="bg-[#131413] border border-red-900/30 rounded-lg p-3 text-center">
+                          <div className="bg-[#1a1a1a] border border-red-900/30 rounded-lg p-3 text-center">
                             <div className="text-2xl font-bold text-red-500">{results.summary?.critical || 0}</div>
                             <div className="text-[10px] font-bold uppercase tracking-wider text-red-400/80 mt-1">Critical</div>
                           </div>
-                          <div className="bg-[#131413] border border-amber-900/30 rounded-lg p-3 text-center">
+                          <div className="bg-[#1a1a1a] border border-amber-900/30 rounded-lg p-3 text-center">
                             <div className="text-2xl font-bold text-amber-500">{results.summary?.major || 0}</div>
                             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/80 mt-1">Major</div>
                           </div>
-                          <div className="bg-[#131413] border border-[#2A2C2A] rounded-lg p-3 text-center">
+                          <div className="bg-[#1a1a1a] border border-[#333330] rounded-lg p-3 text-center">
                             <div className="text-2xl font-bold text-zinc-400">{results.summary?.minor || 0}</div>
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#8A8D8A] mt-1">Minor</div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-[#8a847b] mt-1">Minor</div>
                           </div>
                         </div>
                       </div>
@@ -308,23 +308,23 @@ export default function Compliance() {
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: 0.05 * idx }}
                               onClick={() => setSelectedNcr(dev.ncr_id ? dev : null)}
-                              className={`bg-[#181A19] border rounded-xl p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:bg-[#2A2C2A]/50 ${
-                                selectedNcr?.id === dev.id ? "ring-1 ring-[#3ECF8E] border-[#3ECF8E] shadow-sm" : "border-[#2A2C2A]"
+                              className={`bg-[#222222] border rounded-xl p-4 cursor-pointer transition-all hover:-translate-y-0.5 hover:bg-[#333330]/50 ${
+                                selectedNcr?.id === dev.id ? "ring-1 ring-[#b08d6e] border-[#b08d6e] shadow-sm" : "border-[#333330]"
                               }`}
                             >
                               <div className="flex justify-between items-start mb-3">
-                                <div className="font-mono text-[10px] font-bold bg-[#131413] px-2 py-1 rounded text-[#8A8D8A] border border-[#2A2C2A]">
+                                <div className="font-mono text-[10px] font-bold bg-[#1a1a1a] px-2 py-1 rounded text-[#8a847b] border border-[#333330]">
                                   {dev.clause_number || "CLAUSE-UNK"}
                                 </div>
                                 <SeverityBadge severity={dev.severity} />
                               </div>
                               <h4 className="font-semibold text-white text-sm mb-2">{dev.attribute_name?.replace(/_/g, " ")}</h4>
                               <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="bg-[#131413] p-2 rounded-md border border-[#2A2C2A]">
-                                  <span className="text-[9px] text-[#8A8D8A] font-bold uppercase block mb-1">Specified</span>
+                                <div className="bg-[#1a1a1a] p-2 rounded-md border border-[#333330]">
+                                  <span className="text-[9px] text-[#8a847b] font-bold uppercase block mb-1">Specified</span>
                                   <span className="text-zinc-300 font-medium text-xs">{dev.specified_value}</span>
                                 </div>
-                                <div className="bg-[#131413] p-2 rounded-md border border-red-900/20">
+                                <div className="bg-[#1a1a1a] p-2 rounded-md border border-red-900/20">
                                   <span className="text-[9px] text-red-500/80 font-bold uppercase block mb-1">Submitted</span>
                                   <span className="text-red-400 font-medium text-xs">{dev.submitted_value}</span>
                                 </div>
@@ -333,20 +333,20 @@ export default function Compliance() {
                           ))}
                         </div>
                       ) : (
-                        <div className="bg-[#3ECF8E]/10 border border-[#3ECF8E]/20 rounded-xl p-6 text-center">
-                          <CheckCircle className="w-12 h-12 text-[#3ECF8E] mx-auto mb-3" />
-                          <h3 className="text-lg font-bold text-[#3ECF8E]">100% Compliant</h3>
-                          <p className="text-[#3ECF8E]/80 text-sm mt-1">No deviations found in this submission.</p>
+                        <div className="bg-[#b08d6e]/10 border border-[#b08d6e]/20 rounded-xl p-6 text-center">
+                          <CheckCircle className="w-12 h-12 text-[#b08d6e] mx-auto mb-3" />
+                          <h3 className="text-lg font-bold text-[#b08d6e]">100% Compliant</h3>
+                          <p className="text-[#b08d6e]/80 text-sm mt-1">No deviations found in this submission.</p>
                         </div>
                       )}
 
                     </motion.div>
                   ) : (
-                    <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full min-h-[300px] flex items-center justify-center bg-[#181A19] border border-[#2A2C2A] rounded-xl border-dashed">
+                    <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full min-h-[300px] flex items-center justify-center bg-[#222222] border border-[#333330] rounded-xl border-dashed">
                       <div className="text-center">
-                        <Box size={32} className="mx-auto mb-3 text-[#2A2C2A]" />
+                        <Box size={32} className="mx-auto mb-3 text-[#333330]" />
                         <p className="text-sm font-medium text-white mb-1">Workspace Ready</p>
-                        <p className="text-xs text-[#8A8D8A]">Select documents and run the agent.</p>
+                        <p className="text-xs text-[#8a847b]">Select documents and run the agent.</p>
                       </div>
                     </motion.div>
                   )}
@@ -355,59 +355,59 @@ export default function Compliance() {
 
               {/* Right Panel: Intelligence Viewer */}
               <div className="lg:col-span-6">
-                <div className="sticky top-0 bg-[#181A19] rounded-xl overflow-hidden shadow-sm border border-[#2A2C2A] flex flex-col h-[600px]">
+                <div className="sticky top-0 bg-[#222222] rounded-xl overflow-hidden shadow-sm border border-[#333330] flex flex-col h-[600px]">
                   {/* Fake PDF Toolbar */}
-                  <div className="bg-[#181A19] px-4 py-2 flex items-center justify-between border-b border-[#2A2C2A]">
+                  <div className="bg-[#222222] px-4 py-2 flex items-center justify-between border-b border-[#333330]">
                     <div className="flex gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#2A2C2A]" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#2A2C2A]" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#2A2C2A]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#333330]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#333330]" />
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#333330]" />
                     </div>
-                    <span className="text-[10px] font-mono text-[#8A8D8A]">AI Document Viewer</span>
+                    <span className="text-[10px] font-mono text-[#8a847b]">AI Document Viewer</span>
                   </div>
                   
                   {/* Document Content */}
-                  <div className="flex-1 p-5 relative overflow-hidden bg-[#131413]">
+                  <div className="flex-1 p-5 relative overflow-hidden bg-[#1a1a1a]">
                     {!selectedNcr ? (
-                      <div className="h-full flex flex-col items-center justify-center text-[#2A2C2A] text-center px-4">
+                      <div className="h-full flex flex-col items-center justify-center text-[#333330] text-center px-4">
                         <FileText size={32} className="mb-3 opacity-40" />
-                        <p className="text-xs text-[#8A8D8A]">Select a deviation to view AI insights and source citations.</p>
+                        <p className="text-xs text-[#8a847b]">Select a deviation to view AI insights and source citations.</p>
                       </div>
                     ) : (
                       <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="h-full flex flex-col">
                         {/* Mocked PDF text showing highlight */}
-                        <div className="bg-[#181A19] rounded-lg shadow-sm p-4 text-[11px] leading-relaxed text-[#8A8D8A] font-serif relative overflow-hidden h-40 mb-4 border border-[#2A2C2A]">
+                        <div className="bg-[#222222] rounded-lg shadow-sm p-4 text-[11px] leading-relaxed text-[#8a847b] font-serif relative overflow-hidden h-40 mb-4 border border-[#333330]">
                           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
                           <br/><br/>
-                          <span className="bg-[#3ECF8E]/20 text-white font-bold px-1 rounded relative inline-block border border-[#3ECF8E]/50">
+                          <span className="bg-[#b08d6e]/20 text-white font-bold px-1 rounded relative inline-block border border-[#b08d6e]/50">
                             {selectedNcr.clause_number}: {selectedNcr.specified_value}
-                            <motion.span animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -inset-0.5 border border-[#3ECF8E] rounded pointer-events-none" />
+                            <motion.span animate={{ opacity: [1, 0.4, 1] }} transition={{ duration: 2, repeat: Infinity }} className="absolute -inset-0.5 border border-[#b08d6e] rounded pointer-events-none" />
                           </span>
                           <br/><br/>
                           Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.
                         </div>
 
                         {/* AI Insights Panel */}
-                        <div className="flex-1 bg-[#181A19] border border-[#2A2C2A] rounded-xl p-4 text-white flex flex-col">
+                        <div className="flex-1 bg-[#222222] border border-[#333330] rounded-xl p-4 text-white flex flex-col">
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="w-2 h-2 rounded-full bg-[#3ECF8E] animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-[#b08d6e] animate-pulse" />
                             <h4 className="font-bold text-sm">AI Insights</h4>
                           </div>
                           
                           <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar text-xs">
                             <div>
-                              <span className="text-[#8A8D8A] text-[10px] font-bold uppercase tracking-wider block mb-1">Deviation Rationale</span>
+                              <span className="text-[#8a847b] text-[10px] font-bold uppercase tracking-wider block mb-1">Deviation Rationale</span>
                               <p className="text-zinc-200 leading-relaxed">{selectedNcr.justification}</p>
                             </div>
                             
-                            <div className="bg-[#3ECF8E]/10 border border-[#3ECF8E]/30 p-3 rounded-lg">
-                              <span className="text-[#3ECF8E] text-[10px] font-bold uppercase tracking-wider block mb-1">Recommendation</span>
+                            <div className="bg-[#b08d6e]/10 border border-[#b08d6e]/30 p-3 rounded-lg">
+                              <span className="text-[#b08d6e] text-[10px] font-bold uppercase tracking-wider block mb-1">Recommendation</span>
                               <p className="text-white leading-relaxed">{selectedNcr.recommended_action}</p>
                             </div>
 
-                            <div className="flex items-center justify-between bg-[#131413] p-3 rounded-lg border border-[#2A2C2A]">
-                              <span className="text-[#8A8D8A]">AI Confidence</span>
-                              <span className="font-bold text-[#3ECF8E]">{(selectedNcr.w_conform * 100).toFixed(1)}%</span>
+                            <div className="flex items-center justify-between bg-[#1a1a1a] p-3 rounded-lg border border-[#333330]">
+                              <span className="text-[#8a847b]">AI Confidence</span>
+                              <span className="font-bold text-[#b08d6e]">{(selectedNcr.w_conform * 100).toFixed(1)}%</span>
                             </div>
                           </div>
                           

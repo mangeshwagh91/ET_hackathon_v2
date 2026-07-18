@@ -362,12 +362,12 @@ def _build_user_message(context_text: str, precedent_text: str, query: str) -> s
                 f"- Total Budget: ${proj['budget']}\n\n"
             )
 
-            # Fetch recent bids
-            bids = db.execute("SELECT * FROM bids WHERE project_id = ? ORDER BY created_at DESC LIMIT 3", (proj['id'],)).fetchall()
-            if bids:
-                project_context += "RECENT VENDOR BIDS:\n"
-                for b in bids:
-                    project_context += f"- ID: {b['id'][:8]} | Vendor: {b['vendor_id']} | Price: ${b['price']} | Lead Time: {b['lead_time_days']} days | Status: {b['status']}\n"
+            # Fetch recent tenders
+            tenders = db.execute("SELECT * FROM tenders WHERE project_id = ? ORDER BY created_at DESC LIMIT 3", (proj['id'],)).fetchall()
+            if tenders:
+                project_context += "RECENT VENDOR TENDERS:\n"
+                for b in tenders:
+                    project_context += f" - Tender from {b.get('vendor_id')} for {b.get('price')}\n"
                 project_context += "\n"
             
             # Fetch recent purchase orders

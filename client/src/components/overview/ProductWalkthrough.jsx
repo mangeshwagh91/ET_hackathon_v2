@@ -207,7 +207,7 @@ function AIChat() {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.5 }} className="flex justify-start mt-2">
           <div className="bg-white/80 border border-slate-200 text-slate-700 text-xs p-3 rounded-2xl rounded-tl-sm max-w-[90%] shadow-sm">
-            <span className="font-bold text-teal-600 block mb-1">DCPI Intelligence</span>
+            <span className="font-bold text-[#8c6f55] block mb-1">DCPI Intelligence</span>
             According to Mechanical Spec §3.2, the minimum N+1 chiller capacity is 1,200 RT per unit. Vendor submitted 1,150 RT.
           </div>
         </motion.div>
@@ -249,7 +249,7 @@ function LiveDashboardDivider() {
           <motion.div
             animate={{ opacity: [1, 0.4, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="w-3 h-3 rounded-full bg-teal-500 shadow-[0_0_12px_rgba(20,184,166,0.8)]"
+            className="w-3 h-3 rounded-full bg-[#b08d6e] shadow-[0_0_12px_rgba(20,184,166,0.8)]"
           />
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
         </div>

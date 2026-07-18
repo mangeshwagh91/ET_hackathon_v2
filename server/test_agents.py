@@ -4,7 +4,7 @@ from agents.orchestrator_agent import process_request
 def test_agents():
     queries = [
         {"intent": "KNOWLEDGE", "query": "What is the delay precedent for generator shipments?"},
-        {"intent": "PROCUREMENT", "query": "Please analyze vendor bids.", "context": {"bids": [{"vendor": "A", "price": 100}, {"vendor": "B", "price": 90}]}},
+        {"intent": "PROCUREMENT", "query": "Please analyze vendor tenders.", "context": {"tenders": [{"vendor": "A", "price": 100}, {"vendor": "B", "price": 90}]}},
         {"intent": "QUALITY", "query": "Check compliance for purchase order.", "context": {"po_id": "po-ps1500-001"}},
         {"intent": "SCHEDULE", "query": "Run a schedule risk analysis for the critical path."},
         {"intent": "COMMISSIONING", "query": "Start commissioning tests for the cooling units.", "context": {"task_id": "TASK-123"}},

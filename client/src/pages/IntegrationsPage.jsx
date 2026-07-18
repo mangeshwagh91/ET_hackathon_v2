@@ -35,7 +35,7 @@ const integrations = [
     id: "primavera",
     name: "Primavera P6",
     category: "Schedule & Critical Path",
-    icon: <Activity size={20} className="text-emerald-400" />,
+    icon: <Activity size={20} className="text-[#b08d6e]" />,
     description: "Bi-directional sync of schedule logic, float calculations, and task dependencies.",
     lastSync: "Not connected",
     tags: ["OFFICIAL"]
@@ -89,7 +89,7 @@ const integrations = [
     id: "iso_en",
     name: "ISO 50001 / EN 50600",
     category: "Engineering Standards",
-    icon: <Database size={20} className="text-emerald-400" />,
+    icon: <Database size={20} className="text-[#b08d6e]" />,
     description: "Energy management and data centre facilities infrastructures standards.",
     lastSync: "Not connected",
     tags: ["BETA", "OFFICIAL"]
@@ -107,7 +107,7 @@ const integrations = [
     id: "iot",
     name: "Site IoT Sensors",
     category: "Live Conditions",
-    icon: <Wifi size={20} className="text-teal-400" />,
+    icon: <Wifi size={20} className="text-[#b08d6e]" />,
     description: "Real-time telemetry for temperature, humidity, and generator power loads.",
     lastSync: "Not connected",
     tags: ["OFFICIAL"]
@@ -164,7 +164,7 @@ export default function IntegrationsPage() {
   const installedItems = integrations.filter(int => connectedIds.includes(int.id) || int.lastSync !== "Not connected");
 
   return (
-    <div className="flex h-screen bg-[#131413] text-white overflow-hidden">
+    <div className="flex h-screen bg-[#1a1a1a] text-white overflow-hidden">
       
       {/* Hidden File Input */}
       <input 
@@ -176,27 +176,27 @@ export default function IntegrationsPage() {
       />
 
       {/* ─── Left Sidebar (Supabase Style) ─── */}
-      <div className="w-[260px] flex-none bg-[#131413] border-r border-[#2A2C2A] overflow-y-auto z-10 flex flex-col custom-scrollbar pb-6 pt-6 px-4">
+      <div className="w-[260px] flex-none bg-[#1a1a1a] border-r border-[#333330] overflow-y-auto z-10 flex flex-col custom-scrollbar pb-6 pt-6 px-4">
         <h1 className="text-xl font-bold text-white mb-8 tracking-tight px-2">Integrations</h1>
         
         <div className="mb-8">
-          <div className="text-xs font-semibold text-[#8A8D8A] uppercase tracking-wider mb-2 px-2">Explore</div>
+          <div className="text-xs font-semibold text-[#8a847b] uppercase tracking-wider mb-2 px-2">Explore</div>
           <div className="space-y-0.5">
             <button 
               onClick={() => setActiveTab("All")}
-              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "All" ? "bg-[#181A19] text-white font-medium" : "text-[#8A8D8A] hover:text-white"}`}
+              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "All" ? "bg-[#222222] text-white font-medium" : "text-[#8a847b] hover:text-white"}`}
             >
               All
             </button>
             <button 
               onClick={() => setActiveTab("Engineering Standards")}
-              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "Engineering Standards" ? "bg-[#181A19] text-white font-medium" : "text-[#8A8D8A] hover:text-white"}`}
+              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "Engineering Standards" ? "bg-[#222222] text-white font-medium" : "text-[#8a847b] hover:text-white"}`}
             >
               Engineering Standards
             </button>
             <button 
               onClick={() => setActiveTab("Live Data")}
-              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "Live Data" ? "bg-[#181A19] text-white font-medium" : "text-[#8A8D8A] hover:text-white"}`}
+              className={`w-full flex justify-between items-center px-3 py-1.5 rounded-md text-sm transition-colors ${activeTab === "Live Data" ? "bg-[#222222] text-white font-medium" : "text-[#8a847b] hover:text-white"}`}
             >
               Live Data
             </button>
@@ -204,15 +204,15 @@ export default function IntegrationsPage() {
         </div>
 
         <div>
-          <div className="text-xs font-semibold text-[#8A8D8A] uppercase tracking-wider mb-2 px-2">Installed</div>
+          <div className="text-xs font-semibold text-[#8a847b] uppercase tracking-wider mb-2 px-2">Installed</div>
           <div className="space-y-1">
             {installedItems.length === 0 ? (
-              <div className="text-xs text-[#8A8D8A] px-2 py-1">No integrations installed</div>
+              <div className="text-xs text-[#8a847b] px-2 py-1">No integrations installed</div>
             ) : (
               installedItems.map(item => (
                 <div key={item.id} className="flex items-center justify-between px-2 py-1.5 rounded-md group">
                   <div className="flex items-center gap-2">
-                    <div className="p-1 bg-[#181A19] border border-[#2A2C2A] rounded">
+                    <div className="p-1 bg-[#222222] border border-[#333330] rounded">
                       {item.icon}
                     </div>
                     <span className="text-sm text-[#d4d4d8] group-hover:text-white transition-colors">{item.name}</span>
@@ -228,23 +228,23 @@ export default function IntegrationsPage() {
       </div>
 
       {/* ─── Main Content Area ─── */}
-      <div className="flex-1 flex flex-col bg-[#131413] overflow-y-auto custom-scrollbar">
+      <div className="flex-1 flex flex-col bg-[#1a1a1a] overflow-y-auto custom-scrollbar">
         
         {/* Header section */}
         <div className="px-10 pt-12 pb-8 max-w-7xl mx-auto w-full">
           <h2 className="text-2xl font-semibold text-white mb-2">Extend your platform</h2>
-          <p className="text-[#8A8D8A] text-sm max-w-2xl mb-8">
+          <p className="text-[#8a847b] text-sm max-w-2xl mb-8">
             Extensions and wrappers that add functionality to your database and connect to external services.
           </p>
 
           <div className="relative mb-8 w-full max-w-sm">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8D8A]" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a847b]" />
             <input 
               type="text" 
               placeholder="Search integrations..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-[#181A19] border border-[#2A2C2A] text-sm text-white rounded-md pl-10 pr-3 py-2 w-full focus:outline-none focus:border-[#2A2C2A] transition-colors"
+              className="bg-[#222222] border border-[#333330] text-sm text-white rounded-md pl-10 pr-3 py-2 w-full focus:outline-none focus:border-[#333330] transition-colors"
             />
           </div>
 
@@ -259,19 +259,19 @@ export default function IntegrationsPage() {
                 <div 
                   key={integration.id}
                   onClick={() => handleConnectClick(integration)}
-                  className="bg-[#181A19] border border-[#2A2C2A] rounded-xl p-5 hover:border-[#2A2C2A] transition-all cursor-pointer flex flex-col h-[200px] relative overflow-hidden group"
+                  className="bg-[#222222] border border-[#333330] rounded-xl p-5 hover:border-[#333330] transition-all cursor-pointer flex flex-col h-[200px] relative overflow-hidden group"
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <div className="p-2 bg-[#2A2C2A] rounded-lg border border-[#2A2C2A]">
+                    <div className="p-2 bg-[#333330] rounded-lg border border-[#333330]">
                       {integration.icon}
                     </div>
                     {isSyncing ? (
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-[#b08d6e]">
                         <RefreshCw size={14} className="animate-spin" />
                         <span>{needsUpload ? "Ingesting..." : "Syncing..."}</span>
                       </div>
                     ) : isConnected ? (
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-[#b08d6e]">
                         <CheckCircle2 size={14} />
                         <span>Installed</span>
                       </div>
@@ -289,7 +289,7 @@ export default function IntegrationsPage() {
                   </div>
 
                   <h3 className="text-base font-semibold text-white mb-2">{integration.name}</h3>
-                  <p className="text-sm text-[#8A8D8A] line-clamp-3 mb-4 flex-1">
+                  <p className="text-sm text-[#8a847b] line-clamp-3 mb-4 flex-1">
                     {integration.description}
                   </p>
 
@@ -302,7 +302,7 @@ export default function IntegrationsPage() {
                             ? "text-amber-500 bg-amber-500/10 border-amber-500/20" 
                             : tag === "ALPHA"
                               ? "text-rose-500 bg-rose-500/10 border-rose-500/20"
-                              : "text-[#8A8D8A] bg-[#2A2C2A] border-[#2A2C2A]"
+                              : "text-[#8a847b] bg-[#333330] border-[#333330]"
                         }`}
                       >
                         {tag}

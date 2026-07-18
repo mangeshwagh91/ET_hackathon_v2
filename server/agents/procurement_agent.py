@@ -1,7 +1,7 @@
 """
 Procurement & ERP Agent — DCPI.
 Handles vendor bidding, purchase orders, inventory, and lead times.
-Analyzes bids and gives recommendations (price, compliance, lead time, quality).
+Analyzes tenders and gives recommendations (price, compliance, lead time, quality).
 """
 
 import os
@@ -20,7 +20,7 @@ AGENT_NAME = "procurement_erp"
 AGENT_VERSION = "2.0.0"
 
 BID_ANALYSIS_SYSTEM = """You are a senior procurement manager for a Tier IV data centre EPC project.
-Analyze the provided vendor bids. Score each bid out of 10 for price, compliance, lead time, and risk.
+Analyze the provided vendor tenders. Score each tender out of 10 for price, compliance, lead time, and risk.
 Provide an overall recommendation.
 
 Return ONLY valid JSON in this format:
@@ -39,61 +39,61 @@ Return ONLY valid JSON in this format:
   ]
 }"""
 
-def analyze_bids(bids: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Analyzes vendor bids and provides recommendations."""
+def analyze_bids(tenders: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Analyzes vendor tenders and provides recommendations."""
     agent_run_id = str(uuid.uuid4())
     started_ts = datetime.now(timezone.utc).isoformat()
     start_time = datetime.now()
 
-    logger.info(f"Analyzing {len(bids)} bids [{agent_run_id[:8]}]")
+    logger.info(f"Analyzing {len(tenders)} tenders [{agent_run_id[:8]}]")
 
     try:
-        if not bids:
-            raise ValueError("No bids provided for analysis.")
+        if not tenders:
+            raise ValueError("No tenders provided for analysis.")
 
         if not has_available_provider():
             logger.warning("LLM provider unavailable. Using fallback heuristic.")
-            recommendations = _fallback_bid_analysis(bids)
+            recommendations = _fallback_bid_analysis(tenders)
         else:
-            user_message = f"Please analyze these bids:\n{json.dumps(bids, indent=2)}"
+            user_message = f"Please analyze these tenders:\n{json.dumps(tenders, indent=2)}"
             try:
                 response = call_claude_json(BID_ANALYSIS_SYSTEM, user_message, max_tokens=1500)
                 recommendations = response.get("recommendations", [])
             except Exception as e:
-                logger.error(f"LLM call failed for bid analysis: {e}")
-                recommendations = _fallback_bid_analysis(bids)
+                logger.error(f"LLM call failed for tender analysis: {e}")
+                recommendations = _fallback_bid_analysis(tenders)
 
         processing_ms = round((datetime.now() - start_time).total_seconds() * 1000, 1)
-        _log_agent_run_procurement_agent(agent_run_id, started_ts, f"Analyzed {len(bids)} bids", status="completed", num_records=len(recommendations))
+        _log_agent_run_procurement_agent(agent_run_id, started_ts, f"Analyzed {len(tenders)} tenders", status="completed", num_records=len(recommendations))
 
         return {
-            "bids_analyzed": len(bids),
+            "bids_analyzed": len(tenders),
             "recommendations": recommendations,
             "agent_run_id": agent_run_id
         }
 
     except Exception as e:
-        logger.error(f"Bid analysis failed [{agent_run_id[:8]}]: {e}")
-        _log_agent_run_procurement_agent(agent_run_id, started_ts, "Bid analysis", status="failed", error=str(e))
-        raise RuntimeError(f"Bid analysis failed: {e}") from e
+        logger.error(f"Tender analysis failed [{agent_run_id[:8]}]: {e}")
+        _log_agent_run_procurement_agent(agent_run_id, started_ts, "Tender analysis", status="failed", error=str(e))
+        raise RuntimeError(f"Tender analysis failed: {e}") from e
 
-def _fallback_bid_analysis(bids: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _fallback_bid_analysis(tenders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     recommendations = []
-    for bid in bids:
-        price = bid.get("price", 10000)
-        lead_time = bid.get("lead_time_days", 30)
+    for tender in tenders:
+        price = tender.get("price", 10000)
+        lead_time = tender.get("lead_time_days", 30)
         
         # Simple heuristic
         price_score = max(0, 10 - (price / 10000))
         lead_time_score = max(0, 10 - (lead_time / 10))
-        compliance_score = bid.get("compliance_score", 8.0)
-        risk_score = bid.get("risk_score", 8.0)
+        compliance_score = tender.get("compliance_score", 8.0)
+        risk_score = tender.get("risk_score", 8.0)
         overall = (price_score + lead_time_score + compliance_score + risk_score) / 4
         
         rec = "RECOMMENDED" if overall > 8 else "ALTERNATE"
         
         recommendations.append({
-            "vendor_name": bid.get("vendor_name", "Unknown"),
+            "vendor_name": tender.get("vendor_name", "Unknown"),
             "price_score": round(price_score, 1),
             "compliance_score": round(compliance_score, 1),
             "lead_time_score": round(lead_time_score, 1),

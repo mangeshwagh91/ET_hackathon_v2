@@ -46,7 +46,7 @@ export default function ScheduleUploadCard({
       className="relative rounded-3xl overflow-hidden transition-all duration-300 group"
     >
       {/* Glass Background */}
-      <div className="absolute inset-0 bg-[#1e1e1e]/60 backdrop-blur-xl border border-white/10 z-0 shadow-[0_8px_32px_rgba(0,0,0,0.04)]" />
+      <div className="absolute inset-0 bg-[#2a2a2a]/60 backdrop-blur-xl border border-white/10 z-0 shadow-[0_8px_32px_rgba(0,0,0,0.04)]" />
       
       {/* Animated Gradient Glow on Hover/Drag */}
       <motion.div 
@@ -64,7 +64,7 @@ export default function ScheduleUploadCard({
 
         {!file ? (
           <div 
-            className={`w-full max-w-lg rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center p-10 text-center cursor-pointer ${isDragActive ? 'bg-[#1e1e1e]/90 border-sky-400 scale-[1.02] shadow-xl' : 'bg-[#1e1e1e]/40 border-white/10 hover:bg-[#1e1e1e]/80 hover:border-sky-300 hover:shadow-lg'}`}
+            className={`w-full max-w-lg rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center p-10 text-center cursor-pointer ${isDragActive ? 'bg-[#2a2a2a]/90 border-sky-400 scale-[1.02] shadow-xl' : 'bg-[#2a2a2a]/40 border-white/10 hover:bg-[#2a2a2a]/80 hover:border-sky-300 hover:shadow-lg'}`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -92,7 +92,7 @@ export default function ScheduleUploadCard({
           </div>
         ) : (
           <div className="w-full max-w-md">
-            <div className="p-6 rounded-2xl border border-sky-100 bg-[#1e1e1e]/80 shadow-md flex items-center gap-4">
+            <div className="p-6 rounded-2xl border border-sky-100 bg-[#2a2a2a]/80 shadow-md flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-sky-50 text-sky-500 shadow-sm">
                 <FileSpreadsheet size={24} />
               </div>
@@ -100,7 +100,7 @@ export default function ScheduleUploadCard({
                 <p className="text-sm font-bold text-zinc-100 truncate mb-1">{file.name}</p>
                 <div className="flex items-center justify-between text-xs font-medium">
                   <span className="text-zinc-400">{(file.size / 1024).toFixed(1)} KB</span>
-                  <span className="text-green-500 flex items-center gap-1"><CheckCircle size={12} /> Ready for Analysis</span>
+                  <span className="text-[#b08d6e] flex items-center gap-1"><CheckCircle size={12} /> Ready for Analysis</span>
                 </div>
               </div>
               <button onClick={() => setFile(null)} className="text-slate-400 hover:text-red-500 text-sm font-medium px-2 py-1 transition-colors">

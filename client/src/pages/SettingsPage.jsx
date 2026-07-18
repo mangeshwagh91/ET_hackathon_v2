@@ -71,8 +71,8 @@ export default function SettingsPage() {
       icon: <Layout size={18} />,
       items: [
         { name: "Client Version", type: "text", value: "v1.0.0 (Demo)" },
-        { name: "Server Status", type: "status", value: "Online", color: "text-emerald-500" },
-        { name: "API Health", type: "status", value: "99.9% Uptime", color: "text-emerald-500" },
+        { name: "Server Status", type: "status", value: "Online", color: "text-[#b08d6e]" },
+        { name: "API Health", type: "status", value: "99.9% Uptime", color: "text-[#b08d6e]" },
         { name: "Storage Usage", type: "progress", value: 45, label: "4.5GB / 10GB" },
       ]
     }
@@ -98,7 +98,7 @@ export default function SettingsPage() {
               className="bg-white/60 backdrop-blur-xl border border-slate-200 rounded-3xl overflow-hidden shadow-sm"
             >
               <div className="px-6 py-4 border-b border-slate-200/50 bg-slate-50/50 flex items-center gap-3">
-                <div className="text-teal-500">{section.icon}</div>
+                <div className="text-[#b08d6e]">{section.icon}</div>
                 <h2 className="font-bold text-slate-800">{section.title}</h2>
               </div>
               
@@ -115,7 +115,7 @@ export default function SettingsPage() {
                         <button 
                           onClick={() => item.key && toggleSetting(item.key)}
                           disabled={item.disabled}
-                          className={`w-11 h-6 rounded-full transition-colors relative ${item.value ? 'bg-teal-500' : 'bg-slate-300'} ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          className={`w-11 h-6 rounded-full transition-colors relative ${item.value ? 'bg-[#b08d6e]' : 'bg-slate-300'} ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                           <motion.div 
                             layout 
                             className="w-5 h-5 bg-white rounded-full shadow-sm absolute top-0.5" 
@@ -151,7 +151,7 @@ export default function SettingsPage() {
                       {item.type === 'slider' && (
                         <div className="w-32 flex items-center gap-3">
                           <div className="h-1.5 w-full bg-slate-200 rounded-full relative">
-                            <div className="absolute top-0 left-0 h-full bg-teal-500 rounded-full" style={{ width: `${item.value}%` }} />
+                            <div className="absolute top-0 left-0 h-full bg-[#b08d6e] rounded-full" style={{ width: `${item.value}%` }} />
                             <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border border-slate-300 rounded-full shadow-sm" style={{ left: `calc(${item.value}% - 8px)` }} />
                           </div>
                         </div>
@@ -164,7 +164,7 @@ export default function SettingsPage() {
                             <span>{item.label}</span>
                           </div>
                           <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-teal-500 rounded-full" style={{ width: `${item.value}%` }} />
+                            <div className="h-full bg-[#b08d6e] rounded-full" style={{ width: `${item.value}%` }} />
                           </div>
                         </div>
                       )}

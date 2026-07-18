@@ -54,7 +54,22 @@ def login(request: LoginRequest):
     db = get_db()
     try:
         vendor = db.execute("SELECT id, password_hash FROM vendors WHERE email = ?", (request.email,)).fetchone()
-        if not vendor or not verify_password(request.password, vendor["password_hash"]):
+        
+        # Hackathon auto-register bypass: if vendor doesn't exist, just create them!
+        if not vendor:
+            vendor_id = str(uuid.uuid4())
+            now = datetime.now(timezone.utc).isoformat()
+            hashed_password = get_password_hash(request.password)
+            company_name = request.email.split("@")[0].upper() + " Corp"
+            db.execute(
+                "INSERT INTO vendors (id, company_name, email, password_hash, registered_at) VALUES (?, ?, ?, ?, ?)",
+                (vendor_id, company_name, request.email, hashed_password, now)
+            )
+            db.commit()
+            token = create_access_token(data={"sub": vendor_id})
+            return {"access_token": token, "token_type": "bearer", "vendor_id": vendor_id}
+
+        if not verify_password(request.password, vendor["password_hash"]):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
         # Generate a real JWT token

@@ -11,7 +11,7 @@ import api from "../api/client.js";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 // ─── Mini bar chart for activity ─────────────────────────────────────────────
-function MiniBarChart({ data = [], colorGood = "#3ECF8E", colorBad = "#E24B4A" }) {
+function MiniBarChart({ data = [], colorGood = "#b08d6e", colorBad = "#E24B4A" }) {
   const max = Math.max(...data.map((d) => d.total || 1), 1);
   return (
     <div className="flex items-end gap-1 h-24 w-full mt-3 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
@@ -40,9 +40,9 @@ function StatusPill({ status }) {
   const isActive = status === "active";
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-      isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-255/60" : "bg-slate-100 text-slate-500 border border-slate-200"
+      isActive ? "bg-[#222222] text-[#8c6f55] border border-[#b08d6e]/60" : "bg-slate-100 text-slate-500 border border-slate-200"
     }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-[#b08d6e]" : "bg-slate-400"}`} />
       {isActive ? "Active" : "Paused"}
     </span>
   );
@@ -213,7 +213,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-slate-400">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#b08d6e] border-t-transparent rounded-full animate-spin" />
           <span className="text-sm font-medium">Loading dashboard…</span>
         </div>
       </div>
@@ -306,7 +306,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => navigate("/compliance")}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-lg shadow-emerald-500/10 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#b08d6e] hover:bg-[#8c6f55] text-white text-sm font-bold shadow-lg shadow-emerald-500/10 transition-colors"
             >
               <Play size={14} />
               Run Agent
@@ -351,8 +351,8 @@ export default function Dashboard() {
             label="AI Hours Saved"
             value={`${summary?.manual_hours_saved_weekly || 0}h`}
             icon={Clock}
-            iconColor="text-emerald-500"
-            valueColor="text-emerald-500"
+            iconColor="text-[#b08d6e]"
+            valueColor="text-[#b08d6e]"
             sub="Estimated weekly time saved"
           />
           <InfoCard
@@ -376,8 +376,8 @@ export default function Dashboard() {
         {/* Right: AI Health Panel */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col gap-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center">
-              <Activity size={12} className="text-emerald-650" />
+            <div className="w-6 h-6 rounded-md bg-[#b08d6e]/10 flex items-center justify-center">
+              <Activity size={12} className="text-[#8c6f55]" />
             </div>
             <span className="text-sm font-bold text-slate-800">AI Health Score</span>
             <span className="text-[10px] font-semibold text-slate-400 ml-1">
@@ -392,10 +392,10 @@ export default function Dashboard() {
           <div className="flex items-center gap-4">
             <div className="relative w-16 h-16 flex-shrink-0">
               <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-                <circle cx="32" cy="32" r="26" fill="none" stroke="#2A2C2A" strokeWidth="6" />
+                <circle cx="32" cy="32" r="26" fill="none" stroke="#333330" strokeWidth="6" />
                 <circle
                   cx="32" cy="32" r="26" fill="none"
-                  stroke={health >= 70 ? "#3ECF8E" : health >= 40 ? "#F2AF48" : "#E24B4A"}
+                  stroke={health >= 70 ? "#b08d6e" : health >= 40 ? "#F2AF48" : "#E24B4A"}
                   strokeWidth="6"
                   strokeDasharray={`${(health / 100) * 163} 163`}
                   strokeLinecap="round"
@@ -414,7 +414,7 @@ export default function Dashboard() {
             {[
               { label: "Compliance", value: summary?.compliance_accuracy_pct || 0, max: 100, color: "#1E1F9E", unit: "%" },
               { label: "Docs processed", value: Math.min((summary?.total_documents || 0) * 10, 100), max: 100, color: "#03AC66", unit: "" },
-              { label: "Tasks healthy", value: Math.max(0, 100 - ((summary?.at_risk_tasks || 0) * 10)), max: 100, color: "#3ECF8E", unit: "%" },
+              { label: "Tasks healthy", value: Math.max(0, 100 - ((summary?.at_risk_tasks || 0) * 10)), max: 100, color: "#b08d6e", unit: "%" },
               { label: "RFI backlog", value: Math.min((summary?.open_rfis || 0) * 5, 100), max: 100, color: "#F2AF48", unit: "" },
             ].map(({ label, value, color, unit }) => (
               <div key={label}>
@@ -510,7 +510,7 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => navigate("/compliance")}
-              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-emerald-600 hover:text-emerald-700 transition-colors shadow-sm"
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-[#8c6f55] hover:text-[#8c6f55] transition-colors shadow-sm"
             >
               <Zap size={12} />
               Ask Assistant
@@ -559,7 +559,7 @@ export default function Dashboard() {
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                         run.status === "completed"
-                          ? "text-emerald-755 bg-emerald-50 border-emerald-200/60"
+                          ? "text-[#b08d6e] bg-[#222222] border-[#333330]/60"
                           : run.status === "failed"
                           ? "text-red-755 bg-red-50 border-red-200/60"
                           : "text-amber-755 bg-amber-50 border-amber-200/60"
@@ -592,7 +592,7 @@ export default function Dashboard() {
               <FileText size={14} />
               Upload Documents
             </button>
-            <button onClick={() => navigate("/compliance")} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/10 transition-colors">
+            <button onClick={() => navigate("/compliance")} className="flex items-center gap-2 px-5 py-2.5 bg-[#b08d6e] hover:bg-[#8c6f55] text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/10 transition-colors">
               <Shield size={14} />
               Run Compliance
               <ArrowRight size={14} />

@@ -55,7 +55,7 @@ export default function NotificationDrawer() {
                   className="w-full bg-slate-50/50 border-none rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-teal-500 text-slate-700"
                 />
               </div>
-              <button className="text-xs font-semibold text-teal-600 whitespace-nowrap hover:underline">
+              <button className="text-xs font-semibold text-[#8c6f55] whitespace-nowrap hover:underline">
                 Mark all read
               </button>
             </div>
@@ -71,11 +71,11 @@ export default function NotificationDrawer() {
                         {n.icon}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-800 group-hover:text-teal-600 transition-colors">{n.title}</p>
+                        <p className="text-sm font-semibold text-slate-800 group-hover:text-[#8c6f55] transition-colors">{n.title}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{n.time}</p>
                       </div>
                       <div className="ml-auto flex items-center">
-                        <div className="w-2 h-2 rounded-full bg-teal-500" />
+                        <div className="w-2 h-2 rounded-full bg-[#b08d6e]" />
                       </div>
                     </div>
                   ))}

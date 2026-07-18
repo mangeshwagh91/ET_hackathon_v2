@@ -17,7 +17,7 @@ export function AmbientCrosshairs({ count = 8 }) {
         return (
           <motion.div
             key={i}
-            className="absolute flex items-center justify-center text-teal-600/30"
+            className="absolute flex items-center justify-center text-[#8c6f55]/30"
             style={{ left: `${startX}%`, top: `${startY}%` }}
             initial={{ scale: 0.5, rotate: 0 }}
             animate={{
@@ -66,8 +66,8 @@ export default function AuditBackground() {
       <AmbientCrosshairs count={12} />
 
       {/* Strict Color Gradients */}
-      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-teal-200/40 blur-[100px] mix-blend-multiply pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-200/30 blur-[100px] mix-blend-multiply pointer-events-none" />
+      <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#b08d6e]/20 blur-[100px] mix-blend-multiply pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#b08d6e]/30 blur-[100px] mix-blend-multiply pointer-events-none" />
     </div>
   );
 }

@@ -45,9 +45,9 @@ export function Reveal({ children, delay = 0, className = "" }) {
 // ─── Section label chip ───────────────────────────────────────────────────────
 export function SectionLabel({ text }) {
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-teal-200 bg-teal-50 mb-4">
-      <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-      <span className="text-[11px] font-semibold tracking-widest uppercase text-teal-700">{text}</span>
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#333330] bg-[#222222] mb-4">
+      <div className="w-1.5 h-1.5 rounded-full bg-[#b08d6e]" />
+      <span className="text-[11px] font-semibold tracking-widest uppercase text-[#6b5340]">{text}</span>
     </div>
   );
 }

@@ -73,12 +73,9 @@ export function AuthProvider({ children }) {
   };
   
   const logout = () => {
-    setIsLoggingOut(true);
-    setTimeout(() => {
-      setIsAuthenticated(false);
-      setUser(null);
-      setIsLoggingOut(false);
-    }, 2000);
+    setIsAuthenticated(false);
+    setUser(null);
+    setIsLoggingOut(false);
   };
 
   return (

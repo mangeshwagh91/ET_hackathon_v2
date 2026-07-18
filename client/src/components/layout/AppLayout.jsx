@@ -8,7 +8,7 @@ export default function AppLayout({ children, hideSidebar = false }) {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   return (
-    <div className="h-screen w-full flex flex-col font-sans bg-[#131413] text-[#EDEFEE] overflow-hidden">
+    <div className="h-screen w-full flex flex-col font-sans bg-[#1a1a1a] text-[#f0ece4] overflow-hidden">
       <Header toggleSidebar={toggleSidebar} hideSidebarToggle={hideSidebar} />
 
       <div className="flex-1 flex relative h-full min-w-0 overflow-hidden">

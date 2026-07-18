@@ -19,8 +19,8 @@ function BlueprintBackground() {
         }}
       />
       {/* Ambient glow blobs */}
-      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-emerald-500/[0.05] rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-emerald-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-[#b08d6e]/[0.05] rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-[#b08d6e]/[0.04] rounded-full blur-[120px] pointer-events-none" />
       {/* Noise/grain overlay */}
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.015]"
@@ -37,16 +37,16 @@ function AuthInput({ label, type = "text", value, onChange, placeholder, icon })
   const [focused, setFocused] = useState(false);
   return (
     <div className="space-y-1.5">
-      <label className="block text-[10px] font-bold text-[#8A8D8A] uppercase tracking-[0.12em]">
+      <label className="block text-[10px] font-bold text-[#8a847b] uppercase tracking-[0.12em]">
         {label}
       </label>
       <div className={`relative flex items-center rounded-xl border transition-all duration-200 ${
         focused
-          ? "border-emerald-500/60 bg-[#0f1a14] shadow-[0_0_0_3px_rgba(16,185,129,0.08)]"
-          : "border-[#2A2C2A] bg-[#0d0d0f]"
+          ? "border-[#b08d6e]/60 bg-[#0f1a14] shadow-[0_0_0_3px_rgba(16,185,129,0.08)]"
+          : "border-[#333330] bg-[#1a1a1a]"
       }`}>
         {icon && (
-          <span className={`pl-3.5 shrink-0 transition-colors ${focused ? "text-emerald-500" : "text-[#8A8D8A]"}`}>
+          <span className={`pl-3.5 shrink-0 transition-colors ${focused ? "text-[#b08d6e]" : "text-[#8a847b]"}`}>
             {icon}
           </span>
         )}
@@ -57,7 +57,7 @@ function AuthInput({ label, type = "text", value, onChange, placeholder, icon })
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder={placeholder}
-          className="w-full bg-transparent px-3.5 py-3 text-sm text-[#EDEFEE] placeholder-[#2A2C2A] focus:outline-none"
+          className="w-full bg-transparent px-3.5 py-3 text-sm text-[#f0ece4] placeholder-[#333330] focus:outline-none"
         />
       </div>
     </div>
@@ -186,7 +186,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
   );
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center overflow-hidden bg-[#131413] font-sans">
+    <div className="min-h-screen relative flex items-center justify-center overflow-hidden bg-[#1a1a1a] font-sans">
       <BlueprintBackground />
 
       {/* ─── Home Button ────────────────────────────────────────── */}
@@ -195,7 +195,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.2 }}
         onClick={() => navigate("/")}
-        className="absolute top-6 left-6 z-30 flex items-center gap-2 bg-[#131413]/80 hover:bg-[#181A19] border border-[#2A2C2A] hover:border-[#2A2C2A] px-4 py-2.5 rounded-xl text-xs font-bold text-[#8A8D8A] hover:text-[#EDEFEE] transition-all backdrop-blur-sm"
+        className="absolute top-6 left-6 z-30 flex items-center gap-2 bg-[#1a1a1a]/80 hover:bg-[#222222] border border-[#333330] hover:border-[#333330] px-4 py-2.5 rounded-xl text-xs font-bold text-[#8a847b] hover:text-[#f0ece4] transition-all backdrop-blur-sm"
       >
         {ArrowLeft}
         <span>Home</span>
@@ -215,7 +215,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
         </div>
         <div>
           <span className="font-extrabold text-white text-[15px] tracking-tight leading-none block">DataForge AI</span>
-          <span className="text-[9px] text-[#8A8D8A] tracking-widest uppercase font-bold">Platform</span>
+          <span className="text-[9px] text-[#8a847b] tracking-widest uppercase font-bold">Platform</span>
         </div>
       </motion.div>
 
@@ -224,7 +224,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-[960px] mx-4 my-16 rounded-2xl overflow-hidden border border-[#181A19]"
+        className="relative z-10 w-full max-w-[960px] mx-4 my-16 rounded-2xl overflow-hidden border border-[#222222]"
         style={{ boxShadow: "0 40px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04)" }}
       >
         <div className={`grid md:grid-cols-2 min-h-[600px] transition-all duration-500`}>
@@ -237,14 +237,14 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: isRegister ? 20 : -20 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className={`flex flex-col justify-center p-8 md:p-12 bg-[#181A19] ${isRegister ? "order-1" : "order-1 md:order-2"}`}
+              className={`flex flex-col justify-center p-8 md:p-12 bg-[#222222] ${isRegister ? "order-1" : "order-1 md:order-2"}`}
             >
               {/* Header */}
               <div className="mb-7">
-                <h2 className="text-2xl font-extrabold text-[#EDEFEE] tracking-tight mb-1.5">
+                <h2 className="text-2xl font-extrabold text-[#f0ece4] tracking-tight mb-1.5">
                   {isRegister ? "Create Account" : "Welcome Back"}
                 </h2>
-                <p className="text-xs text-[#8A8D8A] font-medium leading-relaxed">
+                <p className="text-xs text-[#8a847b] font-medium leading-relaxed">
                   {isRegister
                     ? "Join DataForge AI — your AI-powered project intelligence platform"
                     : "Sign in to continue orchestrating your AI agents"}
@@ -252,7 +252,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               </div>
 
               {/* Role Switcher */}
-              <div className="flex bg-[#0d0d0f] p-1 rounded-xl border border-[#181A19] mb-6 gap-1">
+              <div className="flex bg-[#1a1a1a] p-1 rounded-xl border border-[#222222] mb-6 gap-1">
                 {[
                   { key: "team", label: "Project Team" },
                   { key: "vendor", label: "Vendor Portal" },
@@ -263,8 +263,8 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                     onClick={() => { setRole(key); setError(""); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
                       role === key
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "text-[#8A8D8A] hover:text-[#8A8D8A]"
+                        ? "bg-[#b08d6e]/10 text-[#b08d6e] border border-[#b08d6e]/20"
+                        : "text-[#8a847b] hover:text-[#8a847b]"
                     }`}
                   >
                     {label}
@@ -281,7 +281,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                     exit={{ opacity: 0, y: -6 }}
                     className={`p-3 rounded-xl text-xs font-semibold mb-5 border flex items-start gap-2.5 ${
                       error.includes("successful")
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        ? "bg-[#b08d6e]/10 border-[#b08d6e]/20 text-[#b08d6e]"
                         : "bg-red-500/10 border-red-500/20 text-red-400"
                     }`}
                   >
@@ -349,21 +349,21 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
 
                 {!isRegister && (
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <label className="flex items-center gap-2 cursor-pointer text-[#8A8D8A] hover:text-[#8A8D8A] transition-colors">
+                    <label className="flex items-center gap-2 cursor-pointer text-[#8a847b] hover:text-[#8a847b] transition-colors">
                       <input
                         type="checkbox"
                         className="w-3.5 h-3.5 rounded accent-emerald-500"
                       />
                       <span>Remember me</span>
                     </label>
-                    <a href="#" className="font-semibold text-emerald-500/80 hover:text-emerald-400 transition-colors">
+                    <a href="#" className="font-semibold text-[#b08d6e]/80 hover:text-[#b08d6e] transition-colors">
                       Forgot password?
                     </a>
                   </div>
                 )}
 
                 {isRegister && (
-                  <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[#8A8D8A] pt-1">
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[#8a847b] pt-1">
                     <input
                       type="checkbox"
                       checked={agree}
@@ -372,9 +372,9 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                     />
                     <span>
                       I agree to the{" "}
-                      <a href="#" className="font-bold text-emerald-500/80 hover:text-emerald-400 transition-colors">Terms of Service</a>
+                      <a href="#" className="font-bold text-[#b08d6e]/80 hover:text-[#b08d6e] transition-colors">Terms of Service</a>
                       {" "}and{" "}
-                      <a href="#" className="font-bold text-emerald-500/80 hover:text-emerald-400 transition-colors">Privacy Policy</a>
+                      <a href="#" className="font-bold text-[#b08d6e]/80 hover:text-[#b08d6e] transition-colors">Privacy Policy</a>
                     </span>
                   </label>
                 )}
@@ -385,7 +385,7 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                   disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.01 }}
                   whileTap={{ scale: loading ? 1 : 0.98 }}
-                  className="w-full relative overflow-hidden bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2 mt-6"
+                  className="w-full relative overflow-hidden bg-[#b08d6e] hover:bg-[#8c6f55] disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2 mt-6"
                   style={{ boxShadow: "0 0 30px rgba(16,185,129,0.2)" }}
                 >
                   {/* Shimmer */}
@@ -406,9 +406,9 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               </form>
 
               {/* Mobile toggle */}
-              <p className="text-xs text-[#8A8D8A] text-center mt-6 md:hidden">
+              <p className="text-xs text-[#8a847b] text-center mt-6 md:hidden">
                 {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
-                <button onClick={toggleMode} className="font-bold text-emerald-500 hover:text-emerald-400 transition-colors">
+                <button onClick={toggleMode} className="font-bold text-[#b08d6e] hover:text-[#b08d6e] transition-colors">
                   {isRegister ? "Sign In" : "Sign Up"}
                 </button>
               </p>
@@ -423,12 +423,12 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
-              className={`hidden md:flex flex-col justify-between p-10 relative overflow-hidden bg-[#131413] border-l border-[#181A19] ${isRegister ? "order-2" : "order-2 md:order-1"}`}
+              className={`hidden md:flex flex-col justify-between p-10 relative overflow-hidden bg-[#1a1a1a] border-l border-[#222222] ${isRegister ? "order-2" : "order-2 md:order-1"}`}
             >
               {/* Ambient glow */}
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[350px] h-[350px] bg-emerald-500/[0.06] rounded-full blur-[100px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[250px] h-[250px] bg-emerald-500/[0.04] rounded-full blur-[80px]" />
+                <div className="absolute top-[-20%] left-[-10%] w-[350px] h-[350px] bg-[#b08d6e]/[0.06] rounded-full blur-[100px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[250px] h-[250px] bg-[#b08d6e]/[0.04] rounded-full blur-[80px]" />
               </div>
 
               {/* Grid on panel */}
@@ -445,22 +445,22 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
 
               {/* Top badge */}
               <div className="relative z-10">
-                <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+                <div className="inline-flex items-center gap-2 bg-[#b08d6e]/10 border border-[#b08d6e]/20 text-[#b08d6e] text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-[#b08d6e] rounded-full animate-pulse" />
                   AI-Powered Platform
                 </div>
               </div>
 
               {/* Main content */}
               <div className="relative z-10 space-y-6">
-                <h3 className="text-3xl font-extrabold text-[#EDEFEE] tracking-tight leading-tight">
+                <h3 className="text-3xl font-extrabold text-[#f0ece4] tracking-tight leading-tight">
                   {isRegister ? (
-                    <>Welcome to<br /><span className="text-emerald-400">DataForge AI</span></>
+                    <>Welcome to<br /><span className="text-[#b08d6e]">DataForge AI</span></>
                   ) : (
-                    <>Good to have<br />you <span className="text-emerald-400">back.</span></>
+                    <>Good to have<br />you <span className="text-[#b08d6e]">back.</span></>
                   )}
                 </h3>
-                <p className="text-sm text-[#8A8D8A] leading-relaxed max-w-xs">
+                <p className="text-sm text-[#8a847b] leading-relaxed max-w-xs">
                   {isRegister
                     ? "Register to start orchestrating AI agents for your data centre project — from vendor bidding to compliance monitoring."
                     : "Access your project intelligence dashboard, manage your AI agents, and keep your projects running at peak performance."}
@@ -478,10 +478,10 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                      className="flex items-center gap-2.5 text-xs text-[#8A8D8A]"
+                      className="flex items-center gap-2.5 text-xs text-[#8a847b]"
                     >
-                      <span className="w-4 h-4 rounded-full bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#3ECF8E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <span className="w-4 h-4 rounded-full bg-[#b08d6e]/15 border border-[#b08d6e]/25 flex items-center justify-center shrink-0">
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#b08d6e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </span>
@@ -492,13 +492,13 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
 
                 {/* Toggle CTA */}
                 <div className="pt-4">
-                  <p className="text-xs text-[#8A8D8A] mb-3">
+                  <p className="text-xs text-[#8a847b] mb-3">
                     {isRegister ? "Already registered?" : "New to DataForge AI?"}
                   </p>
                   <button
                     type="button"
                     onClick={toggleMode}
-                    className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#2A2C2A] hover:border-emerald-500/40 text-xs font-bold text-[#8A8D8A] hover:text-emerald-400 transition-all duration-200"
+                    className="group inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#333330] hover:border-[#b08d6e]/40 text-xs font-bold text-[#8a847b] hover:text-[#b08d6e] transition-all duration-200"
                   >
                     {isRegister ? "Sign In Instead" : "Create an Account"}
                     <svg
@@ -521,10 +521,10 @@ export default function LoginScreen({ isSignUp: isSignUpInitial = false }) {
                 ].map(({ label, value }) => (
                   <div
                     key={label}
-                    className="flex flex-col bg-[#0d0d0f] border border-[#181A19] rounded-xl px-4 py-2.5"
+                    className="flex flex-col bg-[#1a1a1a] border border-[#222222] rounded-xl px-4 py-2.5"
                   >
-                    <span className="text-sm font-extrabold text-emerald-400">{value}</span>
-                    <span className="text-[10px] text-[#8A8D8A] font-medium mt-0.5">{label}</span>
+                    <span className="text-sm font-extrabold text-[#b08d6e]">{value}</span>
+                    <span className="text-[10px] text-[#8a847b] font-medium mt-0.5">{label}</span>
                   </div>
                 ))}
               </div>

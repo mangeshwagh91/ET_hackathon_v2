@@ -43,13 +43,13 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { name: "Schedule", path: "/schedule", icon: <ActivitySquare size={18} /> },
     { name: "Commissioning", path: "/commissioning", icon: <CheckSquare size={18} /> },
     { name: "Design", path: "/design", icon: <LayoutGrid size={18} /> },
-    { name: "Bids", path: "/bids", icon: <Landmark size={18} /> },
+    { name: "Tenders", path: "/tenders", icon: <Landmark size={18} /> },
     { name: "Logistics", path: "/supply-chain", icon: <Truck size={18} /> },
   ];
 
   const vendorLinks = [
     { name: "Open Projects", path: "/", icon: <BarChart3 size={18} /> },
-    { name: "My Bids", path: "/vendor/bids", icon: <Landmark size={18} /> },
+    { name: "My Tenders", path: "/vendor/tenders", icon: <Landmark size={18} /> },
     { name: "Vendor Profile", path: "/vendor/profile", icon: <FileText size={18} /> },
   ];
 
@@ -69,7 +69,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       <aside
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed lg:absolute top-0 left-0 h-full bg-[#131413] border-r border-[#2A2C2A] z-40 flex flex-col py-4 transition-all duration-250 ease-[cubic-bezier(0.4,0,0.2,1)] lg:translate-x-0 overflow-hidden shrink-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed lg:absolute top-0 left-0 h-full bg-[#1a1a1a] border-r border-[#333330] z-40 flex flex-col py-4 transition-all duration-250 ease-[cubic-bezier(0.4,0,0.2,1)] lg:translate-x-0 overflow-hidden shrink-0 ${isOpen ? "translate-x-0" : "-translate-x-full"
           } ${isExpanded ? "w-64 shadow-[4px_0_24px_rgba(0,0,0,0.5)]" : "w-14"} px-2`}
       >
 
@@ -84,8 +84,8 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                 onClick={() => setIsOpen(false)}
                 title={!isExpanded ? link.name : ""}
                 className={`relative flex items-center rounded-md transition-colors group w-full h-9 overflow-hidden ${isActive
-                    ? "text-white bg-[#1e1e1e]"
-                    : "text-[#8A8D8A] hover:text-white hover:bg-[#181A19]"
+                    ? "text-white bg-[#2a2a2a]"
+                    : "text-[#8a847b] hover:text-white hover:bg-[#222222]"
                   }`}
               >
                 {isActive && (
@@ -109,7 +109,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
 
         {/* Bottom Profile / Settings */}
         <div className="mt-auto flex flex-col gap-0.5 w-full">
-          <button title={!isExpanded ? "Settings" : ""} className={`flex items-center rounded-md text-[#8A8D8A] hover:text-white hover:bg-[#181A19] transition-colors w-full h-9 overflow-hidden`}>
+          <button title={!isExpanded ? "Settings" : ""} className={`flex items-center rounded-md text-[#8a847b] hover:text-white hover:bg-[#222222] transition-colors w-full h-9 overflow-hidden`}>
             <div className="w-10 h-9 flex items-center justify-center shrink-0">
               <Settings size={18} />
             </div>
@@ -117,9 +117,9 @@ export default function Sidebar({ isOpen, setIsOpen }) {
               Settings
             </span>
           </button>
-          <button title={!isExpanded ? "Profile" : ""} className={`flex items-center rounded-md text-[#8A8D8A] hover:text-white hover:bg-[#181A19] transition-colors w-full h-9 overflow-hidden`}>
+          <button title={!isExpanded ? "Profile" : ""} className={`flex items-center rounded-md text-[#8a847b] hover:text-white hover:bg-[#222222] transition-colors w-full h-9 overflow-hidden`}>
             <div className="w-10 h-9 flex items-center justify-center shrink-0">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500" />
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#b08d6e] to-teal-500" />
             </div>
             <span className={`ml-1 text-[13px] font-medium whitespace-nowrap transition-opacity duration-250 ${isExpanded ? "opacity-100 " : "opacity-0"}`}>
               Profile

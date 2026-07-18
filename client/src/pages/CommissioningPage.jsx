@@ -11,14 +11,14 @@ function SidebarItem({ icon: Icon, label, active, onClick, status }) {
   return (
     <div 
       onClick={onClick}
-      className={`flex items-center justify-between px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors ${active ? 'bg-[#2A2C2A] text-white font-medium' : 'text-[#8A8D8A] hover:text-white hover:bg-[#2A2C2A]/50'}`}
+      className={`flex items-center justify-between px-3 py-2 text-[13px] rounded-md cursor-pointer transition-colors ${active ? 'bg-[#333330] text-white font-medium' : 'text-[#8a847b] hover:text-white hover:bg-[#333330]/50'}`}
     >
       <div className="flex items-center gap-2 overflow-hidden">
-        <Icon size={14} className={active ? "text-indigo-400 shrink-0" : "text-[#8A8D8A] shrink-0"} />
+        <Icon size={14} className={active ? "text-indigo-400 shrink-0" : "text-[#8a847b] shrink-0"} />
         <span className="truncate">{label}</span>
       </div>
       {status && (
-        <span className="text-[10px] font-bold text-emerald-400 shrink-0">{status}</span>
+        <span className="text-[10px] font-bold text-[#b08d6e] shrink-0">{status}</span>
       )}
     </div>
   );
@@ -27,7 +27,7 @@ function SidebarItem({ icon: Icon, label, active, onClick, status }) {
 function SidebarSection({ title, children }) {
   return (
     <div className="mb-6">
-      <div className="text-[10px] text-[#8A8D8A] uppercase tracking-widest font-bold mb-2 px-3">
+      <div className="text-[10px] text-[#8a847b] uppercase tracking-widest font-bold mb-2 px-3">
         {title}
       </div>
       <div className="space-y-0.5 px-2">
@@ -108,9 +108,9 @@ export default function CommissioningPage() {
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'pass': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+      case 'pass': return 'text-[#b08d6e] bg-[#b08d6e]/10 border-[#b08d6e]/20';
       case 'fail': return 'text-red-500 bg-red-500/10 border-red-500/20';
-      default: return 'text-[#8A8D8A] bg-[#2A2C2A] border-[#2A2C2A]';
+      default: return 'text-[#8a847b] bg-[#333330] border-[#333330]';
     }
   };
 
@@ -123,28 +123,28 @@ export default function CommissioningPage() {
   };
 
   return (
-    <div className="flex-1 w-full h-full relative bg-[#131413] overflow-hidden flex flex-col font-sans">
+    <div className="flex-1 w-full h-full relative bg-[#1a1a1a] overflow-hidden flex flex-col font-sans">
       
       {/* ─── Top Header (Like Supabase Top Nav) ─── */}
-      <div className="flex-none h-12 border-b border-[#2A2C2A] bg-[#181A19] flex items-center justify-between px-4 z-20">
+      <div className="flex-none h-12 border-b border-[#333330] bg-[#222222] flex items-center justify-between px-4 z-20">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm text-[#8A8D8A]">
+          <div className="flex items-center gap-2 text-sm text-[#8a847b]">
             <MapIcon size={16} className="text-indigo-500" />
             <span className="text-white font-semibold">DC Project Org</span>
-            <span className="text-[#2A2C2A]">/</span>
+            <span className="text-[#333330]">/</span>
             <span className="text-white">Commissioning Copilot</span>
-            <span className="text-[#2A2C2A]">/</span>
+            <span className="text-[#333330]">/</span>
             <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[10px] font-bold border border-indigo-500/20">PRODUCTION</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8A8D8A]" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8a847b]" />
             <input 
               type="text" 
               placeholder="Search sequences..." 
-              className="bg-[#181A19] border border-[#2A2C2A] text-sm text-white rounded-md pl-8 pr-3 py-1.5 focus:outline-none focus:border-[#2A2C2A] w-48 transition-colors"
+              className="bg-[#222222] border border-[#333330] text-sm text-white rounded-md pl-8 pr-3 py-1.5 focus:outline-none focus:border-[#333330] w-48 transition-colors"
             />
           </div>
           
@@ -155,7 +155,7 @@ export default function CommissioningPage() {
           <button 
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-2 bg-[#2A2C2A] hover:bg-[#2A2C2A] text-white px-3 py-1.5 rounded-md text-sm font-semibold transition-colors border border-[#2A2C2A]"
+            className="flex items-center gap-2 bg-[#333330] hover:bg-[#333330] text-white px-3 py-1.5 rounded-md text-sm font-semibold transition-colors border border-[#333330]"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
             <span>Sync</span>
@@ -165,7 +165,7 @@ export default function CommissioningPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ─── Left Sidebar (Task Management) ─── */}
-        <div className="w-[240px] flex-none bg-[#131413] border-r border-[#2A2C2A] overflow-y-auto z-10 flex flex-col py-4 custom-scrollbar">
+        <div className="w-[240px] flex-none bg-[#1a1a1a] border-r border-[#333330] overflow-y-auto z-10 flex flex-col py-4 custom-scrollbar">
           <div className="px-4 mb-6">
             <h2 className="text-base font-semibold text-white">Quality Assurance</h2>
           </div>
@@ -177,7 +177,7 @@ export default function CommissioningPage() {
 
           <SidebarSection title="Schedule Tasks">
             {tasks.length === 0 && !loading && (
-              <div className="text-[11px] text-[#8A8D8A] px-3 italic">
+              <div className="text-[11px] text-[#8a847b] px-3 italic">
                 No commissioning tasks found.
               </div>
             )}
@@ -196,7 +196,7 @@ export default function CommissioningPage() {
 
         {/* ─── Main Dotted Canvas Area ─── */}
         <div 
-          className="flex-1 relative bg-[#131413] overflow-y-auto custom-scrollbar"
+          className="flex-1 relative bg-[#1a1a1a] overflow-y-auto custom-scrollbar"
           style={{ 
             backgroundImage: 'radial-gradient(#27272a 1px, transparent 1px)', 
             backgroundSize: '24px 24px' 
@@ -221,27 +221,27 @@ export default function CommissioningPage() {
 
           {!selectedTask ? (
              <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-               <div className="w-24 h-24 rounded-2xl bg-[#181A19] border border-[#2A2C2A] flex items-center justify-center mb-6 shadow-2xl">
-                 <CheckSquare size={40} className="text-[#8A8D8A]" />
+               <div className="w-24 h-24 rounded-2xl bg-[#222222] border border-[#333330] flex items-center justify-center mb-6 shadow-2xl">
+                 <CheckSquare size={40} className="text-[#8a847b]" />
                </div>
                <h2 className="text-xl font-bold text-white mb-2">Select a Task</h2>
-               <p className="text-sm text-[#8A8D8A] max-w-sm text-center">
+               <p className="text-sm text-[#8a847b] max-w-sm text-center">
                  Choose a commissioning task from the sidebar to generate its AI-driven testing sequence or record execution results.
                </p>
              </div>
           ) : (
             <div className="p-8 max-w-4xl mx-auto z-10 relative">
               
-              <div className="bg-[#181A19] border border-[#2A2C2A] rounded-xl overflow-hidden shadow-2xl">
+              <div className="bg-[#222222] border border-[#333330] rounded-xl overflow-hidden shadow-2xl">
                 {/* Header */}
-                <div className="p-6 border-b border-[#2A2C2A] bg-[#181A19]">
+                <div className="p-6 border-b border-[#333330] bg-[#222222]">
                   <div className="flex justify-between items-start mb-2">
                     <h2 className="text-xl font-bold text-white">{selectedTask.description}</h2>
-                    <span className="px-2.5 py-1 bg-[#2A2C2A] text-[#8A8D8A] rounded text-xs font-bold font-mono border border-[#2A2C2A]">
+                    <span className="px-2.5 py-1 bg-[#333330] text-[#8a847b] rounded text-xs font-bold font-mono border border-[#333330]">
                       {selectedTask.task_code}
                     </span>
                   </div>
-                  <p className="text-sm text-[#8A8D8A] flex items-center gap-4">
+                  <p className="text-sm text-[#8a847b] flex items-center gap-4">
                     <span>Equipment: {selectedTask.equipment_description || "Integrated System"}</span>
                     <span>•</span>
                     <span>Steps: {selectedTask.total_steps || "Not Generated"}</span>
@@ -256,7 +256,7 @@ export default function CommissioningPage() {
                         <Activity size={32} />
                       </div>
                       <h3 className="text-lg font-bold text-white mb-2">Synthesize Test Sequence</h3>
-                      <p className="text-[#8A8D8A] text-sm max-w-md mb-8">
+                      <p className="text-[#8a847b] text-sm max-w-md mb-8">
                         The Copilot will analyze the equipment profile and generate a rigorous testing sequence based on Uptime Institute standards.
                       </p>
                       <button
@@ -270,9 +270,9 @@ export default function CommissioningPage() {
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#2A2C2A]">
-                        <h3 className="text-xs font-bold text-[#8A8D8A] uppercase tracking-wider">Execution Pipeline</h3>
-                        <span className="text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20">
+                      <div className="flex items-center justify-between mb-6 pb-2 border-b border-[#333330]">
+                        <h3 className="text-xs font-bold text-[#8a847b] uppercase tracking-wider">Execution Pipeline</h3>
+                        <span className="text-xs font-bold text-[#b08d6e] bg-[#b08d6e]/10 px-2 py-0.5 rounded border border-[#b08d6e]/20">
                           {selectedTask.completion_pct}% Complete
                         </span>
                       </div>
@@ -285,17 +285,17 @@ export default function CommissioningPage() {
                             <div key={idx} className="flex gap-4">
                               {/* Step Number Column */}
                               <div className="flex flex-col items-center pt-2">
-                                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${isComplete ? (step.pass_fail === 'pass' ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400' : 'border-red-500 bg-red-500/20 text-red-400') : 'border-[#2A2C2A] bg-[#2A2C2A] text-[#8A8D8A]'}`}>
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${isComplete ? (step.pass_fail === 'pass' ? 'border-[#b08d6e] bg-[#b08d6e]/20 text-[#b08d6e]' : 'border-red-500 bg-red-500/20 text-red-400') : 'border-[#333330] bg-[#333330] text-[#8a847b]'}`}>
                                   {getStatusIcon(step.pass_fail)}
                                 </div>
                                 {idx !== selectedTask.commissioning_records.length - 1 && (
-                                  <div className="w-0.5 h-full bg-[#2A2C2A] my-2" />
+                                  <div className="w-0.5 h-full bg-[#333330] my-2" />
                                 )}
                               </div>
                               
                               {/* Card Content */}
                               <div className="flex-1 pb-6">
-                                <div className={`p-4 rounded-lg border ${isComplete ? 'bg-[#181A19] border-[#2A2C2A]' : 'bg-[#181A19] border-[#2A2C2A]'}`}>
+                                <div className={`p-4 rounded-lg border ${isComplete ? 'bg-[#222222] border-[#333330]' : 'bg-[#222222] border-[#333330]'}`}>
                                   <div className="flex items-center justify-between mb-2">
                                     <div className="text-xs font-bold text-indigo-400">Step {step.step_number}</div>
                                     <div className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${getStatusColor(step.pass_fail)}`}>
@@ -303,10 +303,10 @@ export default function CommissioningPage() {
                                     </div>
                                   </div>
                                   <div className="font-semibold text-white text-sm mb-1">{step.step_name}</div>
-                                  <div className="text-xs text-[#8A8D8A] mb-4">Criteria: {step.acceptance_criteria}</div>
+                                  <div className="text-xs text-[#8a847b] mb-4">Criteria: {step.acceptance_criteria}</div>
                                   
                                   {!isComplete && (
-                                    <div className="space-y-3 mt-4 pt-4 border-t border-[#2A2C2A]">
+                                    <div className="space-y-3 mt-4 pt-4 border-t border-[#333330]">
                                       <input 
                                         type="text" 
                                         placeholder="Enter actual observed value..."
@@ -315,7 +315,7 @@ export default function CommissioningPage() {
                                           if(runningStep !== step.step_number) setRunningStep(step.step_number);
                                           setActualValue(e.target.value);
                                         }}
-                                        className="w-full bg-[#131413] border border-[#2A2C2A] rounded-md px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                                        className="w-full bg-[#1a1a1a] border border-[#333330] rounded-md px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                                       />
                                       <div className="flex gap-2">
                                         <input 
@@ -323,7 +323,7 @@ export default function CommissioningPage() {
                                           placeholder="QA Engineer"
                                           value={checkedBy}
                                           onChange={(e) => setCheckedBy(e.target.value)}
-                                          className="w-1/3 bg-[#131413] border border-[#2A2C2A] rounded-md px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                                          className="w-1/3 bg-[#1a1a1a] border border-[#333330] rounded-md px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
                                         />
                                         <button 
                                           onClick={() => handleRunStep(step.step_number)}
@@ -338,14 +338,14 @@ export default function CommissioningPage() {
                                   )}
 
                                   {isComplete && step.actual_value && (
-                                    <div className="mt-3 p-3 bg-[#131413] rounded-md border border-[#2A2C2A]">
+                                    <div className="mt-3 p-3 bg-[#1a1a1a] rounded-md border border-[#333330]">
                                       <div className="flex justify-between items-center">
-                                        <div className="text-xs font-semibold text-[#8A8D8A]">Recorded Value</div>
-                                        <div className="text-[10px] text-[#8A8D8A]">
+                                        <div className="text-xs font-semibold text-[#8a847b]">Recorded Value</div>
+                                        <div className="text-[10px] text-[#8a847b]">
                                           By {step.checked_by} at {step.checked_ts ? new Date(step.checked_ts).toLocaleTimeString() : 'N/A'}
                                         </div>
                                       </div>
-                                      <div className="text-sm font-medium text-[#EDEFEE] mt-1">{step.actual_value}</div>
+                                      <div className="text-sm font-medium text-[#f0ece4] mt-1">{step.actual_value}</div>
                                     </div>
                                   )}
                                 </div>

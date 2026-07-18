@@ -78,10 +78,10 @@ export default function SupplyChainPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-[#131413] flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-[#1a1a1a] flex items-center justify-center z-50">
         <div className="flex flex-col items-center gap-3">
-          <Activity className="animate-spin text-teal-500" size={24} />
-          <p className="text-[#8A8D8A] text-xs font-medium">Loading shipments...</p>
+          <Activity className="animate-spin text-[#b08d6e]" size={24} />
+          <p className="text-[#8a847b] text-xs font-medium">Loading shipments...</p>
         </div>
       </div>
     );
@@ -92,7 +92,7 @@ export default function SupplyChainPage() {
     <div className="flex-1 flex flex-row w-full h-full overflow-hidden">
 
       {/* ─── LEFT INNER SIDEBAR ──────────────────────────── */}
-      <aside className="w-[240px] flex-shrink-0 border-r border-[#181A19] bg-[#131413] flex flex-col overflow-hidden">
+      <aside className="w-[240px] flex-shrink-0 border-r border-[#222222] bg-[#1a1a1a] flex flex-col overflow-hidden">
 
         {/* Title */}
         <div className="px-4 pt-5 pb-4">
@@ -104,13 +104,13 @@ export default function SupplyChainPage() {
 
           {/* GENERAL */}
           <div>
-            <div className="px-2 mb-1 text-[10px] font-semibold text-[#8A8D8A] uppercase tracking-widest">General</div>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-[#8a847b] uppercase tracking-widest">General</div>
             <button
               onClick={() => setRiskFilter("All")}
               className={`w-full text-left px-2 py-1.5 rounded text-[13px] transition-colors ${
                 riskFilter === "All"
-                  ? "bg-[#181A19] text-white font-semibold"
-                  : "text-[#8A8D8A] hover:text-white"
+                  ? "bg-[#222222] text-white font-semibold"
+                  : "text-[#8a847b] hover:text-white"
               }`}
             >
               All Shipments
@@ -119,20 +119,20 @@ export default function SupplyChainPage() {
 
           {/* RISK LEVELS */}
           <div>
-            <div className="px-2 mb-1 text-[10px] font-semibold text-[#8A8D8A] uppercase tracking-widest">Risk Levels</div>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-[#8a847b] uppercase tracking-widest">Risk Levels</div>
             {[
               { label: "Critical", value: "CRITICAL", dot: "bg-red-500" },
               { label: "High Risk", value: "HIGH", dot: "bg-red-400" },
               { label: "Medium", value: "MEDIUM", dot: "bg-amber-400" },
-              { label: "On Track", value: "LOW", dot: "bg-emerald-500" },
+              { label: "On Track", value: "LOW", dot: "bg-[#b08d6e]" },
             ].map(item => (
               <button
                 key={item.value}
                 onClick={() => setRiskFilter(item.value)}
                 className={`w-full text-left px-2 py-1.5 rounded text-[13px] transition-colors flex items-center gap-2 ${
                   riskFilter === item.value
-                    ? "bg-[#181A19] text-white font-semibold"
-                    : "text-[#8A8D8A] hover:text-white"
+                    ? "bg-[#222222] text-white font-semibold"
+                    : "text-[#8a847b] hover:text-white"
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${item.dot}`} />
@@ -143,19 +143,19 @@ export default function SupplyChainPage() {
 
           {/* SHIPMENTS */}
           <div>
-            <div className="px-2 mb-1 text-[10px] font-semibold text-[#8A8D8A] uppercase tracking-widest">Shipments</div>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-[#8a847b] uppercase tracking-widest">Shipments</div>
             {shipments.map(s => {
               const dotCls =
                 s.risk_level === "CRITICAL" || s.risk_level === "HIGH" ? "bg-red-500" :
-                s.risk_level === "MEDIUM" ? "bg-amber-400" : "bg-emerald-500";
+                s.risk_level === "MEDIUM" ? "bg-amber-400" : "bg-[#b08d6e]";
               return (
                 <button
                   key={s.id}
                   onClick={() => setSelected(s.id)}
                   className={`w-full text-left px-2 py-1.5 rounded text-[13px] transition-colors flex items-center gap-2 ${
                     selected === s.id
-                      ? "bg-[#181A19] text-white font-semibold"
-                      : "text-[#8A8D8A] hover:text-white"
+                      ? "bg-[#222222] text-white font-semibold"
+                      : "text-[#8a847b] hover:text-white"
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
@@ -167,22 +167,22 @@ export default function SupplyChainPage() {
 
           {/* CUSTOM SECTION (mirrors Supabase "Custom Reports" card) */}
           <div>
-            <div className="px-2 mb-2 text-[10px] font-semibold text-[#8A8D8A] uppercase tracking-widest">AI Analysis</div>
-            <div className="mx-1 rounded-lg border border-[#181A19] bg-[#181A19] p-3 text-center">
+            <div className="px-2 mb-2 text-[10px] font-semibold text-[#8a847b] uppercase tracking-widest">AI Analysis</div>
+            <div className="mx-1 rounded-lg border border-[#222222] bg-[#222222] p-3 text-center">
               {criticalCount === 0 ? (
                 <>
                   <p className="text-[11px] text-white font-semibold mb-0.5">No risks detected</p>
-                  <p className="text-[10px] text-[#8A8D8A] leading-relaxed">All shipments are on track.</p>
+                  <p className="text-[10px] text-[#8a847b] leading-relaxed">All shipments are on track.</p>
                 </>
               ) : (
                 <>
                   <p className="text-[11px] text-white font-semibold mb-0.5">{criticalCount} at-risk shipments</p>
-                  <p className="text-[10px] text-[#8A8D8A] leading-relaxed">Run AI models to get alternatives.</p>
+                  <p className="text-[10px] text-[#8a847b] leading-relaxed">Run AI models to get alternatives.</p>
                 </>
               )}
               <button
                 onClick={() => fetchShipments(true)}
-                className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-[#8A8D8A] hover:text-white bg-[#181A19] hover:bg-[#2A2C2A] rounded px-2 py-1.5 transition-colors"
+                className="mt-2 w-full flex items-center justify-center gap-1 text-[11px] font-semibold text-[#8a847b] hover:text-white bg-[#222222] hover:bg-[#333330] rounded px-2 py-1.5 transition-colors"
               >
                 <RefreshCw size={10} className={refreshing ? "animate-spin" : ""} />
                 Refresh Data
@@ -194,7 +194,7 @@ export default function SupplyChainPage() {
       </aside>
 
       {/* ─── MAIN CONTENT AREA ───────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-[#131413]">
+      <div className="flex-1 flex flex-col overflow-hidden bg-[#1a1a1a]">
 
         {/* Page Heading */}
         <div className="px-6 pt-5 pb-3 flex-shrink-0">
@@ -205,39 +205,39 @@ export default function SupplyChainPage() {
         <div className="px-6 pb-3 flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => fetchShipments(true)}
-            className="p-1.5 rounded text-[#8A8D8A] hover:text-white hover:bg-[#181A19] transition-colors"
+            className="p-1.5 rounded text-[#8a847b] hover:text-white hover:bg-[#222222] transition-colors"
           >
-            <RefreshCw size={14} className={refreshing ? "animate-spin text-teal-400" : ""} />
+            <RefreshCw size={14} className={refreshing ? "animate-spin text-[#b08d6e]" : ""} />
           </button>
-          <button className="flex items-center gap-1.5 text-[12px] text-[#8A8D8A] bg-[#181A19] border border-[#181A19] rounded px-3 py-1.5 hover:border-[#2A2C2A] transition-colors">
+          <button className="flex items-center gap-1.5 text-[12px] text-[#8a847b] bg-[#222222] border border-[#222222] rounded px-3 py-1.5 hover:border-[#333330] transition-colors">
             <Clock size={12} />
             Last 30 minutes
-            <ChevronDown size={11} className="text-[#8A8D8A]" />
+            <ChevronDown size={11} className="text-[#8a847b]" />
           </button>
-          <button className="flex items-center gap-1.5 text-[12px] text-[#8A8D8A] bg-[#181A19] border border-[#181A19] rounded px-3 py-1.5 hover:border-[#2A2C2A] transition-colors">
+          <button className="flex items-center gap-1.5 text-[12px] text-[#8a847b] bg-[#222222] border border-[#222222] rounded px-3 py-1.5 hover:border-[#333330] transition-colors">
             {riskFilter === "All" ? "All Risk Levels" : riskFilter}
-            <ChevronDown size={11} className="text-[#8A8D8A]" />
+            <ChevronDown size={11} className="text-[#8a847b]" />
           </button>
-          <button className="flex items-center gap-1.5 text-[12px] text-[#8A8D8A] bg-[#181A19] border border-[#181A19] rounded px-3 py-1.5 hover:border-[#2A2C2A] transition-colors">
+          <button className="flex items-center gap-1.5 text-[12px] text-[#8a847b] bg-[#222222] border border-[#222222] rounded px-3 py-1.5 hover:border-[#333330] transition-colors">
             <Plus size={11} />
             Add filter
           </button>
           <div className="flex-1" />
-          <button className="flex items-center gap-1.5 text-[12px] text-[#8A8D8A] bg-[#181A19] border border-[#181A19] rounded px-3 py-1.5 hover:border-[#2A2C2A] transition-colors">
+          <button className="flex items-center gap-1.5 text-[12px] text-[#8a847b] bg-[#222222] border border-[#222222] rounded px-3 py-1.5 hover:border-[#333330] transition-colors">
             <ExternalLink size={12} />
             Export
           </button>
         </div>
 
         {/* Map Container Panel */}
-        <div className="mx-6 mb-3 rounded-lg border border-[#181A19] overflow-hidden flex flex-col flex-1 min-h-0">
+        <div className="mx-6 mb-3 rounded-lg border border-[#222222] overflow-hidden flex flex-col flex-1 min-h-0">
           {/* Panel Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#181A19] flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#222222] flex-shrink-0">
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-semibold text-white">Shipments by Geography</span>
-              <Info size={13} className="text-[#8A8D8A]" />
+              <Info size={13} className="text-[#8a847b]" />
             </div>
-            <button className="p-1 text-[#8A8D8A] hover:text-white transition-colors rounded hover:bg-[#181A19]">
+            <button className="p-1 text-[#8a847b] hover:text-white transition-colors rounded hover:bg-[#222222]">
               <ExternalLink size={13} />
             </button>
           </div>
@@ -247,7 +247,7 @@ export default function SupplyChainPage() {
             <MapContainer
               center={[20, 10]}
               zoom={2}
-              style={{ height: "100%", width: "100%", background: "#131413" }}
+              style={{ height: "100%", width: "100%", background: "#1a1a1a" }}
               zoomControl={false}
               attributionControl={false}
             >
@@ -282,7 +282,7 @@ export default function SupplyChainPage() {
                       <Popup>
                         <div style={{ fontFamily: "sans-serif", fontSize: 12 }}>
                           <div style={{ fontWeight: 700, marginBottom: 2 }}>{s.carrier_name}</div>
-                          <div style={{ color: "#8A8D8A", fontSize: 10 }}>{s.tracking_number}</div>
+                          <div style={{ color: "#8a847b", fontSize: 10 }}>{s.tracking_number}</div>
                           <div style={{ color, fontWeight: 700, fontSize: 10, marginTop: 4 }}>{s.risk_level}</div>
                         </div>
                       </Popup>
@@ -303,16 +303,16 @@ export default function SupplyChainPage() {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="mx-6 mb-4 rounded-lg border border-[#181A19] bg-[#181A19] flex-shrink-0 overflow-hidden"
+              className="mx-6 mb-4 rounded-lg border border-[#222222] bg-[#222222] flex-shrink-0 overflow-hidden"
             >
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#181A19]">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#222222]">
                 <span className="text-[12px] font-semibold text-white flex items-center gap-2">
                   <span
                     className="w-1.5 h-1.5 rounded-full"
                     style={{ background: riskColor(selectedShipment.risk_level) }}
                   />
                   {selectedShipment.carrier_name}
-                  <span className="text-[10px] font-mono text-[#8A8D8A]">{selectedShipment.tracking_number}</span>
+                  <span className="text-[10px] font-mono text-[#8a847b]">{selectedShipment.tracking_number}</span>
                 </span>
                 <span
                   className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded"
@@ -327,22 +327,22 @@ export default function SupplyChainPage() {
               </div>
               <div className="px-4 py-3 flex items-center gap-10">
                 <div>
-                  <div className="text-[9px] text-[#8A8D8A] uppercase tracking-widest mb-0.5">Est. Arrival</div>
+                  <div className="text-[9px] text-[#8a847b] uppercase tracking-widest mb-0.5">Est. Arrival</div>
                   <div className="text-[12px] text-white font-semibold">
                     {new Date(selectedShipment.estimated_arrival).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[9px] text-[#8A8D8A] uppercase tracking-widest mb-0.5">Required By</div>
+                  <div className="text-[9px] text-[#8a847b] uppercase tracking-widest mb-0.5">Required By</div>
                   <div className="text-[12px] font-semibold"
-                    style={{ color: (selectedShipment.risk_level === "HIGH" || selectedShipment.risk_level === "CRITICAL") ? "#E24B4A" : "#EDEFEE" }}
+                    style={{ color: (selectedShipment.risk_level === "HIGH" || selectedShipment.risk_level === "CRITICAL") ? "#E24B4A" : "#f0ece4" }}
                   >
                     {new Date(selectedShipment.required_delivery).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </div>
                 </div>
                 <div>
-                  <div className="text-[9px] text-[#8A8D8A] uppercase tracking-widest mb-0.5">Status</div>
-                  <div className="text-[12px] text-[#8A8D8A] font-semibold capitalize">{selectedShipment.status}</div>
+                  <div className="text-[9px] text-[#8a847b] uppercase tracking-widest mb-0.5">Status</div>
+                  <div className="text-[12px] text-[#8a847b] font-semibold capitalize">{selectedShipment.status}</div>
                 </div>
                 <div className="flex-1" />
                 {(selectedShipment.risk_level === "HIGH" || selectedShipment.risk_level === "CRITICAL") && (
@@ -350,7 +350,7 @@ export default function SupplyChainPage() {
                     <button
                       onClick={() => analyzeRisk(selectedShipment.id)}
                       disabled={analyzing === selectedShipment.id}
-                      className="flex items-center gap-1.5 text-[11px] font-semibold text-[#8A8D8A] hover:text-white bg-[#181A19] hover:bg-[#2A2C2A] border border-[#2A2C2A] rounded px-3 py-1.5 transition-all disabled:opacity-50"
+                      className="flex items-center gap-1.5 text-[11px] font-semibold text-[#8a847b] hover:text-white bg-[#222222] hover:bg-[#333330] border border-[#333330] rounded px-3 py-1.5 transition-all disabled:opacity-50"
                     >
                       {analyzing === selectedShipment.id
                         ? <><Activity size={11} className="animate-spin" /> Analyzing…</>
