@@ -91,3 +91,51 @@ def update_project_status(project_id: str, status: str):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
+
+@router.delete("/{project_id}")
+def delete_project(project_id: str):
+    """Delete a project and all its associated data"""
+    db = get_db()
+    try:
+        # Check if project exists
+        row = db.execute("SELECT id FROM projects WHERE id = ?", (project_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Delete from all child tables first due to foreign keys
+        
+        # 1. Deviations (has po_id and spec_clause_id, but we'll delete by po_id)
+        db.execute("DELETE FROM deviations WHERE po_id IN (SELECT id FROM purchase_orders WHERE project_id = ?)", (project_id,))
+        
+        # 2. NCRs (has deviation_id and po_id)
+        db.execute("DELETE FROM ncrs WHERE po_id IN (SELECT id FROM purchase_orders WHERE project_id = ?)", (project_id,))
+        
+        # 3. RFIs
+        db.execute("DELETE FROM rfis WHERE project_id = ?", (project_id,))
+        
+        # 4. Schedule tasks
+        db.execute("DELETE FROM schedule_tasks WHERE project_id = ?", (project_id,))
+        
+        # 5. Purchase orders
+        db.execute("DELETE FROM purchase_orders WHERE project_id = ?", (project_id,))
+        
+        # 6. Equipment items
+        db.execute("DELETE FROM equipment_items WHERE project_id = ?", (project_id,))
+        
+        # 7. Spec clauses (via documents)
+        db.execute("DELETE FROM spec_clauses WHERE document_id IN (SELECT id FROM documents WHERE project_id = ?)", (project_id,))
+        
+        # 8. Documents
+        db.execute("DELETE FROM documents WHERE project_id = ?", (project_id,))
+        
+        # 9. Project
+        db.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+        
+        db.commit()
+        
+        return {"status": "success", "message": "Project deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()

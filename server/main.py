@@ -241,6 +241,7 @@ _register_router("routers.supply_chain", "/api/supply-chain", ["Supply Chain"])
 _register_router("routers.webhooks", "/api/webhooks", ["Webhooks"])
 _register_router("routers.design", "/api/design", ["Design"])
 _register_router("routers.integrations", "/api/integrations", ["Integrations"])
+_register_router("routers.reports", "/api/reports", ["Reports"])
 
 
 # ============================================================================

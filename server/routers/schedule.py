@@ -78,9 +78,9 @@ async def import_schedule(file: UploadFile = File(...)):
 
 
 @router.post("/analyze" , response_model=ScheduleRiskResponse)
-async def analyze_schedule():
+async def analyze_schedule(project_id: str = None):
     try:
-        result = run_schedule_risk_analysis()
+        result = run_schedule_risk_analysis(project_id)
         return result
     except Exception as e:
         logger.error(f"Schedule analysis failed: {str(e)}")
@@ -88,15 +88,24 @@ async def analyze_schedule():
 
 
 @router.get("/tasks")
-async def get_schedule_tasks():
+async def get_schedule_tasks(project_id: str = None):
     db = get_db()
     try:
-        rows = db.execute("""
-            SELECT st.*, ei.description as equipment_description, ei.equipment_class
-            FROM schedule_tasks st
-            LEFT JOIN equipment_items ei ON st.equipment_item_id = ei.id
-            ORDER BY st.risk_score DESC, st.planned_start ASC
-        """).fetchall()
+        if project_id:
+            rows = db.execute("""
+                SELECT st.*, ei.description as equipment_description, ei.equipment_class
+                FROM schedule_tasks st
+                LEFT JOIN equipment_items ei ON st.equipment_item_id = ei.id
+                WHERE st.project_id = ? OR st.project_id IS NULL
+                ORDER BY st.risk_score DESC, st.planned_start ASC
+            """, (project_id,)).fetchall()
+        else:
+            rows = db.execute("""
+                SELECT st.*, ei.description as equipment_description, ei.equipment_class
+                FROM schedule_tasks st
+                LEFT JOIN equipment_items ei ON st.equipment_item_id = ei.id
+                ORDER BY st.risk_score DESC, st.planned_start ASC
+            """).fetchall()
         tasks = [dict(r) for r in rows]
         return {"tasks": tasks, "total": len(tasks)}
     except Exception as e:
@@ -106,16 +115,25 @@ async def get_schedule_tasks():
 
 
 @router.get("/risks")
-async def get_schedule_risks():
+async def get_schedule_risks(project_id: str = None):
     db = get_db()
     try:
-        rows = db.execute("""
-            SELECT st.*, ei.description as equipment_description, ei.equipment_class
-            FROM schedule_tasks st
-            LEFT JOIN equipment_items ei ON st.equipment_item_id = ei.id
-            WHERE st.risk_score > 0.3
-            ORDER BY st.risk_score DESC
-        """).fetchall()
+        if project_id:
+            rows = db.execute("""
+                SELECT st.*, ei.description as equipment_description, ei.equipment_class
+                FROM schedule_tasks st
+                LEFT JOIN equipment_items ei ON st.equipment_item_id = ei.id
+                WHERE st.risk_score > 0.3 AND (st.project_id = ? OR st.project_id IS NULL)
+                ORDER BY st.risk_score DESC
+            """, (project_id,)).fetchall()
+        else:
+            rows = db.execute("""
+                SELECT st.*, ei.description as equipment_description, ei.equipment_class
+                FROM schedule_tasks st
+                LEFT JOIN equipment_items ei ON st.equipment_item_id = ei.id
+                WHERE st.risk_score > 0.3
+                ORDER BY st.risk_score DESC
+            """).fetchall()
         tasks = [dict(r) for r in rows]
         return {
             "at_risk_tasks": tasks,

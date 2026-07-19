@@ -127,21 +127,32 @@ const api = {
     return handleResponse(res);
   },
 
-  analyzeSchedule: async () => {
-    const res = await fetch(`${BASE}/schedule/analyze`, {
+  analyzeSchedule: async (projectId) => {
+    const query = projectId ? `?project_id=${projectId}` : "";
+    const res = await fetch(`${BASE}/schedule/analyze${query}`, {
       method: "POST",
     });
     return handleResponse(res);
   },
 
-  getScheduleTasks: async () => {
-    const res = await fetch(`${BASE}/schedule/tasks`);
+  getScheduleTasks: async (projectId) => {
+    const query = projectId ? `?project_id=${projectId}` : "";
+    const res = await fetch(`${BASE}/schedule/tasks${query}`);
     return handleResponse(res);
   },
 
-  getScheduleRisks: async () => {
-    const res = await fetch(`${BASE}/schedule/risks`);
+  getScheduleRisks: async (projectId) => {
+    const query = projectId ? `?project_id=${projectId}` : "";
+    const res = await fetch(`${BASE}/schedule/risks${query}`);
     return handleResponse(res);
+  },
+
+  exportProjectReport: async (projectId) => {
+    const res = await fetch(`${BASE}/reports/${projectId}/export`);
+    if (!res.ok) {
+      throw new Error(`Request failed with status ${res.status}`);
+    }
+    return res.text();
   },
 
   queryRFI: async (query) => {
@@ -182,6 +193,13 @@ const api = {
   updateProjectStatus: async (projectId, status) => {
     const res = await fetch(`${BASE}/projects/${projectId}/status?status=${status}`, {
       method: "PATCH",
+    });
+    return handleResponse(res);
+  },
+
+  deleteProject: async (projectId) => {
+    const res = await fetch(`${BASE}/projects/${projectId}`, {
+      method: "DELETE",
     });
     return handleResponse(res);
   },

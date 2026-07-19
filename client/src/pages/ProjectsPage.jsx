@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Search, Plus, LayoutGrid, List, MoreVertical, Play, Pause } from "lucide-react";
+import { Search, Plus, LayoutGrid, List, MoreVertical, Play, Pause, Trash2 } from "lucide-react";
 import { useWorkspace } from "../context/WorkspaceContext.jsx";
 import api from "../api/client.js";
 
@@ -24,9 +24,15 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [isGridView, setIsGridView] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     fetchProjects();
+
+    const handleClickOutside = () => setMenuOpen(null);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   const handleToggleStatus = async (e, project) => {
@@ -37,6 +43,25 @@ export default function ProjectsPage() {
       fetchProjects();
     } catch (err) {
       console.error("Failed to update project status:", err);
+    }
+  };
+
+  const handleDeleteProject = async (e, projectId) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this project? This will permanently delete all associated documents, tasks, NCRs, and purchase orders.")) {
+      setMenuOpen(null);
+      return;
+    }
+    setDeletingId(projectId);
+    try {
+      await api.deleteProject(projectId);
+      await fetchProjects();
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+      alert("Failed to delete project.");
+    } finally {
+      setDeletingId(null);
+      setMenuOpen(null);
     }
   };
 
@@ -169,13 +194,34 @@ export default function ProjectsPage() {
                   </div>
                 </div>
                 
-                <button
-                  onClick={(e) => { e.stopPropagation(); }}
-                  style={{ color: C.dim }}
-                  className="p-1 rounded-md transition-colors hover:text-white"
-                >
-                  <MoreVertical size={16} />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setMenuOpen(menuOpen === project.id ? null : project.id);
+                    }}
+                    style={{ color: C.dim }}
+                    className="p-1 rounded-md transition-colors hover:text-white"
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  
+                  {menuOpen === project.id && (
+                    <div 
+                      style={{ backgroundColor: C.surface, borderColor: C.border }}
+                      className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-xl z-50 overflow-hidden"
+                    >
+                      <button
+                        onClick={(e) => handleDeleteProject(e, project.id)}
+                        disabled={deletingId === project.id}
+                        className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                        {deletingId === project.id ? "Deleting..." : "Delete Project"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mt-3">
@@ -251,13 +297,34 @@ export default function ProjectsPage() {
                     </button>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); }}
-                      style={{ color: C.dim }}
-                      className="p-1 rounded-md hover:text-white transition-colors"
-                    >
-                      <MoreVertical size={16} />
-                    </button>
+                    <div className="relative inline-block text-left">
+                      <button
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setMenuOpen(menuOpen === project.id ? null : project.id);
+                        }}
+                        style={{ color: C.dim }}
+                        className="p-1.5 rounded-md hover:bg-[#333330] transition-colors"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      
+                      {menuOpen === project.id && (
+                        <div 
+                          style={{ backgroundColor: C.surface, borderColor: C.border }}
+                          className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-xl z-50 overflow-hidden"
+                        >
+                          <button
+                            onClick={(e) => handleDeleteProject(e, project.id)}
+                            disabled={deletingId === project.id}
+                            className="w-full text-left px-4 py-2 text-sm flex items-center gap-2 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                          >
+                            <Trash2 size={14} />
+                            {deletingId === project.id ? "Deleting..." : "Delete Project"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
