@@ -4,6 +4,7 @@ import { Play, Calendar, AlertTriangle, CheckCircle, Activity, ChevronDown, Chev
 import api from "../api/client.js";
 import SeverityBadge from "../components/SeverityBadge.jsx";
 import ScheduleAITimeline from "../components/schedule/ScheduleAITimeline.jsx";
+import { useWorkspace } from "../context/WorkspaceContext.jsx";
 
 function AnimatedCounter({ value, suffix = "" }) {
   return <span>{value}{suffix}</span>;
@@ -18,16 +19,23 @@ export default function Schedule() {
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [statusMsg, setStatusMsg] = useState("");
   const [scheduleFile, setScheduleFile] = useState(null);
+  
+  const { currentProject } = useWorkspace();
 
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    loadTasks();
-  }, []);
+    if (currentProject) {
+      loadTasks();
+    } else {
+      setTasks([]);
+    }
+  }, [currentProject]);
 
   async function loadTasks() {
+    if (!currentProject) return;
     try {
-      const data = await api.getScheduleTasks();
+      const data = await api.getScheduleTasks(currentProject.id);
       setTasks(data.tasks || []);
       try {
         const dc = await api.getDelayComparison();
@@ -39,10 +47,11 @@ export default function Schedule() {
   }
 
   async function handleAnalyze() {
+    if (!currentProject) return;
     try {
       setAnalyzing(true);
       setError(null);
-      await api.analyzeSchedule();
+      await api.analyzeSchedule(currentProject.id);
       await loadTasks();
       setStatusMsg("✓ Analysis complete");
       setTimeout(() => setStatusMsg(""), 3000);
@@ -58,6 +67,9 @@ export default function Schedule() {
     const file = fileToUpload || scheduleFile;
     if (!file) return;
     const formData = new FormData();
+    formData.append("file", file);
+    if (currentProject) formData.append("project_id", currentProject.id);
+
     formData.append("file", file);
     try {
       setImporting(true);

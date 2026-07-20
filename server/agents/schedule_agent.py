@@ -61,7 +61,7 @@ Option 3: Aggressive, maximum recovery"""
 
 # ── Main Entry Point ───────────────────────────────────────────────────────────
 
-def run_schedule_risk_analysis() -> Dict[str, Any]:
+def run_schedule_risk_analysis(project_id: str = None) -> Dict[str, Any]:
     """
     Run comprehensive schedule risk analysis for all tasks.
     Synchronous. Called by POST /api/schedule/analyze.
@@ -75,9 +75,16 @@ def run_schedule_risk_analysis() -> Dict[str, Any]:
     db = get_db()
     try:
         # Step 1: Load tasks
-        task_rows = db.execute(
-            "SELECT * FROM schedule_tasks ORDER BY planned_start ASC"
-        ).fetchall()
+        if project_id:
+            task_rows = db.execute(
+                "SELECT * FROM schedule_tasks WHERE project_id = ? OR project_id IS NULL ORDER BY planned_start ASC",
+                (project_id,)
+            ).fetchall()
+        else:
+            task_rows = db.execute(
+                "SELECT * FROM schedule_tasks ORDER BY planned_start ASC"
+            ).fetchall()
+            
         tasks = [dict(r) for r in task_rows]
 
         if not tasks:

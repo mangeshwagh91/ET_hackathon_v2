@@ -367,7 +367,8 @@ def _build_user_message(context_text: str, precedent_text: str, query: str) -> s
             if tenders:
                 project_context += "RECENT VENDOR TENDERS:\n"
                 for b in tenders:
-                    project_context += f" - Tender from {b.get('vendor_id')} for {b.get('price')}\n"
+                    b_dict = dict(b)
+                    project_context += f" - Tender from {b_dict.get('vendor_id')} for {b_dict.get('price')}\n"
                 project_context += "\n"
             
             # Fetch recent purchase orders

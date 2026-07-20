@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Activity, AlertTriangle, Shield, FileText, Clock, Zap,
-  ChevronDown, ExternalLink, RefreshCw,
+  ChevronDown, ExternalLink, RefreshCw, Download,
   Database, Server, GitBranch, Archive, BarChart2, CheckCircle2,
   XCircle, AlertCircle, Play, TrendingUp, ArrowRight
 } from "lucide-react";
@@ -139,6 +139,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
   const { currentProject } = useWorkspace();
 
@@ -290,19 +291,33 @@ export default function Dashboard() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/10 border border-purple-500/20 mr-2" title="Deep Observation Loop Active">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-              </span>
-              <span className="text-xs font-bold text-purple-400">Observing...</span>
-            </div>
             <button
-              onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold transition-colors shadow-sm"
+              onClick={async () => {
+                if (!currentProject) return;
+                setExporting(true);
+                try {
+                  const reportText = await api.exportProjectReport(currentProject.id);
+                  const blob = new Blob([reportText], { type: 'text/markdown' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `Project_Report_${currentProject?.name || "Export"}.md`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                } catch (e) {
+                  console.error("Failed to export report", e);
+                  alert("Failed to export report. Please try again.");
+                } finally {
+                  setExporting(false);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
+              disabled={exporting}
             >
-              <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
-              Refresh
+              {exporting ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
+              {exporting ? "Generating..." : "Export Report"}
             </button>
             <button
               onClick={() => navigate("/compliance")}
