@@ -73,10 +73,13 @@ function AnimatedRoutes() {
 
 // Inner Application (Handles Auth Routing)
 function ApplicationCore() {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
 
-  if (!isAuthenticated) {
+  const isPublicPage = location.pathname === "/" || location.pathname === "/login" || location.pathname === "/signup";
+  const isFullscreen = location.pathname === "/projects/new";
+
+  if (isPublicPage) {
     return (
       <motion.div
         key="public-workspace"
@@ -87,15 +90,13 @@ function ApplicationCore() {
       >
         <Routes>
           <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
-          <Route path="/login" element={<PageTransition><LoginScreen isSignUp={false} /></PageTransition>} />
-          <Route path="/signup" element={<PageTransition><LoginScreen isSignUp={true} /></PageTransition>} />
+          <Route path="/login" element={<Navigate to="/projects" replace />} />
+          <Route path="/signup" element={<Navigate to="/projects" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </motion.div>
     );
   }
-
-  const isFullscreen = location.pathname === "/projects/new";
 
   return (
     <motion.div

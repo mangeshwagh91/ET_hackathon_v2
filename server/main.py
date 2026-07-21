@@ -62,24 +62,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.error("The application cannot start without a database.")
         raise RuntimeError(f"Database initialization failed: {e}") from e
 
-    # Initialize vector store (non-critical - warn but don't crash)
-    logger.info("Initializing vector store...")
-    try:
-        from services.vector_store import initialize_collections
-        collection_status = initialize_collections()
-        if collection_status and all(collection_status.values()):
-            logger.info("✅ Vector store collections initialized")
-        else:
-            failed = [name for name, ok in collection_status.items() if not ok]
-            logger.warning(
-                f"⚠️  Vector store initialization partial failure: {', '.join(failed) or 'unknown collections'}"
-            )
-    except ImportError as e:
-        logger.warning(f"⚠️  Vector store module not available: {e}")
-        logger.warning("Semantic search features will be disabled.")
-    except Exception as e:
-        logger.warning(f"⚠️  Vector store initialization failed: {e}")
-        logger.warning("Semantic search features may not work correctly.")
+    # Initialize vector store in the background (prevents Render port timeout)
+    logger.info("Initializing vector store in the background...")
+    import threading
+    def init_vector_store_bg():
+        try:
+            from services.vector_store import initialize_collections
+            collection_status = initialize_collections()
+            if collection_status and all(collection_status.values()):
+                logger.info("✅ Vector store collections initialized")
+            else:
+                failed = [name for name, ok in collection_status.items() if not ok]
+                logger.warning(
+                    f"⚠️  Vector store initialization partial failure: {', '.join(failed) or 'unknown collections'}"
+                )
+        except ImportError as e:
+            logger.warning(f"⚠️  Vector store module not available: {e}")
+            logger.warning("Semantic search features will be disabled.")
+        except Exception as e:
+            logger.warning(f"⚠️  Vector store initialization failed: {e}")
+            logger.warning("Semantic search features may not work correctly.")
+            
+    threading.Thread(target=init_vector_store_bg, daemon=True).start()
 
     # Validate environment configuration
     _validate_environment()
