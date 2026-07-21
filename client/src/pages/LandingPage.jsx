@@ -220,8 +220,8 @@ export default function LandingPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <button onClick={() => navigate("/login")} style={{ fontSize: 12, fontWeight: 600, color: C.muted, background: "none", border: "none", cursor: "pointer" }}>Sign In</button>
-          <button onClick={() => navigate("/login")} style={{ fontSize: 12, fontWeight: 700, color: C.bg, background: C.bronze, border: "none", padding: "8px 18px", borderRadius: 6, cursor: "pointer" }}>Start Free</button>
+          <button onClick={() => navigate("/projects")} style={{ fontSize: 12, fontWeight: 600, color: C.muted, background: "none", border: "none", cursor: "pointer" }}>Sign In</button>
+          <button onClick={() => navigate("/projects")} style={{ fontSize: 12, fontWeight: 700, color: C.bg, background: C.bronze, border: "none", padding: "8px 18px", borderRadius: 6, cursor: "pointer" }}>Start Free</button>
         </div>
       </nav>
 
@@ -319,14 +319,15 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 2.2 }}
             style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginTop: 44 }}
           >
-            <button
-              onClick={() => navigate("/login")}
+            <motion.button
+              onClick={() => navigate("/projects")}
+              whileHover={{ scale: 1.05 }}
               style={{ padding: "13px 32px", backgroundColor: C.bronze, color: C.bg, border: "none", borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: "0.03em", transition: "opacity 0.3s" }}
               onMouseEnter={e => e.target.style.opacity = "0.85"}
               onMouseLeave={e => e.target.style.opacity = "1"}
             >
               Enter Platform
-            </button>
+            </motion.button>
             <a
               href="#playground"
               style={{ padding: "13px 32px", backgroundColor: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 13, fontWeight: 500, textDecoration: "none", letterSpacing: "0.03em", transition: "border-color 0.3s, color 0.3s" }}
