@@ -222,10 +222,10 @@ class ProjectResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
-    size_mw: float
-    deadline: str
-    budget: float
-    status: str
+    size_mw: Optional[float] = 0.0
+    deadline: Optional[str] = None
+    budget: Optional[float] = 0.0
+    status: Optional[str] = "active"
     created_at: str
     location: Optional[str] = None
     capacity_unit: Optional[str] = "MW"

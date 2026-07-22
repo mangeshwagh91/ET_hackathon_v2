@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Triangle, Search, HelpCircle, Lightbulb, Menu } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext.jsx";
 import ProfileDropdown from "../workspace/ProfileDropdown.jsx";
 
 export default function Header({ toggleSidebar, hideSidebarToggle }) {
   const [searchFocused, setSearchFocused] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-30 h-12 bg-[#1a1a1a] border-b border-[#333330] flex items-center justify-between pr-4 pl-4 lg:pl-0 lg:pr-6">
@@ -18,7 +21,10 @@ export default function Header({ toggleSidebar, hideSidebarToggle }) {
             <Menu size={18} />
           </button>
         )}
-        <Link to="/" className="flex items-center">
+        <button 
+          onClick={() => { logout(); navigate("/"); }} 
+          className="flex items-center bg-transparent border-none cursor-pointer p-0"
+        >
           <div className="hidden lg:flex w-14 items-center justify-center shrink-0">
             <Triangle size={18} className="fill-current text-white mt-0.5" />
           </div>
@@ -28,7 +34,7 @@ export default function Header({ toggleSidebar, hideSidebarToggle }) {
           <span className="text-white font-medium text-[15px] tracking-tight hover:text-[#f0ece4] transition-colors">
             EPC Company's Org
           </span>
-        </Link>
+        </button>
       </div>
 
       {/* Right: Controls & Profile */}

@@ -39,6 +39,16 @@ export function AuthProvider({ children }) {
     });
     setIsAuthenticated(true);
   };
+
+  const loginAsVendorDemo = () => {
+    setUser({
+      type: "vendor",
+      id: "demo-vendor",
+      name: "Delta Systems",
+      email: "vendor@delta.com",
+    });
+    setIsAuthenticated(true);
+  };
   
   const loginAsVendor = async (email, password) => {
     try {
@@ -85,6 +95,7 @@ export function AuthProvider({ children }) {
       user,
       loginAsTeam,
       loginAsVendor,
+      loginAsVendorDemo,
       registerVendor,
       logout 
     }}>

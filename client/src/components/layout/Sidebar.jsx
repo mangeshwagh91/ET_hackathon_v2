@@ -22,7 +22,7 @@ import { useWorkspace } from "../../context/WorkspaceContext.jsx";
 export default function Sidebar({ isOpen, setIsOpen }) {
   const location = useLocation();
   const { user } = useAuth();
-  const isTeam = user?.type === "team";
+  const isVendor = user?.type === "vendor";
   const isGlobalPage = ["/projects", "/integrations", "/settings", "/team"].includes(location.pathname);
   const [isHovered, setIsHovered] = useState(false);
   const isExpanded = isOpen || isHovered;
@@ -53,7 +53,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     { name: "Vendor Profile", path: "/vendor/profile", icon: <FileText size={18} /> },
   ];
 
-  const links = isGlobalPage ? globalLinks : isTeam ? teamLinks : vendorLinks;
+  const links = isGlobalPage ? globalLinks : isVendor ? vendorLinks : teamLinks;
 
   return (
     <>

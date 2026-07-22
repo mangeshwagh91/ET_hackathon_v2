@@ -76,7 +76,7 @@ function ApplicationCore() {
   const { user } = useAuth();
   const location = useLocation();
 
-  const isPublicPage = location.pathname === "/" || location.pathname === "/login" || location.pathname === "/signup";
+  const isPublicPage = (location.pathname === "/" && !user) || location.pathname === "/login" || location.pathname === "/signup";
   const isFullscreen = location.pathname === "/projects/new";
 
   if (isPublicPage) {

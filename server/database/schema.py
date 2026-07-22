@@ -336,8 +336,19 @@ def init_db():
         _migrate_new_tables(db)
         _migrate_project_ids(db)
         _seed_mock_shipments(db)
+        _seed_demo_vendor(db)
     finally:
         db.close()
+
+def _seed_demo_vendor(db) -> None:
+    count = db.execute("SELECT count(*) FROM vendors WHERE id = 'demo-vendor'").fetchone()[0]
+    if count == 0:
+        db.execute('''
+            INSERT INTO vendors (id, company_name, email, password_hash, registered_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+        ''', ('demo-vendor', 'Delta Systems', 'vendor@delta.com', 'dummyhash'))
+        db.commit()
+        logger.info("Demo vendor seeded.")
 
 def _seed_mock_shipments(db) -> None:
     """Seed some mock shipments if none exist to demonstrate the supply chain tracking."""

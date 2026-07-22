@@ -13,6 +13,7 @@ import {
   ArrowRight, ShieldCheck, FileText,
   Mail, Truck, AlertTriangle, LayoutGrid, Layers,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext.jsx";
 
 /* ═══════════════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -170,6 +171,7 @@ function Statement({ text, index = 0 }) {
    ═══════════════════════════════════════════════════════════════════ */
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { loginAsTeam, loginAsVendorDemo } = useAuth();
   const [activeTab, setActiveTab] = useState("bidding");
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 80, damping: 25 });
@@ -320,7 +322,10 @@ export default function LandingPage() {
             style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginTop: 44 }}
           >
             <motion.button
-              onClick={() => navigate("/projects")}
+              onClick={() => {
+                loginAsTeam();
+                navigate("/projects");
+              }}
               whileHover={{ scale: 1.05 }}
               style={{ padding: "13px 32px", backgroundColor: C.bronze, color: C.bg, border: "none", borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: "0.03em", transition: "opacity 0.3s" }}
               onMouseEnter={e => e.target.style.opacity = "0.85"}
@@ -328,14 +333,18 @@ export default function LandingPage() {
             >
               Enter Platform
             </motion.button>
-            <a
-              href="#playground"
-              style={{ padding: "13px 32px", backgroundColor: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 13, fontWeight: 500, textDecoration: "none", letterSpacing: "0.03em", transition: "border-color 0.3s, color 0.3s" }}
-              onMouseEnter={e => { e.target.style.borderColor = C.bronze; e.target.style.color = C.ivory; }}
-              onMouseLeave={e => { e.target.style.borderColor = C.border; e.target.style.color = C.muted; }}
+            <motion.button
+              onClick={() => {
+                loginAsVendorDemo();
+                navigate("/");
+              }}
+              whileHover={{ scale: 1.05 }}
+              style={{ padding: "13px 32px", backgroundColor: C.surface, color: C.ivory, border: `1px solid ${C.border}`, borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: "pointer", letterSpacing: "0.03em", transition: "border-color 0.3s" }}
+              onMouseEnter={e => { e.target.style.borderColor = C.bronze; }}
+              onMouseLeave={e => { e.target.style.borderColor = C.border; }}
             >
-              Try Sandbox
-            </a>
+              Vendor Portal
+            </motion.button>
           </motion.div>
         </div>
 
