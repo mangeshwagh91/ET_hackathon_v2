@@ -163,7 +163,7 @@ export const mockProjects = [
     id: "proj-001",
     name: "Project VERTEX Tier IV Data Centre",
     status: "active",
-    budget: "$120,000,000",
+    budget: 120000000,
     completion: 15,
     location: "Dubai",
     created_ts: "2025-01-01T10:00"
@@ -243,5 +243,5 @@ export const mockCommissioningRecords = [
 ];
 
 export const mockBids = [
-  { id: "bid-001", vendor: "PowerShield", amount: "$150,000", score: 85, status: "submitted" }
+  { id: "bid-001", vendor: "PowerShield", price: 150000, score: 85, status: "submitted" }
 ];
