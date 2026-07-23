@@ -1,348 +1,232 @@
-// Allow overriding the API base during development via Vite env var VITE_API_BASE
-// Example: VITE_API_BASE=http://localhost:8000/api
-const BASE = import.meta.env.VITE_API_BASE || "/api";
+import * as mock from './mockData';
 
-async function handleResponse(response) {
-  if (!response.ok) {
-    let errorMsg = `HTTP ${response.status}`;
-    try {
-      const data = await response.json();
-      errorMsg = data.detail || data.error || errorMsg;
-    } catch (_) {}
-    throw new Error(errorMsg);
-  }
-  return response.json();
-}
+// Helper to simulate network latency
+const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
 
 const api = {
   getDashboardSummary: async () => {
-    const res = await fetch(`${BASE}/dashboard/summary`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockDashboardSummary;
   },
-
+  
   resolveDashboardIssues: async () => {
-    const res = await fetch(`${BASE}/dashboard/resolve-all`, {
-      method: "POST",
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
   uploadSpecification: async (formData) => {
-    const res = await fetch(`${BASE}/upload/specification`, {
-      method: "POST",
-      body: formData,
-    });
-    return handleResponse(res);
+    await delay(1000);
+    return { id: "doc-mock-1", status: "ready" };
   },
 
   uploadSubmittal: async (formData) => {
-    const res = await fetch(`${BASE}/upload/submittal`, {
-      method: "POST",
-      body: formData,
-    });
-    return handleResponse(res);
+    await delay(1000);
+    return { id: "doc-mock-2", status: "ready" };
   },
 
   getDocumentStatus: async (docId) => {
-    const res = await fetch(`${BASE}/upload/status/${docId}`);
-    return handleResponse(res);
+    await delay(200);
+    return { status: "ready" };
   },
 
-  pollUntilReady: async (docId, onProgress, maxAttempts = 30) => {
-    return new Promise((resolve, reject) => {
-      let attempts = 0;
-      const poll = async () => {
-        try {
-          const res = await api.getDocumentStatus(docId);
-          if (onProgress) onProgress(res);
-          if (res.status === "ready") {
-            resolve(res);
-          } else if (res.status === "failed") {
-            reject(new Error(res.error || "Processing failed"));
-          } else if (attempts >= maxAttempts) {
-            reject(new Error("Processing timeout"));
-          } else {
-            attempts++;
-            setTimeout(poll, 2000); // 2 second interval
-          }
-        } catch (error) {
-          reject(error);
-        }
-      };
-      poll();
-    });
+  pollUntilReady: async (docId, onProgress) => {
+    await delay(1500);
+    if(onProgress) onProgress({status: "ready"});
+    return { status: "ready" };
   },
 
   getDocuments: async (projectId) => {
-    const query = projectId ? `?project_id=${projectId}` : "";
-    const res = await fetch(`${BASE}/upload/documents${query}`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockDocumentsResponse;
   },
 
   deleteDocument: async (docId) => {
-    const res = await fetch(`${BASE}/upload/document/${docId}`, {
-      method: "DELETE",
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
   getEquipmentItems: async () => {
-    const res = await fetch(`${BASE}/upload/equipment`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockEquipment;
   },
 
   runComplianceCheck: async (poId) => {
-    const res = await fetch(`${BASE}/compliance/run/${poId}`, {
-      method: "POST",
-    });
-    return handleResponse(res);
+    await delay(2000);
+    return mock.mockComplianceResults;
   },
 
   getComplianceResults: async (poId) => {
-    const res = await fetch(`${BASE}/compliance/results/${poId}`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockComplianceResults;
   },
 
   getNcrs: async (filters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.severity) params.set("severity", filters.severity);
-    if (filters.status) params.set("status", filters.status);
-    const query = params.toString();
-    const res = await fetch(
-      `${BASE}/compliance/ncrs${query ? "?" + query : ""}`,
-    );
-    return handleResponse(res);
+    await delay();
+    return mock.mockNcrsResponse;
   },
 
   getNcrDetail: async (ncrId) => {
-    const res = await fetch(`${BASE}/compliance/ncr/${ncrId}`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockNcrDetail;
   },
 
   importSchedule: async (formData) => {
-    const res = await fetch(`${BASE}/schedule/import`, {
-      method: "POST",
-      body: formData,
-    });
-    return handleResponse(res);
+    await delay(1000);
+    return { success: true };
   },
 
   analyzeSchedule: async (projectId) => {
-    const query = projectId ? `?project_id=${projectId}` : "";
-    const res = await fetch(`${BASE}/schedule/analyze${query}`, {
-      method: "POST",
-    });
-    return handleResponse(res);
+    await delay(1500);
+    return mock.mockDelayComparison;
   },
 
   getScheduleTasks: async (projectId) => {
-    const query = projectId ? `?project_id=${projectId}` : "";
-    const res = await fetch(`${BASE}/schedule/tasks${query}`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockScheduleTasksResponse;
   },
 
   getScheduleRisks: async (projectId) => {
-    const query = projectId ? `?project_id=${projectId}` : "";
-    const res = await fetch(`${BASE}/schedule/risks${query}`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockScheduleRisksResponse;
   },
 
   exportProjectReport: async (projectId) => {
-    const res = await fetch(`${BASE}/reports/${projectId}/export`);
-    if (!res.ok) {
-      throw new Error(`Request failed with status ${res.status}`);
-    }
-    return res.text();
+    await delay();
+    return "Mock Report Content";
   },
 
   queryRFI: async (query) => {
-    const res = await fetch(`${BASE}/rfi/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
-    return handleResponse(res);
+    await delay(1500);
+    return {
+      answer: "This is a mocked answer from the static frontend.",
+      sources: []
+    };
   },
 
   getRFIs: async () => {
-    const res = await fetch(`${BASE}/rfi/rfis`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockRFIs;
   },
 
   getPurchaseOrders: async () => {
-    const res = await fetch(`${BASE}/dashboard/summary`);
-    const data = await handleResponse(res);
-    return data.purchase_orders || [];
+    await delay();
+    return mock.mockDashboardSummary.purchase_orders;
   },
 
-  // Projects Endpoints
   getProjects: async () => {
-    const res = await fetch(`${BASE}/projects/`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockProjects;
   },
 
   createProject: async (projectData) => {
-    const res = await fetch(`${BASE}/projects/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(projectData),
-    });
-    return handleResponse(res);
+    await delay();
+    return { id: "proj-new", ...projectData, status: "active" };
   },
 
   updateProjectStatus: async (projectId, status) => {
-    const res = await fetch(`${BASE}/projects/${projectId}/status?status=${status}`, {
-      method: "PATCH",
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
   deleteProject: async (projectId) => {
-    const res = await fetch(`${BASE}/projects/${projectId}`, {
-      method: "DELETE",
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
   getOpenProjects: async () => {
-    const res = await fetch(`${BASE}/projects/open`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockProjects;
   },
 
-  // Auth & Vendor Registration Endpoints
   registerVendor: async (vendorData) => {
-    const res = await fetch(`${BASE}/auth/register/vendor`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(vendorData),
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
   loginVendor: async (email, password) => {
-    const res = await fetch(`${BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true, token: "mock-token" };
   },
 
-  // Tenders Endpoints
   createBid: async (bidData) => {
-    const res = await fetch(`${BASE}/tenders/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bidData),
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
   getBids: async (projectId) => {
-    const res = await fetch(`${BASE}/tenders/${projectId}`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockBids;
   },
 
   updateBidStatus: async (bidId, status) => {
-    const res = await fetch(`${BASE}/tenders/update_status/${bidId}?status=${status}`, {
-      method: "PATCH",
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
   getBidRecommendations: async (projectId) => {
-    const res = await fetch(`${BASE}/tenders/recommend?project_id=${projectId}`, {
-      method: "POST",
-    });
-    return handleResponse(res);
+    await delay();
+    return [ mock.mockBids[0] ];
   },
 
   uploadGeneral: async (formData) => {
-    const res = await fetch(`${BASE}/upload/general`, {
-      method: "POST",
-      body: formData,
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
-  // Integrations (PDF Ingestion)
   uploadIntegrationDocument: async (file, standardName) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("standard_name", standardName);
-    const res = await fetch(`${BASE}/integrations/upload`, {
-      method: "POST",
-      body: formData,
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
-  // Commissioning Copilot
   getCommissioningTasks: async () => {
-    const res = await fetch(`${BASE}/commissioning/tasks`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockCommissioningTasks;
   },
 
   generateCommissioningChecklist: async (taskId) => {
-    const res = await fetch(`${BASE}/commissioning/checklist/generate/${taskId}`, {
-      method: "POST",
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true };
   },
 
-  runCommissioningStep: async (taskId, stepNumber, actualValue, checkedBy = "QA Engineer") => {
-    const res = await fetch(`${BASE}/commissioning/run/${taskId}/step/${stepNumber}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ actual_value: actualValue, checked_by: checkedBy }),
-    });
-    return handleResponse(res);
+  runCommissioningStep: async (taskId, stepNumber, actualValue, checkedBy) => {
+    await delay();
+    return { success: true };
   },
 
   getCommissioningRecords: async () => {
-    const res = await fetch(`${BASE}/commissioning/records`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockCommissioningRecords;
   },
 
-  // Supply Chain Visibility
   getSupplyChainShipments: async () => {
-    const res = await fetch(`${BASE}/supply-chain/shipments`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockSupplyChainShipments;
   },
 
   getSupplyChainAlerts: async () => {
-    const res = await fetch(`${BASE}/supply-chain/alerts`);
-    return handleResponse(res);
+    await delay();
+    return mock.mockSupplyChainAlerts;
   },
 
   getSupplyChainMap: async () => {
-    const res = await fetch(`${BASE}/supply-chain/map`);
-    return handleResponse(res);
+    await delay();
+    return { locations: [] };
   },
 
   triggerSupplyChainShock: async (payload) => {
-    const res = await fetch(`${BASE}/orchestrator/trigger-shock`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true, message: "Mock shock triggered" };
   },
 
   triggerSupplyChainShockLangGraph: async (payload) => {
-    const res = await fetch(`${BASE}/orchestrator/trigger-langgraph`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    return handleResponse(res);
+    await delay();
+    return { success: true, message: "Mock langgraph shock triggered" };
   },
 
-  // Schedule Delay Comparison
   getDelayComparison: async () => {
-    const res = await fetch(`${BASE}/schedule/delay-comparison`);
-    return handleResponse(res);
-  },
+    await delay();
+    return mock.mockDelayComparison;
+  }
 };
 
 export default api;
